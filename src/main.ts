@@ -91,17 +91,22 @@ export default class FeaturedImage extends Plugin {
     }
 
     async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | null> {
-        const webpFilename = `${videoId}.webp`;
         const jpgFilename = `${videoId}.jpg`;
         const folderPath = path.join(this.app.vault.adapter.getBasePath(), thumbnailFolder);
-        const webpFilePath = path.join(folderPath, webpFilename);
         const jpgFilePath = path.join(folderPath, jpgFilename);
+
+        // Only define webp variables if downloadWebP is enabled
+        let webpFilename, webpFilePath;
+        if (this.settings.downloadWebP) {
+            webpFilename = `${videoId}.webp`;
+            webpFilePath = path.join(folderPath, webpFilename);
+        }
 
         // Create the directory if it doesn't exist
         await fs.promises.mkdir(folderPath, { recursive: true });
 
-        // Return the path if either file already exists
-        if (fs.existsSync(webpFilePath)) {
+        // Return the path if the file already exists
+        if (this.settings.downloadWebP && fs.existsSync(webpFilePath)) {
             return path.join(thumbnailFolder, webpFilename);
         }
         if (fs.existsSync(jpgFilePath)) {
@@ -109,10 +114,12 @@ export default class FeaturedImage extends Plugin {
         }
 
         try {
-            // Check for WEBP version first
-            const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp', true);
-            if (webpResponse.status === 200) {
-                return await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
+            // Check for WEBP version first if downloadWebP is enabled
+            if (this.settings.downloadWebP) {
+                const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp', true);
+                if (webpResponse.status === 200) {
+                    return await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
+                }
             }
 
             // Fall back to JPG versions

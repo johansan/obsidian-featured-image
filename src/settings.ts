@@ -6,8 +6,8 @@ export interface FeaturedImageSettings {
   excludedFolders: string[];
 	frontmatterProperty: string;
   onlyUpdateExisting: boolean;
+  downloadWebP: boolean;
   youtubeDownloadFolder: string;
-//   openGraphDownloadFolder: string;
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -15,8 +15,8 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   excludedFolders: [],
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
+  downloadWebP: false,
   youtubeDownloadFolder: 'thumbnails/',
-  // openGraphDownloadFolder: 'opengraph/'
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {
@@ -78,7 +78,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     // Only update existing fields toggle
     new Setting(containerEl)
       .setName('Only update if frontmatter property exists')
-      .setDesc('If you turn this on, it will only update your frontmatter property if it already exists.')
+      .setDesc('Enable this to only update the frontmatter property if it already exists.')
       .addToggle(toggle => { toggle
           .setValue(this.plugin.settings.onlyUpdateExisting)
           .onChange(async value => {
@@ -88,13 +88,25 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       })
 
     new Setting(containerEl)
-    .setName('Media settings')
-    .setHeading()
-  
+      .setName('Media settings')
+      .setHeading()
+
+    // Download webp
+    new Setting(containerEl)
+      .setName('Download WebP')
+      .setDesc('Enable this to prioritize WebP versions of images if available.')
+      .addToggle(toggle => { toggle
+          .setValue(this.plugin.settings.downloadWebP)
+          .onChange(async value => {
+            this.plugin.settings.downloadWebP = value
+            await this.plugin.saveSettings()
+          })
+      })
+
     // Youtube download folder
     new Setting(containerEl)
       .setName('Youtube thumbnail download folder')
-      .setDesc('Where to save Youtube thumbnails.')
+      .setDesc('Where to save Youtube thumbnails. Can be your existing resources folder or dedicated folder.')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.youtubeDownloadFolder)
         .setValue(this.plugin.settings.youtubeDownloadFolder)
