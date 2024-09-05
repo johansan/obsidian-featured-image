@@ -212,3 +212,4 @@ export default class FeaturedImage extends Plugin {
         }
         return null;
     }
+}
