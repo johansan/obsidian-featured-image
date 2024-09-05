@@ -2,10 +2,8 @@ import { Plugin, Notice, TFile, requestUrl } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
-import { createHash } from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as Jimp from 'jimp';
 
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
@@ -77,13 +75,6 @@ export default class FeaturedImage extends Plugin {
             return imageMatch[1];
         }
 
-        // If not Youtube or local image found, try to download using OpenGraph
-        const openGraphMatch = content.match(/https?:\/\/[^\s]+/g);
-        if (openGraphMatch) {
-            const url = openGraphMatch[1];
-            return await this.downloadOpenGraphImage(url);
-        }
-
         return null;
     }
 
@@ -99,42 +90,40 @@ export default class FeaturedImage extends Plugin {
         });
     }
 
-    // Crop Youtube thumbnails to 16x9
-	async cropTo16x9(inputBuffer: Buffer): Promise<Buffer> {
-		const image = await Jimp.default.read(inputBuffer);
-		const width = image.getWidth();
-		const height = image.getHeight();
-		const newHeight = Math.round(width * 9 / 16);
-		const top = Math.floor((height - newHeight) / 2);
-	
-		image.crop(0, top, width, newHeight);
-		return await image.getBufferAsync(Jimp.MIME_JPEG);
-	}
-
     async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | null> {
-        const filename = `${videoId}.jpg`;
+        const webpFilename = `${videoId}.webp`;
+        const jpgFilename = `${videoId}.jpg`;
         const folderPath = path.join(this.app.vault.adapter.getBasePath(), thumbnailFolder);
-        const fullFilePath = path.join(folderPath, filename);
+        const webpFilePath = path.join(folderPath, webpFilename);
+        const jpgFilePath = path.join(folderPath, jpgFilename);
 
         // Create the directory if it doesn't exist
         await fs.promises.mkdir(folderPath, { recursive: true });
 
-        // Return the path if the file already exists
-        if (fs.existsSync(fullFilePath)) {
-            return path.join(thumbnailFolder, filename);
+        // Return the path if either file already exists
+        if (fs.existsSync(webpFilePath)) {
+            return path.join(thumbnailFolder, webpFilename);
+        }
+        if (fs.existsSync(jpgFilePath)) {
+            return path.join(thumbnailFolder, jpgFilename);
         }
 
         try {
+            // Check for WEBP version first
+            const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp', true);
+            if (webpResponse.status === 200) {
+                return await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
+            }
+
+            // Fall back to JPG versions
             const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
             if (maxResResponse.status === 200) {
-                return await this.saveThumbnail(maxResResponse, fullFilePath, thumbnailFolder, filename);
+                return await this.saveThumbnail(maxResResponse, jpgFilePath, thumbnailFolder, jpgFilename);
             }
 
             const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
             if (hqDefaultResponse.status === 200) {
-                let imageBuffer = Buffer.from(await hqDefaultResponse.arrayBuffer);
-                imageBuffer = await this.cropTo16x9(imageBuffer);
-                return await this.saveThumbnail({ arrayBuffer: imageBuffer }, fullFilePath, thumbnailFolder, filename);
+                return await this.saveThumbnail(hqDefaultResponse, jpgFilePath, thumbnailFolder, jpgFilename);
             }
         } catch (error) {
             console.error(`Failed to download thumbnail for ${videoId}:`, error);
@@ -143,16 +132,18 @@ export default class FeaturedImage extends Plugin {
         return null;
     }
 
-    private async fetchThumbnail(videoId: string, quality: string) {
+    private async fetchThumbnail(videoId: string, quality: string, isWebp: boolean = false) {
+        const baseUrl = isWebp ? 'https://i.ytimg.com/vi_webp' : 'https://img.youtube.com/vi';
         return await requestUrl({
-            url: `https://img.youtube.com/vi/${videoId}/${quality}`,
+            url: `${baseUrl}/${videoId}/${quality}`,
             method: 'GET',
-            headers: { 'Accept': 'image/jpeg' },
+            headers: { 'Accept': isWebp ? 'image/webp' : 'image/jpeg' },
         });
     }
 
     private async saveThumbnail(response: { arrayBuffer: ArrayBuffer }, fullFilePath: string, thumbnailFolder: string, filename: string) {
         try {
+            // Save thumbnail
             await fs.promises.writeFile(fullFilePath, Buffer.from(response.arrayBuffer));
             return path.join(thumbnailFolder, filename);
         } catch (error) {
@@ -183,38 +174,5 @@ export default class FeaturedImage extends Plugin {
         return null;
     }
 
-    private async downloadOpenGraphImage(url: string): Promise<string | null> {
-        try {
-            const response = await requestUrl(url);
-            const links = response.text.match(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>/gi);
-            const imageUrls = [
-                ...response.text.match(/<meta property="og:image" content="([^"]+)"/i) || [],
-                ...(links?.map(link => link.match(/href="([^"]*)"/i)?.[1]) || [])
-            ].filter(Boolean);
-
-            for (const imageUrl of imageUrls) {
-                if (!imageUrl) {
-                    continue;
-                }
-                try {
-                    const hash = createHash('sha256').update(imageUrl).digest('hex');
-                    const filename = `${hash}.jpg`;
-                    const downloadFolder = path.join(this.app.vault.adapter.getBasePath(), this.settings.openGraphDownloadFolder);
-                    
-                    await fs.promises.mkdir(downloadFolder, { recursive: true });
-                    
-                    const fullFilePath = path.join(downloadFolder, filename);
-                    const imageResponse = await requestUrl({ url: imageUrl, method: 'GET' });
-                    await fs.promises.writeFile(fullFilePath, Buffer.from(imageResponse.arrayBuffer));
-                    return path.join(this.settings.openGraphDownloadFolder, filename);
-                } catch (error) {
-                    console.error(`Failed to download image from ${imageUrl}:`, error);
-                    // Continue to the next URL if this one fails
-                }
-            }
-        } catch (error) {
-            console.error(`Failed to process page ${url}:`, error);
-        }
-        return null;
-    }
+ 
 }

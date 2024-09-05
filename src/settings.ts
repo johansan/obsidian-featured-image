@@ -7,7 +7,7 @@ export interface FeaturedImageSettings {
 	frontmatterProperty: string;
   onlyUpdateExisting: boolean;
   youtubeDownloadFolder: string;
-  openGraphDownloadFolder: string;
+//   openGraphDownloadFolder: string;
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
   youtubeDownloadFolder: 'thumbnails/',
-  openGraphDownloadFolder: 'opengraph/'
+  // openGraphDownloadFolder: 'opengraph/'
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {
@@ -102,19 +102,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           this.plugin.settings.youtubeDownloadFolder = value
           await this.plugin.saveSettings()
         }))
-
-    // OpenGraph download folder
-    new Setting(containerEl)
-      .setName('OpenGraph download folder')
-      .setDesc('Where to save OpenGraph preview images.')
-      .addText(text => text
-        .setPlaceholder(DEFAULT_SETTINGS.openGraphDownloadFolder)
-        .setValue(this.plugin.settings.openGraphDownloadFolder)
-        .onChange(async value => {
-          this.plugin.settings.openGraphDownloadFolder = value
-          await this.plugin.saveSettings()
-        }))
-        
 
   }
 }
