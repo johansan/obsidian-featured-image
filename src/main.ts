@@ -2,6 +2,7 @@ import { Plugin, Notice, TFile, requestUrl } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
+import { createHash } from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as Jimp from 'jimp';
@@ -76,12 +77,9 @@ export default class FeaturedImage extends Plugin {
             return imageMatch[1];
         }
 
-        console.log("Trying to download OpenGraph image");
-
         // If not Youtube or local image found, try to download using OpenGraph
         const openGraphMatch = content.match(/https?:\/\/[^\s]+/g);
         if (openGraphMatch) {
-            console.log('OpenGraph match found');
             const url = openGraphMatch[1];
             return await this.downloadOpenGraphImage(url);
         }
@@ -187,28 +185,35 @@ export default class FeaturedImage extends Plugin {
 
     private async downloadOpenGraphImage(url: string): Promise<string | null> {
         try {
-            console.log(url);
             const response = await requestUrl(url);
-            console.log(response);
-            const ogImage = response.text.match(/<meta property="og:image" content="([^"]+)"/i);
-            console.log(ogImage);
-            if (ogImage && ogImage[1]) {
-                const imageUrl = ogImage[1];
-                const filename = `og_${Date.now()}.jpg`;
-                const downloadFolder = path.join(this.app.vault.adapter.getBasePath(), this.settings.openGraphDownloadFolder);
-                
-                console.log(downloadFolder);
+            const links = response.text.match(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>/gi);
+            const imageUrls = [
+                ...response.text.match(/<meta property="og:image" content="([^"]+)"/i) || [],
+                ...(links?.map(link => link.match(/href="([^"]*)"/i)?.[1]) || [])
+            ].filter(Boolean);
 
-                // Create the directory if it doesn't exist
-                await fs.promises.mkdir(downloadFolder, { recursive: true });
-                
-                const fullFilePath = path.join(downloadFolder, filename);
-                const imageResponse = await requestUrl({ url: imageUrl, method: 'GET' });
-                await fs.promises.writeFile(fullFilePath, Buffer.from(imageResponse.arrayBuffer));
-                return path.join(this.settings.openGraphDownloadFolder, filename);
+            for (const imageUrl of imageUrls) {
+                if (!imageUrl) {
+                    continue;
+                }
+                try {
+                    const hash = createHash('sha256').update(imageUrl).digest('hex');
+                    const filename = `${hash}.jpg`;
+                    const downloadFolder = path.join(this.app.vault.adapter.getBasePath(), this.settings.openGraphDownloadFolder);
+                    
+                    await fs.promises.mkdir(downloadFolder, { recursive: true });
+                    
+                    const fullFilePath = path.join(downloadFolder, filename);
+                    const imageResponse = await requestUrl({ url: imageUrl, method: 'GET' });
+                    await fs.promises.writeFile(fullFilePath, Buffer.from(imageResponse.arrayBuffer));
+                    return path.join(this.settings.openGraphDownloadFolder, filename);
+                } catch (error) {
+                    console.error(`Failed to download image from ${imageUrl}:`, error);
+                    // Continue to the next URL if this one fails
+                }
             }
         } catch (error) {
-            console.error(`Failed to download OpenGraph image for ${url}:`, error);
+            console.error(`Failed to process page ${url}:`, error);
         }
         return null;
     }
