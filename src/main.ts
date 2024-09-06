@@ -9,28 +9,31 @@ export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
 	private hasRegisteredKeyEvents: boolean = false;
 
+    private isExcludedKey(key: string): boolean {
+        return ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Shift', 'Home', 'End', 'PageUp', 'PageDown'].includes(key);
+    }
+    
 	async onload() {
 		await this.loadSettings();
 
-		this.registerDomEvent(document, 'keyup', (ev) => {
-            // Only register visible Unicode characters, not arrow keys, etc.
-            if (!ev.ctrlKey && !ev.altKey && !ev.metaKey && /^.$/u.test(ev.key)) {
-                // Verify that the typing event happened in the editor DOM element
-                // @ts-ignore
-                if (ev.target.closest('.markdown-source-view .cm-editor')) {
-                    // Find the active TFile inside the editor view for future use if we want to match with 'modify' event
-                    // @ts-ignore
-                    const file = ev.view.app.workspace.activeEditor.file
-                    this.hasRegisteredKeyEvents = true;
-                }
-            }
+		this.registerDomEvent(document, 'keydown', (ev) => {
+			// Exclude keys that should not trigger the event
+			if (!this.isExcludedKey(ev.key)) {
+				// Verify that the typing event happened in the editor DOM element
+				// @ts-ignore
+				if (ev.target.closest('.markdown-source-view .cm-editor')) {
+					// Find the active TFile inside the editor view - for future use if we want to match with 'modify' event
+					// @ts-ignore
+					// const file = ev.view.app.workspace.activeEditor.file
+					this.hasRegisteredKeyEvents = true;
+				}
+			}
 		});
 
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
 				if (file instanceof TFile && this.hasRegisteredKeyEvents) {
-                    console.log('modify', file);
-                    this.hasRegisteredKeyEvents = false;
+					this.hasRegisteredKeyEvents = false;
 					this.setFeaturedImage(file);
 				}
 			})
@@ -52,14 +55,15 @@ export default class FeaturedImage extends Plugin {
 	}
 
     async setFeaturedImage(file: TFile) {
-        let currentFeature = null;
+        let currentFeature = undefined;
 
         // Don't use metadataCache since it is not updated properly when file is modified, causing multiple updates
         await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
             currentFeature = frontmatter?.[this.settings.frontmatterProperty];
         });
 
-        if (this.shouldSkipProcessing(file, currentFeature)) {
+        // Skip processing if the file should be skipped
+        if (await this.shouldSkipProcessing(file, currentFeature)) {
             return;
         }
 
@@ -71,31 +75,53 @@ export default class FeaturedImage extends Plugin {
         }
     }
 
-    private shouldSkipProcessing(file: TFile, currentFeature: string | null): boolean {
+    private async shouldSkipProcessing(file: TFile, currentFeature: string | undefined): Promise<boolean> {
+        // Check for the excalidraw tag
+        let hasExcalidrawTag = false;
+        await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            if (frontmatter.tags && frontmatter.tags.includes('excalidraw')) {
+                hasExcalidrawTag = true;
+            }
+        });
+
         return (
+            hasExcalidrawTag ||
             (this.settings.onlyUpdateExisting && !currentFeature) ||
             this.settings.excludedFolders.some((folder: string) => file.path.startsWith(folder + '/'))
         );
     }
 
-    private async findFeaturedImageInDocument(content: string): Promise<string | null> {
-        // Check for Youtube links
+    private async findFeaturedImageInDocument(content: string): Promise<string | undefined> {
+        // Check for Youtube links first
         const youtubeMatch = content.match(/\[.*?\]\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\S+)\)/);
         if (youtubeMatch) {
             const videoId = this.getVideoId(youtubeMatch[1]);
-            return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : null;
+            return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : undefined;
         }
 
-        // If no Youtube link is found, check for local images
-        const imageMatch = content.match(/!\[\[([^\]]+\.(png|jpg|jpeg|gif|bmp|svg))(?:\|[^\]]*)?\]\]/i);
-        if (imageMatch) {   
-            return imageMatch[1];
+        // Combined regex for both wiki-style and Markdown-style image links
+        const combinedImageRegex = new RegExp(
+            `(` +
+            // Wiki-style image link
+            `!\\[\\[([^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]` +
+            `|` +
+            // Markdown-style image link
+            `!\\[.*?\\]\\(([^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)` +
+            `)`,
+            'i'
+        );
+        const imageMatch = content.match(combinedImageRegex);
+        if (imageMatch) {
+            // If it's a wiki-style link, use group 2, otherwise use group 4
+            const imagePath = imageMatch[2] || imageMatch[4];
+            return imagePath ? decodeURIComponent(imagePath) : undefined;
         }
 
-        return null;
+        return undefined;
     }
 
     private async updateFrontmatter(file: TFile, newFeature: string | null) {
+
         await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
             if (newFeature) {
                 frontmatter[this.settings.frontmatterProperty] = newFeature;
@@ -107,31 +133,28 @@ export default class FeaturedImage extends Plugin {
         });
     }
 
-    async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | null> {
-        const jpgFilename = `${videoId}.jpg`;
+    async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | undefined> {
+        // Create the thumbnail directory if it doesn't exist
+        // @ts-ignore
         const folderPath = path.join(this.app.vault.adapter.getBasePath(), thumbnailFolder);
-        const jpgFilePath = path.join(folderPath, jpgFilename);
-
-        // Only define webp variables if downloadWebP is enabled
-        let webpFilename, webpFilePath;
-        if (this.settings.downloadWebP) {
-            webpFilename = `${videoId}.webp`;
-            webpFilePath = path.join(folderPath, webpFilename);
-        }
-
-        // Create the directory if it doesn't exist
         await fs.promises.mkdir(folderPath, { recursive: true });
 
-        // Return the path if the file already exists
-        if (this.settings.downloadWebP && fs.existsSync(webpFilePath)) {
+        // Check if WebP thumbnail already exists
+        const webpFilename = `${videoId}.webp`;
+        const webpFilePath = path.join(folderPath, webpFilename);
+        if (fs.existsSync(webpFilePath)) {
             return path.join(thumbnailFolder, webpFilename);
         }
+
+        // Check if JPG thumbnail already exists
+        const jpgFilename = `${videoId}.jpg`;
+        const jpgFilePath = path.join(folderPath, jpgFilename);
         if (fs.existsSync(jpgFilePath)) {
             return path.join(thumbnailFolder, jpgFilename);
         }
 
         try {
-            // Check for WEBP version first if downloadWebP is enabled
+            // Try to download the thumbnail in WebP format if enabled
             if (this.settings.downloadWebP) {
                 const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp', true);
                 if (webpResponse.status === 200) {
@@ -153,7 +176,7 @@ export default class FeaturedImage extends Plugin {
             console.error(`Failed to download thumbnail for ${videoId}:`, error);
         }
 
-        return null;
+        return undefined;
     }
 
     private async fetchThumbnail(videoId: string, quality: string, isWebp: boolean = false) {
@@ -172,7 +195,7 @@ export default class FeaturedImage extends Plugin {
             return path.join(thumbnailFolder, filename);
         } catch (error) {
             console.error(`Error writing file: ${error}`);
-            return null;
+            return undefined;
         }
     }
 
@@ -198,5 +221,4 @@ export default class FeaturedImage extends Plugin {
         return null;
     }
 
- 
 }

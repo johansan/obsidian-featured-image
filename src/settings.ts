@@ -8,6 +8,7 @@ export interface FeaturedImageSettings {
   onlyUpdateExisting: boolean;
   downloadWebP: boolean;
   youtubeDownloadFolder: string;
+  imageExtensions: string[];
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   onlyUpdateExisting: false,
   downloadWebP: false,
   youtubeDownloadFolder: 'thumbnails/',
+  imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {
@@ -94,7 +96,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     // Download webp
     new Setting(containerEl)
       .setName('Download WebP')
-      .setDesc('Enable this to prioritize WebP versions of images if available.')
+      .setDesc('Download WebP versions of images from Youtube if available, otherwise download JPG.')
       .addToggle(toggle => { toggle
           .setValue(this.plugin.settings.downloadWebP)
           .onChange(async value => {
@@ -106,7 +108,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     // Youtube download folder
     new Setting(containerEl)
       .setName('Youtube thumbnail download folder')
-      .setDesc('Where to save Youtube thumbnails. Can be your existing resources folder or dedicated folder.')
+      .setDesc('Youtube thumbnails will be downloaded to this folder.')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.youtubeDownloadFolder)
         .setValue(this.plugin.settings.youtubeDownloadFolder)
@@ -115,5 +117,16 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
 
+    // Local image extensions
+    new Setting(containerEl)
+      .setName('Local image extensions')
+      .setDesc('Comma-separated list of image file extensions to search for in documents.')
+      .addText(text => text
+        .setPlaceholder('png,jpg,jpeg,gif,webp')
+        .setValue(this.plugin.settings.imageExtensions.join(','))
+        .onChange(async (value) => {
+          this.plugin.settings.imageExtensions = value.split(',').map(ext => ext.trim());
+          await this.plugin.saveSettings();
+        }));
   }
 }
