@@ -15,21 +15,31 @@ export default class FeaturedImage extends Plugin {
     
 	async onload() {
 		await this.loadSettings();
+		this.registerKeyboardEvents();
+		this.registerModifyEvents();
+		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
+	}
 
+	private registerKeyboardEvents() {
 		this.registerDomEvent(document, 'keydown', (ev) => {
-			// Exclude keys that should not trigger the event
-			if (!this.isExcludedKey(ev.key)) {
-				// Verify that the typing event happened in the editor DOM element
-				// @ts-ignore
-				if (ev.target.closest('.markdown-source-view .cm-editor')) {
-					// Find the active TFile inside the editor view - for future use if we want to match with 'modify' event
-					// @ts-ignore
-					// const file = ev.view.app.workspace.activeEditor.file
-					this.hasRegisteredKeyEvents = true;
-				}
+			if (this.isValidKeyEvent(ev)) {
+                    // For future use : Find the active TFile inside the editor view
+                    // @ts-ignore
+                    // const file = ev.view.app.workspace.activeEditor.file
+                    this.hasRegisteredKeyEvents = true;
 			}
 		});
+	}
 
+	private isValidKeyEvent(ev: KeyboardEvent): boolean {
+        // Exclude keys that should not trigger the event
+		return !this.isExcludedKey(ev.key) && 
+                // Verify that the typing event happened in the editor DOM element
+			   // @ts-ignore
+			   ev.target.closest('.markdown-source-view .cm-editor') !== null;
+	}
+
+	private registerModifyEvents() {
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
 				if (file instanceof TFile && this.hasRegisteredKeyEvents) {
@@ -38,9 +48,6 @@ export default class FeaturedImage extends Plugin {
 				}
 			})
 		);
-
-		// Add settings tab
-		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
 	}
 
 	onunload() {
@@ -55,14 +62,8 @@ export default class FeaturedImage extends Plugin {
 	}
 
     async setFeaturedImage(file: TFile) {
-        let currentFeature = undefined;
-
-        // Don't use metadataCache since it is not updated properly when file is modified, causing multiple updates
-        await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-            currentFeature = frontmatter?.[this.settings.frontmatterProperty];
-        });
-
-        // Skip processing if the file should be skipped
+        const currentFeature = await this.getCurrentFeature(file);
+        
         if (await this.shouldSkipProcessing(file, currentFeature)) {
             return;
         }
@@ -73,6 +74,15 @@ export default class FeaturedImage extends Plugin {
         if (currentFeature !== newFeature) {
             await this.updateFrontmatter(file, newFeature);
         }
+    }
+
+    private async getCurrentFeature(file: TFile): Promise<string | undefined> {
+        let currentFeature: string | undefined;
+        // Don't use metadataCache since it is not updated properly when file is modified, potentially causing multiple updates
+        await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            currentFeature = frontmatter?.[this.settings.frontmatterProperty];
+        });
+        return currentFeature;
     }
 
     private async shouldSkipProcessing(file: TFile, currentFeature: string | undefined): Promise<boolean> {
