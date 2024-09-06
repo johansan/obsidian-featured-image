@@ -7,17 +7,34 @@ import * as fs from 'fs';
 
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
+	private hasRegisteredKeyEvents: boolean = false;
 
 	async onload() {
-        await this.loadSettings();
+		await this.loadSettings();
 
-        this.registerEvent(
-            this.app.vault.on('modify', (file: TFile) => {
-                if (file instanceof TFile) {
-                    this.setFeaturedImage(file);
+		this.registerDomEvent(document, 'keyup', (ev) => {
+            // Only register visible Unicode characters, not arrow keys, etc.
+            if (!ev.ctrlKey && !ev.altKey && !ev.metaKey && /^.$/u.test(ev.key)) {
+                // Verify that the typing event happened in the editor DOM element
+                // @ts-ignore
+                if (ev.target.closest('.markdown-source-view .cm-editor')) {
+                    // Find the active TFile inside the editor view for future use if we want to match with 'modify' event
+                    // @ts-ignore
+                    const file = ev.view.app.workspace.activeEditor.file
+                    this.hasRegisteredKeyEvents = true;
                 }
-            })
-        );
+            }
+		});
+
+		this.registerEvent(
+			this.app.vault.on('modify', (file: TFile) => {
+				if (file instanceof TFile && this.hasRegisteredKeyEvents) {
+                    console.log('modify', file);
+                    this.hasRegisteredKeyEvents = false;
+					this.setFeaturedImage(file);
+				}
+			})
+		);
 
 		// Add settings tab
 		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
