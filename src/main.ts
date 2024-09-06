@@ -102,29 +102,32 @@ export default class FeaturedImage extends Plugin {
     }
 
     private async findFeaturedImageInDocument(content: string): Promise<string | undefined> {
-        // Check for Youtube links first
-        const youtubeMatch = content.match(/\[.*?\]\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\S+)\)/);
-        if (youtubeMatch) {
-            const videoId = this.getVideoId(youtubeMatch[1]);
-            return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : undefined;
-        }
-
-        // Combined regex for both wiki-style and Markdown-style image links
-        const combinedImageRegex = new RegExp(
+        // Combined regex for wiki-style images, Markdown-style images, and YouTube links
+        const combinedRegex = new RegExp(
             `(` +
             // Wiki-style image link
             `!\\[\\[([^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]` +
             `|` +
             // Markdown-style image link
             `!\\[.*?\\]\\(([^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)` +
+            `|` +
+            // YouTube link
+            `\\[.*?\\]\\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)` +
             `)`,
             'i'
         );
-        const imageMatch = content.match(combinedImageRegex);
-        if (imageMatch) {
-            // If it's a wiki-style link, use group 2, otherwise use group 4
-            const imagePath = imageMatch[2] || imageMatch[4];
-            return imagePath ? decodeURIComponent(imagePath) : undefined;
+
+        const match = content.match(combinedRegex);
+        if (match) {
+            if (match[2] || match[4]) {
+                // It's an image link (wiki-style or Markdown-style)
+                const imagePath = match[2] || match[4];
+                return imagePath ? decodeURIComponent(imagePath) : undefined;
+            } else if (match[5]) {
+                // It's a YouTube link
+                const videoId = this.getVideoId(match[5]);
+                return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : undefined;
+            }
         }
 
         return undefined;
