@@ -1,50 +1,29 @@
-import { Plugin, Notice, TFile, requestUrl } from 'obsidian';
+import { debounce, Debouncer, Plugin, Notice, TFile, requestUrl } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
-import * as path from 'path';
-import * as fs from 'fs';
 
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
-	private hasRegisteredKeyEvents: boolean = false;
+	private setFeaturedImageDebounced: Debouncer<[TFile], void>;
 
-    private isExcludedKey(key: string): boolean {
-        return ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Shift', 'Home', 'End', 'PageUp', 'PageDown'].includes(key);
-    }
-    
 	async onload() {
 		await this.loadSettings();
-		this.registerKeyboardEvents();
+		this.setFeaturedImageDebounced = debounce(
+            // Debounce to ignore updates we make to frontmatter
+			(file: TFile) => this.setFeaturedImage(file),
+			500,
+			true
+		);
 		this.registerModifyEvents();
 		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
-	}
-
-	private registerKeyboardEvents() {
-		this.registerDomEvent(document, 'keydown', (ev) => {
-			if (this.isValidKeyEvent(ev)) {
-                    // For future use : Find the active TFile inside the editor view
-                    // @ts-ignore
-                    // const file = ev.view.app.workspace.activeEditor.file
-                    this.hasRegisteredKeyEvents = true;
-			}
-		});
-	}
-
-	private isValidKeyEvent(ev: KeyboardEvent): boolean {
-        // Exclude keys that should not trigger the event
-		return !this.isExcludedKey(ev.key) && 
-                // Verify that the typing event happened in the editor DOM element
-			   // @ts-ignore
-			   ev.target.closest('.markdown-source-view .cm-editor') !== null;
 	}
 
 	private registerModifyEvents() {
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
-				if (file instanceof TFile && this.hasRegisteredKeyEvents) {
-					this.hasRegisteredKeyEvents = false;
-					this.setFeaturedImage(file);
+				if (file instanceof TFile) {
+					this.setFeaturedImageDebounced(file);
 				}
 			})
 		);
@@ -62,37 +41,31 @@ export default class FeaturedImage extends Plugin {
 	}
 
     async setFeaturedImage(file: TFile) {
-        const currentFeature = await this.getCurrentFeature(file);
+        const currentFeature = this.getCurrentFeature(file);
         
         if (await this.shouldSkipProcessing(file, currentFeature)) {
             return;
         }
 
-        const content = await this.app.vault.read(file);
-        const newFeature = await this.findFeaturedImageInDocument(content);
+        const fileContent = await this.app.vault.cachedRead(file);
+        const newFeature = await this.findFeaturedImageInDocument(fileContent);
 
         if (currentFeature !== newFeature) {
             await this.updateFrontmatter(file, newFeature);
         }
     }
 
-    private async getCurrentFeature(file: TFile): Promise<string | undefined> {
-        let currentFeature: string | undefined;
-        // Don't use metadataCache since it is not updated properly when file is modified, potentially causing multiple updates
-        await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-            currentFeature = frontmatter?.[this.settings.frontmatterProperty];
-        });
-        return currentFeature;
+    private getCurrentFeature(file: TFile): string | undefined {
+        const cache = this.app.metadataCache.getFileCache(file);
+        return cache?.frontmatter?.[this.settings.frontmatterProperty];
     }
 
     private async shouldSkipProcessing(file: TFile, currentFeature: string | undefined): Promise<boolean> {
+        const cache = this.app.metadataCache.getFileCache(file);
+        const frontmatter = cache?.frontmatter;
+
         // Check for the excalidraw tag
-        let hasExcalidrawTag = false;
-        await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-            if (frontmatter.tags && frontmatter.tags.includes('excalidraw')) {
-                hasExcalidrawTag = true;
-            }
-        });
+        const hasExcalidrawTag = frontmatter?.tags?.includes('excalidraw') || false;
 
         return (
             hasExcalidrawTag ||
@@ -133,7 +106,7 @@ export default class FeaturedImage extends Plugin {
         return undefined;
     }
 
-    private async updateFrontmatter(file: TFile, newFeature: string | null) {
+    private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
 
         await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
             if (newFeature) {
@@ -148,22 +121,20 @@ export default class FeaturedImage extends Plugin {
 
     async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | undefined> {
         // Create the thumbnail directory if it doesn't exist
-        // @ts-ignore
-        const folderPath = path.join(this.app.vault.adapter.getBasePath(), thumbnailFolder);
-        await fs.promises.mkdir(folderPath, { recursive: true });
+        await this.app.vault.adapter.mkdir(thumbnailFolder);
 
         // Check if WebP thumbnail already exists
         const webpFilename = `${videoId}.webp`;
-        const webpFilePath = path.join(folderPath, webpFilename);
-        if (fs.existsSync(webpFilePath)) {
-            return path.join(thumbnailFolder, webpFilename);
+        const webpFilePath = this.app.vault.adapter.join(thumbnailFolder, webpFilename);
+        if (await this.app.vault.adapter.exists(webpFilePath)) {
+            return webpFilePath;
         }
 
         // Check if JPG thumbnail already exists
         const jpgFilename = `${videoId}.jpg`;
-        const jpgFilePath = path.join(folderPath, jpgFilename);
-        if (fs.existsSync(jpgFilePath)) {
-            return path.join(thumbnailFolder, jpgFilename);
+        const jpgFilePath = this.app.vault.adapter.join(thumbnailFolder, jpgFilename);
+        if (await this.app.vault.adapter.exists(jpgFilePath)) {
+            return jpgFilePath;
         }
 
         try {
@@ -203,9 +174,9 @@ export default class FeaturedImage extends Plugin {
 
     private async saveThumbnail(response: { arrayBuffer: ArrayBuffer }, fullFilePath: string, thumbnailFolder: string, filename: string) {
         try {
-            // Save thumbnail
-            await fs.promises.writeFile(fullFilePath, Buffer.from(response.arrayBuffer));
-            return path.join(thumbnailFolder, filename);
+            // Save thumbnail using Obsidian's API
+            await this.app.vault.adapter.writeBinary(fullFilePath, response.arrayBuffer);
+            return this.app.vault.adapter.join(thumbnailFolder, filename);
         } catch (error) {
             console.error(`Error writing file: ${error}`);
             return undefined;
