@@ -1,4 +1,4 @@
-import { normalizePath, Plugin, Notice, TFile, requestUrl, debounce, Modal } from 'obsidian';
+import { normalizePath, Plugin, Notice, TFile, requestUrl, debounce, Modal, Setting } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
@@ -8,6 +8,7 @@ export default class FeaturedImage extends Plugin {
 	private setFeaturedImageDebounced: (file: TFile) => void;
 	private isUpdatingFrontmatter: boolean = false;
 	private isRunningBulkUpdate: boolean = false;
+    private hasShownWelcomeModal: boolean = false;
 
     // Debug options for development
 	private debugMode: boolean = true;
@@ -16,6 +17,13 @@ export default class FeaturedImage extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		this.debugLog('Plugin loaded, debug mode:', this.debugMode, 'dry run:', this.dryRun);
+
+        // Show welcome modal if it's the first time
+        if (!this.hasShownWelcomeModal) {
+            this.showWelcomeModal();
+            this.hasShownWelcomeModal = true;
+            await this.saveData({ hasShownWelcomeModal: true });
+        }
 
         // Make sure setFeaturedImage is not called too often
 		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
@@ -44,7 +52,7 @@ export default class FeaturedImage extends Plugin {
 			})
 		);
 
-		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
+		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this).setId('featured-image'));
 	}
 
 	private debugLog(...args: any[]) {
@@ -367,6 +375,33 @@ export default class FeaturedImage extends Plugin {
             );
             modal.open();
         });
+    }
+
+    private showWelcomeModal() {
+        const modal = new Modal(this.app);
+        modal.titleEl.setText('Welcome to Featured Image Plugin');
+        
+        const content = modal.contentEl;
+        content.empty();
+        
+        content.createEl('p', { text: 'This plugin automatically sets a featured image property in your notes based on the first image or YouTube link in the document.' });
+        
+        content.createEl('h4', { text: 'Key Features:' });
+        const featureList = content.createEl('ul');
+        featureList.createEl('li', { text: 'Automatically updates Frontmatter with a featured image' });
+        featureList.createEl('li', { text: 'Supports both local images and YouTube thumbnails' });
+        featureList.createEl('li', { text: 'Bulk update commands for all documents, search for "Featured Image"' });
+        
+        content.createEl('h4', { text: 'Available Settings:' });
+        const settingsList = content.createEl('ul');
+        settingsList.createEl('li', { text: 'Frontmatter property name' });
+        settingsList.createEl('li', { text: 'Image file extensions' });
+        settingsList.createEl('li', { text: 'YouTube thumbnail options' });
+        settingsList.createEl('li', { text: 'Excluded folders' });
+        
+        content.createEl('p', { text: 'To get started, review the settings first and set excluded folders and the property name, then consider running "Set featured images in all files" command to update all your existing documents.' });
+        
+        modal.open();
     }
 
 }
