@@ -5,14 +5,17 @@ import { parse as parseQueryString } from 'querystring';
 
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
-	private debugMode: boolean = true;
 	private setFeaturedImageDebounced: (file: TFile) => void;
 	private isUpdatingFrontmatter: boolean = false;
 	private isRunningBulkUpdate: boolean = false;
 
+    // Debug options for development
+	private debugMode: boolean = true;
+	private dryRun: boolean = true;
+
 	async onload() {
 		await this.loadSettings();
-		this.debugLog('Plugin loaded, debug mode:', this.debugMode);
+		this.debugLog('Plugin loaded, debug mode:', this.debugMode, 'dry run:', this.dryRun);
 
         // Make sure setFeaturedImage is not called too often
 		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
@@ -144,15 +147,20 @@ export default class FeaturedImage extends Plugin {
         this.debugLog('Updating frontmatter for file:', file.path, 'newFeature:', newFeature);
         this.isUpdatingFrontmatter = true;
         try {
-            await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                if (newFeature) {
-                    frontmatter[this.settings.frontmatterProperty] = newFeature;
-                    new Notice(`Featured image set to ${newFeature}`);
-                } else {
-                    delete frontmatter[this.settings.frontmatterProperty];
-                    new Notice('Featured image removed');
-                }
-            });
+            if (this.dryRun) {
+                this.debugLog('Dry run: Skipping frontmatter update');
+                new Notice(`Dry run: Would ${newFeature ? 'set' : 'remove'} featured image ${newFeature ? `to ${newFeature}` : ''}`);
+            } else {
+                await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                    if (newFeature) {
+                        frontmatter[this.settings.frontmatterProperty] = newFeature;
+                        new Notice(`Featured image set to ${newFeature}`);
+                    } else {
+                        delete frontmatter[this.settings.frontmatterProperty];
+                        new Notice('Featured image removed');
+                    }
+                });
+            }
         } finally {
             this.isUpdatingFrontmatter = false;
         }
@@ -266,7 +274,7 @@ export default class FeaturedImage extends Plugin {
 
     async updateAllFeaturedImages() {
         this.isRunningBulkUpdate = true;
-        new Notice('Starting bulk update of featured images...');
+        new Notice(`Starting ${this.dryRun ? 'dry run of ' : ''}bulk update of featured images...`);
 
         const files = this.app.vault.getMarkdownFiles();
         let updatedCount = 0;
@@ -280,12 +288,12 @@ export default class FeaturedImage extends Plugin {
         }
 
         this.isRunningBulkUpdate = false;
-        new Notice(`Finished updating featured images for ${updatedCount} files.`);
+        new Notice(`Finished ${this.dryRun ? 'dry run of ' : ''}updating featured images for ${updatedCount} files.`);
     }
 
     async removeAllFeaturedImages() {
         this.isRunningBulkUpdate = true;
-        new Notice('Starting removal of featured images from all files...');
+        new Notice(`Starting ${this.dryRun ? 'dry run of ' : ''}removal of featured images from all files...`);
 
         const files = this.app.vault.getMarkdownFiles();
         let removedCount = 0;
@@ -298,7 +306,7 @@ export default class FeaturedImage extends Plugin {
         }
 
         this.isRunningBulkUpdate = false;
-        new Notice(`Finished removing featured images from ${removedCount} files.`);
+        new Notice(`Finished ${this.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`);
     }
 
     async removeFeaturedImage(file: TFile): Promise<boolean> {
