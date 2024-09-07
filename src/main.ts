@@ -8,18 +8,33 @@ export default class FeaturedImage extends Plugin {
 	private debugMode: boolean = true;
 	private setFeaturedImageDebounced: (file: TFile) => void;
 	private isUpdatingFrontmatter: boolean = false;
+	private isRunningBulkUpdate: boolean = false;
 
 	async onload() {
 		await this.loadSettings();
 		this.debugLog('Plugin loaded, debug mode:', this.debugMode);
 
-        // Make sure setFeaturedImage is not called more than once every second
-		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 1000, true);
+        // Make sure setFeaturedImage is not called too often
+		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
+
+        // Add the new command for updating all featured images
+        this.addCommand({
+            id: 'featured-image-update-all',
+            name: 'Set featured images in all files',
+            callback: () => this.updateAllFeaturedImages(),
+        });
+
+        // Add the new command for removing all featured images
+        this.addCommand({
+            id: 'featured-image-remove-all',
+            name: 'Remove featured images in all files',
+            callback: () => this.removeAllFeaturedImages(),
+        });
 
         // Ignore all file changes if we are currently updating the frontmatter section
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
-				if (file instanceof TFile && !this.isUpdatingFrontmatter) {
+				if (file instanceof TFile && file.extension === 'md' && !this.isUpdatingFrontmatter && !this.isRunningBulkUpdate) {
 					this.setFeaturedImageDebounced(file);
 				}
 			})
@@ -46,14 +61,14 @@ export default class FeaturedImage extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-    async setFeaturedImage(file: TFile) {
+    async setFeaturedImage(file: TFile): Promise<boolean> {
         this.debugLog('File modified:', file.path);
         const currentFeature = this.getCurrentFeature(file);
         this.debugLog('Current feature:', currentFeature);
         
         if (await this.shouldSkipProcessing(file, currentFeature)) {
             this.debugLog('Skipping processing for file:', file.path);
-            return;
+            return false;
         }
 
         const fileContent = await this.app.vault.cachedRead(file);
@@ -63,8 +78,10 @@ export default class FeaturedImage extends Plugin {
         if (currentFeature !== newFeature) {
             this.debugLog('Updating frontmatter');
             await this.updateFrontmatter(file, newFeature);
+            return true;
         } else {
             this.debugLog('No change in feature, skipping frontmatter update');
+            return false;
         }
     }
 
@@ -101,7 +118,7 @@ export default class FeaturedImage extends Plugin {
             `!\\[.*?\\]\\(([^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)` +
             `|` +
             // YouTube link
-            `!\\[.*?\\]\\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)` +
+            `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\\[.*?\\]\\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)` +
             `)`,
             'i'
         );
@@ -245,6 +262,54 @@ export default class FeaturedImage extends Plugin {
 
         this.debugLog('getVideoId result:', null);
         return null;
+    }
+
+    async updateAllFeaturedImages() {
+        this.isRunningBulkUpdate = true;
+        new Notice('Starting bulk update of featured images...');
+
+        const files = this.app.vault.getMarkdownFiles();
+        let updatedCount = 0;
+
+        for (const file of files) {
+            const wasUpdated = await this.setFeaturedImage(file);
+            if (wasUpdated) {
+                this.debugLog('File updated:', file.path);
+                updatedCount++;
+            }
+        }
+
+        this.isRunningBulkUpdate = false;
+        new Notice(`Finished updating featured images for ${updatedCount} files.`);
+    }
+
+    async removeAllFeaturedImages() {
+        this.isRunningBulkUpdate = true;
+        new Notice('Starting removal of featured images from all files...');
+
+        const files = this.app.vault.getMarkdownFiles();
+        let removedCount = 0;
+
+        for (const file of files) {
+            const wasRemoved = await this.removeFeaturedImage(file);
+            if (wasRemoved) {
+                removedCount++;
+            }
+        }
+
+        this.isRunningBulkUpdate = false;
+        new Notice(`Finished removing featured images from ${removedCount} files.`);
+    }
+
+    async removeFeaturedImage(file: TFile): Promise<boolean> {
+        const currentFeature = this.getCurrentFeature(file);
+        if (!currentFeature) {
+            return false; // No featured image to remove
+        }
+
+        this.debugLog('Removing featured image from file:', file.path);
+        await this.updateFrontmatter(file, undefined);
+        return true;
     }
 
 }

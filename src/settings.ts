@@ -6,8 +6,13 @@ export interface FeaturedImageSettings {
   excludedFolders: string[];
 	frontmatterProperty: string;
   onlyUpdateExisting: boolean;
+
+  // Youtube settings
+  requireExclamationForYoutube: boolean;
   downloadWebP: boolean;
   youtubeDownloadFolder: string;
+
+  // Local media settings
   imageExtensions: string[];
 }
 
@@ -16,8 +21,13 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   excludedFolders: [],
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
+
+  // Youtube settings
+  requireExclamationForYoutube: true,
   downloadWebP: false,
   youtubeDownloadFolder: 'thumbnails/',
+
+  // Local media settings
   imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
 }
 
@@ -33,6 +43,12 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     const { containerEl } = this
 
     containerEl.empty()
+
+    containerEl.createEl("h1", { text: "Featured Image Plugin" });
+    containerEl.createEl("p", { text: "A high-performance plugin to set featured images in your Obsidian vault. "}).createEl("a", {
+      text: "GitHub Repository",
+      href: "https://github.com/johansan/obsidian-featured-image",
+    });
 
     new Setting(containerEl)
       .setName('General settings')
@@ -90,8 +106,19 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       })
 
     new Setting(containerEl)
-      .setName('Media settings')
+      .setName('Youtube settings')
       .setHeading()
+
+      // Require exclamation mark for YouTube thumbnails
+      new Setting(containerEl)
+      .setName('Require exclamation mark for YouTube thumbnails')
+      .setDesc('If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.requireExclamationForYoutube)
+        .onChange(async (value) => {
+          this.plugin.settings.requireExclamationForYoutube = value;
+          await this.plugin.saveSettings();
+        }));
 
     // Download webp
     new Setting(containerEl)
@@ -116,6 +143,10 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           this.plugin.settings.youtubeDownloadFolder = value
           await this.plugin.saveSettings()
         }))
+
+    new Setting(containerEl)
+      .setName('Local media settings')
+      .setHeading()
 
     // Local image extensions
     new Setting(containerEl)
