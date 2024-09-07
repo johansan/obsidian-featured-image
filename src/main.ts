@@ -20,23 +20,24 @@ export default class FeaturedImage extends Plugin {
         // Make sure setFeaturedImage is not called too often
 		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
 
-        // Add the new command for updating all featured images
+        // Add command for updating all featured images
         this.addCommand({
             id: 'featured-image-update-all',
             name: 'Set featured images in all files',
             callback: () => this.updateAllFeaturedImages(),
         });
 
-        // Add the new command for removing all featured images
+        // Add command for removing all featured images
         this.addCommand({
             id: 'featured-image-remove-all',
             name: 'Remove featured images in all files',
             callback: () => this.removeAllFeaturedImages(),
         });
 
-        // Ignore all file changes if we are currently updating the frontmatter section
+		// Watch for file changes and update the featured image if the file is a markdown file
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
+                // Ignore all file changes if we are currently updating the frontmatter section or running a bulk update
 				if (file instanceof TFile && file.extension === 'md' && !this.isUpdatingFrontmatter && !this.isRunningBulkUpdate) {
 					this.setFeaturedImageDebounced(file);
 				}
@@ -131,16 +132,17 @@ export default class FeaturedImage extends Plugin {
             if (match[2] || match[4]) {
                 // It's an image link (wiki-style or Markdown-style)
                 const imagePath = match[2] || match[4];
+                this.debugLog('Feature in document:', imagePath);
                 return imagePath ? decodeURIComponent(imagePath) : undefined;
             } else if (match[6]) {
                 // It's a YouTube link
                 const videoId = this.getVideoId(match[6]);
-                this.debugLog('YouTube video ID:', videoId);
+                this.debugLog('YouTube video in document:', videoId);
                 return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : undefined;
             }
         }
 
-        this.debugLog('New feature:', match ? (match[2] || match[4] || match[5]) : undefined);
+        this.debugLog('New feature: Not found in document');
         return undefined;
     }
 
@@ -198,33 +200,41 @@ export default class FeaturedImage extends Plugin {
             return `${thumbnailFolder}/${videoId}.webp`; // Return a mock path
         }
 
-        try {
-            // Try to download the thumbnail in WebP format if enabled
-            if (this.settings.downloadWebP) {
+        // Try to download the thumbnail in WebP format if enabled
+        if (this.settings.downloadWebP) {
+            try {
                 const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp', true);
                 if (webpResponse.status === 200) {
                     const result = await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
-                    this.debugLog('Downloaded thumbnail:', result);
+                    this.debugLog('Downloaded WebP thumbnail');
                     return result;
                 }
+            } catch (error) {
+                this.debugLog('Failed to download WebP thumbnail');
             }
+        }
 
-            // Fall back to JPG versions
+        // Fall back to JPG versions
+        try {
             const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
             if (maxResResponse.status === 200) {
                 const result = await this.saveThumbnail(maxResResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                this.debugLog('Downloaded thumbnail:', result);
-                return result;
-            }
-
-            const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
-            if (hqDefaultResponse.status === 200) {
-                const result = await this.saveThumbnail(hqDefaultResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                this.debugLog('Downloaded thumbnail:', result);
+                this.debugLog('Downloaded maxresdefault.jpg');
                 return result;
             }
         } catch (error) {
-            console.error(`Failed to download thumbnail for ${videoId}:`, error);
+            this.debugLog('Failed to download maxresdefault.jpg');
+        }
+
+        try {
+            const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
+            if (hqDefaultResponse.status === 200) {
+                const result = await this.saveThumbnail(hqDefaultResponse, jpgFilePath, thumbnailFolder, jpgFilename);
+                this.debugLog('Downloaded hqdefault.jpg');
+                return result;
+            }
+        } catch (error) {
+            this.debugLog('Failed to download hqdefault.jpg:');
         }
 
         this.debugLog('!! Thumbnail could not be downloaded !!');

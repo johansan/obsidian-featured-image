@@ -44,8 +44,9 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
     containerEl.empty()
 
-    containerEl.createEl("h1", { text: "Featured Image Plugin" });
-    containerEl.createEl("p", { text: "A high-performance plugin to set featured images in your Obsidian vault. "}).createEl("a", {
+    containerEl.createEl("h1", { text: "Featured Image" });
+    containerEl.createEl("p", { text: "A high performance plugin to set featured image property in your markdown files. "});
+    containerEl.createEl("p", { text: "Written by Johan Sanneblad, documentation available at Featured Image "}).createEl("a", {
       text: "GitHub Repository",
       href: "https://github.com/johansan/obsidian-featured-image",
     });
