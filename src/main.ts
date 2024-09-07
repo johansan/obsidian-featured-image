@@ -1,4 +1,4 @@
-import { normalizePath, Plugin, Notice, TFile, requestUrl, debounce } from 'obsidian';
+import { normalizePath, Plugin, Notice, TFile, requestUrl, debounce, Modal } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
@@ -290,6 +290,12 @@ export default class FeaturedImage extends Plugin {
     }
 
     async updateAllFeaturedImages() {
+        const confirmation = await this.showConfirmationModal(
+            'Update All Featured Images',
+            'This will scan all markdown files in your vault and update or add featured images based on the first image or YouTube link found in each file. Proceed?'
+        );
+        if (!confirmation) return;
+
         this.isRunningBulkUpdate = true;
         new Notice(`Starting ${this.dryRun ? 'dry run of ' : ''}bulk update of featured images...`);
 
@@ -308,6 +314,12 @@ export default class FeaturedImage extends Plugin {
     }
 
     async removeAllFeaturedImages() {
+        const confirmation = await this.showConfirmationModal(
+            'Remove All Featured Images',
+            `This will remove the "${this.settings.frontmatterProperty}" property from the frontmatter of all markdown files in your vault. Proceed?`
+        );
+        if (!confirmation) return;
+
         this.isRunningBulkUpdate = true;
         new Notice(`Starting ${this.dryRun ? 'dry run of ' : ''}removal of featured images from all files...`);
 
@@ -334,6 +346,27 @@ export default class FeaturedImage extends Plugin {
         this.debugLog('Removing featured image from file:', file.path);
         await this.updateFrontmatter(file, undefined);
         return true;
+    }
+
+    private async showConfirmationModal(title: string, message: string): Promise<boolean> {
+        return new Promise((resolve) => {
+            const modal = new Modal(this.app);
+            modal.titleEl.setText(title);
+            modal.contentEl.setText(message);
+            modal.addButton((btn) => 
+                btn.setButtonText('Cancel').onClick(() => {
+                    resolve(false);
+                    modal.close();
+                })
+            );
+            modal.addButton((btn) =>
+                btn.setButtonText('Proceed').setCta().onClick(() => {
+                    resolve(true);
+                    modal.close();
+                })
+            );
+            modal.open();
+        });
     }
 
 }
