@@ -11,7 +11,7 @@ export default class FeaturedImage extends Plugin {
 
     // Debug options for development
 	private debugMode: boolean = true;
-	private dryRun: boolean = true;
+	private dryRun: boolean = false;
 
 	async onload() {
 		await this.loadSettings();
@@ -65,12 +65,13 @@ export default class FeaturedImage extends Plugin {
 	}
 
     async setFeaturedImage(file: TFile): Promise<boolean> {
-        this.debugLog('File modified:', file.path);
         const currentFeature = this.getCurrentFeature(file);
+        this.debugLog('----------');
+        this.debugLog(file.path);
         this.debugLog('Current feature:', currentFeature);
         
         if (await this.shouldSkipProcessing(file, currentFeature)) {
-            this.debugLog('Skipping processing for file:', file.path);
+            this.debugLog('Skipping processing - file excluded');
             return false;
         }
 
@@ -79,7 +80,7 @@ export default class FeaturedImage extends Plugin {
         this.debugLog('Featured image found:', newFeature);
 
         if (currentFeature !== newFeature) {
-            this.debugLog('Updating frontmatter');
+            this.debugLog('Updating frontmatter for file:', file.path, 'newFeature:', newFeature);
             await this.updateFrontmatter(file, newFeature);
             return true;
         } else {
@@ -106,7 +107,6 @@ export default class FeaturedImage extends Plugin {
             (this.settings.onlyUpdateExisting && !currentFeature) ||
             this.settings.excludedFolders.some((folder: string) => file.path.startsWith(folder + '/'))
         );
-        this.debugLog('shouldSkipProcessing:', shouldSkip, 'for file:', file.path);
         return shouldSkip;
     }
 
@@ -135,29 +135,35 @@ export default class FeaturedImage extends Plugin {
             } else if (match[6]) {
                 // It's a YouTube link
                 const videoId = this.getVideoId(match[6]);
+                this.debugLog('YouTube video ID:', videoId);
                 return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : undefined;
             }
         }
 
-        this.debugLog('findFeaturedImageInDocument result:', match ? (match[2] || match[4] || match[5]) : undefined);
+        this.debugLog('New feature:', match ? (match[2] || match[4] || match[5]) : undefined);
         return undefined;
     }
 
     private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
-        this.debugLog('Updating frontmatter for file:', file.path, 'newFeature:', newFeature);
         this.isUpdatingFrontmatter = true;
         try {
             if (this.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
-                new Notice(`Dry run: Would ${newFeature ? 'set' : 'remove'} featured image ${newFeature ? `to ${newFeature}` : ''}`);
+                if (!this.isRunningBulkUpdate) {
+                    new Notice(`Dry run: Would ${newFeature ? 'set' : 'remove'} featured image ${newFeature ? `to ${newFeature}` : ''}`);
+                }
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
                     if (newFeature) {
                         frontmatter[this.settings.frontmatterProperty] = newFeature;
-                        new Notice(`Featured image set to ${newFeature}`);
+                        if (!this.isRunningBulkUpdate) {
+                            new Notice(`Featured image set to ${newFeature}`);
+                        }
                     } else {
                         delete frontmatter[this.settings.frontmatterProperty];
-                        new Notice('Featured image removed');
+                        if (!this.isRunningBulkUpdate) {
+                            new Notice('Featured image removed');
+                        }
                     }
                 });
             }
@@ -167,7 +173,7 @@ export default class FeaturedImage extends Plugin {
     }
 
     async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | undefined> {
-        this.debugLog('downloadThumbnail called', 'videoId:', videoId, 'folder:', thumbnailFolder);
+        
         // Create the thumbnail directory if it doesn't exist
         await this.app.vault.adapter.mkdir(thumbnailFolder);
 
@@ -175,7 +181,7 @@ export default class FeaturedImage extends Plugin {
         const webpFilename = `${videoId}.webp`;
         const webpFilePath = normalizePath(`${thumbnailFolder}/${webpFilename}`);
         if (await this.app.vault.adapter.exists(webpFilePath)) {
-            this.debugLog('downloadThumbnail result:', webpFilePath);
+            this.debugLog('Thumbnail already exists:', webpFilePath);
             return webpFilePath;
         }
 
@@ -183,8 +189,13 @@ export default class FeaturedImage extends Plugin {
         const jpgFilename = `${videoId}.jpg`;
         const jpgFilePath = normalizePath(`${thumbnailFolder}/${jpgFilename}`);
         if (await this.app.vault.adapter.exists(jpgFilePath)) {
-            this.debugLog('downloadThumbnail result:', jpgFilePath);
+            this.debugLog('Thumbnail already exists:', jpgFilePath);
             return jpgFilePath;
+        }
+
+        if (this.dryRun) {
+            this.debugLog('Dry run: Skipping thumbnail download, using mock path');
+            return `${thumbnailFolder}/${videoId}.webp`; // Return a mock path
         }
 
         try {
@@ -193,7 +204,7 @@ export default class FeaturedImage extends Plugin {
                 const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp', true);
                 if (webpResponse.status === 200) {
                     const result = await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
-                    this.debugLog('downloadThumbnail result:', result);
+                    this.debugLog('Downloaded thumbnail:', result);
                     return result;
                 }
             }
@@ -202,26 +213,26 @@ export default class FeaturedImage extends Plugin {
             const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
             if (maxResResponse.status === 200) {
                 const result = await this.saveThumbnail(maxResResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                this.debugLog('downloadThumbnail result:', result);
+                this.debugLog('Downloaded thumbnail:', result);
                 return result;
             }
 
             const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
             if (hqDefaultResponse.status === 200) {
                 const result = await this.saveThumbnail(hqDefaultResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                this.debugLog('downloadThumbnail result:', result);
+                this.debugLog('Downloaded thumbnail:', result);
                 return result;
             }
         } catch (error) {
             console.error(`Failed to download thumbnail for ${videoId}:`, error);
         }
 
-        this.debugLog('downloadThumbnail result:', undefined);
+        this.debugLog('!! Thumbnail could not be downloaded !!');
         return undefined;
     }
 
     private async fetchThumbnail(videoId: string, quality: string, isWebp: boolean = false) {
-        this.debugLog('fetchThumbnail called', 'videoId:', videoId, 'quality:', quality, 'isWebp:', isWebp);
+        
         const baseUrl = isWebp ? 'https://i.ytimg.com/vi_webp' : 'https://img.youtube.com/vi';
         return await requestUrl({
             url: `${baseUrl}/${videoId}/${quality}`,
@@ -231,7 +242,7 @@ export default class FeaturedImage extends Plugin {
     }
 
     private async saveThumbnail(response: { arrayBuffer: ArrayBuffer }, fullFilePath: string, thumbnailFolder: string, filename: string) {
-        this.debugLog('saveThumbnail called', 'path:', fullFilePath);
+        
         try {
             // Save thumbnail using Obsidian's API
             await this.app.vault.adapter.writeBinary(fullFilePath, response.arrayBuffer);
@@ -243,7 +254,6 @@ export default class FeaturedImage extends Plugin {
     }
 
     getVideoId(url: string): string | null {
-        this.debugLog('getVideoId called', 'url:', url);
         const parsedUrl = parseUrl(url);
         const hostname = parsedUrl.hostname;
         const pathname = parsedUrl.pathname || '';
@@ -258,17 +268,14 @@ export default class FeaturedImage extends Plugin {
         if (hostname === 'youtube.com' || hostname === 'www.youtube.com') {
             if (pathname === '/watch') {
                 const result = query.v as string;
-                this.debugLog('getVideoId result:', result);
                 return result;
             }
             if (pathname.startsWith('/embed/') || pathname.startsWith('/v/')) {
                 const result = pathname.split('/')[2];
-                this.debugLog('getVideoId result:', result);
                 return result;
             }
         }
 
-        this.debugLog('getVideoId result:', null);
         return null;
     }
 
@@ -282,7 +289,6 @@ export default class FeaturedImage extends Plugin {
         for (const file of files) {
             const wasUpdated = await this.setFeaturedImage(file);
             if (wasUpdated) {
-                this.debugLog('File updated:', file.path);
                 updatedCount++;
             }
         }

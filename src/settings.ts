@@ -73,7 +73,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .addTextArea(text => text
         .setValue(this.plugin.settings.excludedFolders.join(','))
         .onChange(async value => {
-            this.plugin.settings.excludedFolders = value.split(',').map(folder => folder.trim())
+            this.plugin.settings.excludedFolders = value.split(',')
+              .map(folder => folder.trim().replace(/\/$/, '')) // Remove trailing slash
             await this.plugin.saveSettings()
         }))
 
@@ -139,9 +140,10 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.youtubeDownloadFolder)
         .setValue(this.plugin.settings.youtubeDownloadFolder)
-        .onChange(async value => {
-          this.plugin.settings.youtubeDownloadFolder = value
-          await this.plugin.saveSettings()
+        .onChange(async (value) => {
+          // Remove trailing slash so we can use normalizePath in main.ts
+          this.plugin.settings.youtubeDownloadFolder = value.replace(/\/$/, '');
+          await this.plugin.saveSettings();
         }))
 
     new Setting(containerEl)
