@@ -1,4 +1,4 @@
-import { debounce, Debouncer, Plugin, Notice, TFile, requestUrl } from 'obsidian';
+import { debounce, Debouncer, normalizePath, Plugin, Notice, TFile, requestUrl } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
@@ -125,14 +125,14 @@ export default class FeaturedImage extends Plugin {
 
         // Check if WebP thumbnail already exists
         const webpFilename = `${videoId}.webp`;
-        const webpFilePath = this.app.vault.adapter.join(thumbnailFolder, webpFilename);
+        const webpFilePath = normalizePath(`${thumbnailFolder}/${webpFilename}`);
         if (await this.app.vault.adapter.exists(webpFilePath)) {
             return webpFilePath;
         }
 
         // Check if JPG thumbnail already exists
         const jpgFilename = `${videoId}.jpg`;
-        const jpgFilePath = this.app.vault.adapter.join(thumbnailFolder, jpgFilename);
+        const jpgFilePath = normalizePath(`${thumbnailFolder}/${jpgFilename}`);
         if (await this.app.vault.adapter.exists(jpgFilePath)) {
             return jpgFilePath;
         }
@@ -176,7 +176,7 @@ export default class FeaturedImage extends Plugin {
         try {
             // Save thumbnail using Obsidian's API
             await this.app.vault.adapter.writeBinary(fullFilePath, response.arrayBuffer);
-            return this.app.vault.adapter.join(thumbnailFolder, filename);
+            return normalizePath(`${thumbnailFolder}/${filename}`);
         } catch (error) {
             console.error(`Error writing file: ${error}`);
             return undefined;
