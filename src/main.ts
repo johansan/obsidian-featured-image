@@ -215,7 +215,7 @@ export default class FeaturedImage extends Plugin {
         // Try to download the thumbnail in WebP format if enabled
         if (this.settings.downloadWebP) {
             try {
-                const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp', true);
+                const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
                 if (webpResponse.status === 200) {
                     const result = await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
                     this.debugLog('Downloaded WebP thumbnail');
@@ -253,8 +253,8 @@ export default class FeaturedImage extends Plugin {
         return undefined;
     }
 
-    private async fetchThumbnail(videoId: string, quality: string, isWebp: boolean = false) {
-        
+    private async fetchThumbnail(videoId: string, quality: string) {
+        const isWebp = quality.endsWith('.webp');
         const baseUrl = isWebp ? 'https://i.ytimg.com/vi_webp' : 'https://img.youtube.com/vi';
         return await requestUrl({
             url: `${baseUrl}/${videoId}/${quality}`,
@@ -364,7 +364,22 @@ export default class FeaturedImage extends Plugin {
         return new Promise((resolve) => {
             const modal = new Modal(this.app);
             modal.titleEl.setText(title);
-            modal.contentEl.setText(message);
+            
+            const contentEl = modal.contentEl;
+            contentEl.empty();
+            
+            contentEl.createEl('p', { text: message });
+            
+            // Add warning text
+            const warningEl = contentEl.createEl('p', { cls: 'featured-image-warning' });
+            warningEl.innerHTML = '<strong>Important!</strong> This function will change the modification date of all files that have been processed. This will change your sort order if you sort by modified date.';
+            
+            // Add some basic styling to make the warning stand out
+            warningEl.style.backgroundColor = '#ffeb3b';
+            warningEl.style.padding = '10px';
+            warningEl.style.borderRadius = '5px';
+            warningEl.style.marginTop = '10px';
+
             modal.addButton((btn) => 
                 btn.setButtonText('Cancel').onClick(() => {
                     resolve(false);
