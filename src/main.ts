@@ -1,5 +1,6 @@
 import { normalizePath, Plugin, Notice, TFile, requestUrl, debounce, Modal, Setting } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
+import { ConfirmationModal, WelcomeModal } from './modals';
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
 
@@ -10,7 +11,7 @@ export default class FeaturedImage extends Plugin {
 	private isRunningBulkUpdate: boolean = false;
     private hasShownWelcomeModal: boolean = false;
 
-    // Debug options for development
+    // Developer options
 	private debugMode: boolean = true;
 	private dryRun: boolean = false;
 
@@ -56,7 +57,7 @@ export default class FeaturedImage extends Plugin {
 			})
 		);
 
-		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this).setId('featured-image'));
+		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
 	}
 
 	private debugLog(...args: any[]) {
@@ -79,25 +80,21 @@ export default class FeaturedImage extends Plugin {
 
     async setFeaturedImage(file: TFile): Promise<boolean> {
         const currentFeature = this.getCurrentFeature(file);
-        this.debugLog('----------');
-        this.debugLog(file.path);
-        this.debugLog('Current feature:', currentFeature);
         
         if (await this.shouldSkipProcessing(file, currentFeature)) {
-            this.debugLog('Skipping processing - file excluded');
             return false;
         }
 
         const fileContent = await this.app.vault.cachedRead(file);
         const newFeature = await this.findFeaturedImageInDocument(fileContent);
-        this.debugLog('Featured image found:', newFeature);
 
         if (currentFeature !== newFeature) {
-            this.debugLog('Updating frontmatter for file:', file.path, 'newFeature:', newFeature);
+            this.debugLog(file.path);
+            this.debugLog('Current feature:', currentFeature);
+            this.debugLog('New feature:', newFeature);
             await this.updateFrontmatter(file, newFeature);
             return true;
         } else {
-            this.debugLog('No change in feature, skipping frontmatter update');
             return false;
         }
     }
@@ -144,17 +141,14 @@ export default class FeaturedImage extends Plugin {
             if (match[2] || match[4]) {
                 // It's an image link (wiki-style or Markdown-style)
                 const imagePath = match[2] || match[4];
-                this.debugLog('Feature in document:', imagePath);
                 return imagePath ? decodeURIComponent(imagePath) : undefined;
             } else if (match[6]) {
                 // It's a YouTube link
                 const videoId = this.getVideoId(match[6]);
-                this.debugLog('YouTube video in document:', videoId);
                 return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : undefined;
             }
         }
 
-        this.debugLog('New feature: Not found in document');
         return undefined;
     }
 
@@ -163,19 +157,19 @@ export default class FeaturedImage extends Plugin {
         try {
             if (this.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
-                if (!this.isRunningBulkUpdate) {
+                if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
                     new Notice(`Dry run: Would ${newFeature ? 'set' : 'remove'} featured image ${newFeature ? `to ${newFeature}` : ''}`);
                 }
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
                     if (newFeature) {
                         frontmatter[this.settings.frontmatterProperty] = newFeature;
-                        if (!this.isRunningBulkUpdate) {
+                        if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
                             new Notice(`Featured image set to ${newFeature}`);
                         }
                     } else {
                         delete frontmatter[this.settings.frontmatterProperty];
-                        if (!this.isRunningBulkUpdate) {
+                        if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
                             new Notice('Featured image removed');
                         }
                     }
@@ -283,7 +277,6 @@ export default class FeaturedImage extends Plugin {
 
         if (hostname === 'youtu.be' || hostname === 'www.youtu.be') {
             const result = pathname.split('/')[1].split('?')[0];
-            this.debugLog('getVideoId result:', result);
             return result;
         }
 
@@ -362,68 +355,14 @@ export default class FeaturedImage extends Plugin {
 
     private async showConfirmationModal(title: string, message: string): Promise<boolean> {
         return new Promise((resolve) => {
-            const modal = new Modal(this.app);
-            modal.titleEl.setText(title);
-            
-            const contentEl = modal.contentEl;
-            contentEl.empty();
-            
-            contentEl.createEl('p', { text: message });
-            
-            // Add warning text
-            const warningEl = contentEl.createEl('p', { cls: 'featured-image-warning' });
-            warningEl.innerHTML = '<strong>Important!</strong> This function will change the modification date of all files that have been processed. This will change your sort order if you sort by modified date.';
-            
-            // Add some basic styling to make the warning stand out
-            warningEl.style.backgroundColor = '#ffeb3b';
-            warningEl.style.padding = '10px';
-            warningEl.style.borderRadius = '5px';
-            warningEl.style.marginTop = '10px';
-
-            modal.addButton((btn) => 
-                btn.setButtonText('Cancel').onClick(() => {
-                    resolve(false);
-                    modal.close();
-                })
-            );
-            modal.addButton((btn) =>
-                btn.setButtonText('Proceed').setCta().onClick(() => {
-                    resolve(true);
-                    modal.close();
-                })
-            );
-            modal.open();
+            new ConfirmationModal(this.app, title, message, (result) => {
+                resolve(result);
+            }).open();
         });
     }
 
     private showWelcomeModal() {
-        const modal = new Modal(this.app);
-        modal.titleEl.setText('Welcome to Featured Image');
-        
-        const content = modal.contentEl;
-        content.empty();
-        
-        content.createEl('p', { text: 'Featured Image is a highly optimized plugin for Obsidian to automatically set a featured image property in your notes based on the first image or YouTube link in the document.' });
-        content.createEl('p', { text: 'You can use Featured Image together with plugins like Folder Notes and Dataview to create amazing galleries and lists of your notes.' });
-        
-        content.createEl('h4', { text: 'Key Features:' });
-        const featureList = content.createEl('ul');
-        featureList.createEl('li', { text: 'Automatically updates Frontmatter with a featured image' });
-        featureList.createEl('li', { text: 'Supports both local images and YouTube thumbnails' });
-        featureList.createEl('li', { text: 'Bulk update commands for all documents, search for "Featured Image" in the command palette' });
-        featureList.createEl('li', { text: 'Uses very little memory and is highly optimized for performance' });
-        featureList.createEl('li', { text: 'Works on both mobile and desktop' });
-        
-        content.createEl('h4', { text: 'Settings you might want to change:' });
-        const settingsList = content.createEl('ul');
-        settingsList.createEl('li', { text: 'Frontmatter property name: ' + this.settings.frontmatterProperty });
-        settingsList.createEl('li', { text: 'YouTube download folder: ' + this.settings.youtubeDownloadFolder });
-        settingsList.createEl('li', { text: 'Excluded folders: Set this to your template folder or other folders you don\'t want to include for processing.'});
-        settingsList.createEl('li', { text: 'Require "!" for YouTube links: Only use Youtube links for featured image if they are prefixed with "!".'});
-
-        content.createEl('p', { text: 'To get started, review the settings first and set excluded folders and the property name, then consider running "Set featured images in all files" command to update all your existing documents.' });
-        
-        modal.open();
+        new WelcomeModal(this.app, this.settings).open();
     }
 
 }
