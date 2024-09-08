@@ -17,7 +17,7 @@ export interface FeaturedImageSettings {
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
-  showNotificationsOnUpdate: true,
+  showNotificationsOnUpdate: false,
   excludedFolders: [],
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Youtube settings
   requireExclamationForYoutube: true,
   downloadWebP: false,
-  youtubeDownloadFolder: 'thumbnails/',
+  youtubeDownloadFolder: 'thumbnails',
 
   // Local media settings
   imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
@@ -45,8 +45,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     containerEl.empty()
 
     containerEl.createEl("h1", { text: "Featured Image" });
-    containerEl.createEl("p", { text: "A high performance plugin to set featured image property in your markdown files. "});
-    containerEl.createEl("p", { text: "Written by Johan Sanneblad, documentation available at Featured Image "}).createEl("a", {
+    containerEl.createEl("p", { text: "A highly optimized plugin to set a featured image property in all your markdown files. "});
+    containerEl.createEl("p", { text: "Made in Sweden 🇸🇪, full documentation available at "}).createEl("a", {
       text: "GitHub Repository",
       href: "https://github.com/johansan/obsidian-featured-image",
     });

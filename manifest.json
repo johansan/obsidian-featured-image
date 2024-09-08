@@ -3,8 +3,9 @@
 	"name": "Featured Image",
 	"version": "1.0.0",
 	"minAppVersion": "1.4.4",
-	"description": "Sets a featured image property from first Youtube link or first image in document. You can use this to show thumbnail previews in Dataview.",
+	"description": "Sets a featured image property from first Youtube link or image in document. You can use this to show thumbnail previews for all your documents in Dataview.",
 	"author": "Johan Sanneblad",
 	"authorUrl": "https://github.com/johansan",
+	"fundingUrl": "https://buymeacoffee.com/johansan",
 	"isDesktopOnly": false
 }

@@ -1,96 +1,156 @@
-# Obsidian Sample Plugin
+# Featured Image Plugin for Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+## Table of Contents
+- [Introduction](#introduction)
+- [Key Features](#key-features)
+- [Benefits and Optimizations](#benefits-and-optimizations)
+- [How to Use](#how-to-use)
+  - [Basic Usage](#basic-usage)
+  - [Creating Note Galleries](#creating-note-galleries)
+  - [Creating Note Lists with Previews](#creating-note-lists-with-previews)
+- [Settings](#settings)
+- [Installation](#installation)
+- [Support and Feedback](#support-and-feedback)
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Introduction
 
-**Note:** The Obsidian API is still in early alpha and is subject to change at any time!
+Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a featured image property in your notes based on the first image or YouTube link in the document. This plugin enhances your note-taking experience by allowing you to create visually appealing galleries and lists of your notes with minimal effort.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+[INSERT SCREENSHOT OR GIF DEMONSTRATING THE PLUGIN IN ACTION]
 
-## First time developing plugins?
+## Key Features
 
-Quick starting guide for new plugin devs:
+- Automatic frontmatter updates with featured image properties
+- Support for both local images and YouTube thumbnails
+- Bulk update commands for processing all documents at once
+- Highly optimized for performance and low memory usage
+- Cross-platform compatibility (desktop and mobile)
+- Customizable settings to fit your workflow
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## Benefits and Optimizations
 
-## Releasing new releases
+Featured Image is designed with efficiency and performance in mind:
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+1. **Debounced Processing**: The plugin uses a debounce mechanism to prevent excessive processing when files are modified rapidly. This ensures that the plugin only runs when necessary, reducing CPU usage and improving overall performance.
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+2. **Smart Caching**: The plugin utilizes Obsidian's built-in caching system to quickly access file metadata, minimizing the need for repeated file reads and improving processing speed.
 
-## Adding your plugin to the community plugin list
+3. **Optimized Document Scanning**: A combined regex is used to match various image and YouTube link formats in a single pass, reducing the number of regex operations to just one, improving efficiency.
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+4. **Intelligent Thumbnail Handling**: For YouTube videos, the plugin attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats. This ensures the best quality thumbnail while minimizing bandwidth usage.
 
-## How to use
+5. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+## How to Use
 
-## Manually installing the plugin
+### Basic Usage
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+1. Install the Featured Image plugin (see [Installation](#installation) section).
+2. Open a note containing an image or a YouTube link.
+3. The plugin will automatically set the featured image property in the note's frontmatter.
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
+[INSERT GIF SHOWING THE AUTOMATIC FRONTMATTER UPDATE]
 
-## Funding URL
+### Creating Note Galleries
 
-You can include funding URLs where people who use your plugin can financially support it.
+You can use Featured Image in combination with other plugins like Dataview to create beautiful galleries of your notes:
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+1. Ensure your notes have featured images set.
+2. Create a new note for your gallery.
+3. Use Dataview queries to generate a gallery view of your notes, utilizing the featured image property.
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+Example Dataview query for a gallery:
+
+```dataview
+TABLE WITHOUT ID
+  ("![](" + featured-image + ")") as "Image",
+  file.link as "Note"
+FROM "YourFolderPath"
+WHERE featured-image
+SORT file.name ASC
 ```
 
-If you have multiple URLs, you can also do:
+[INSERT SCREENSHOT OF A GALLERY CREATED USING FEATURED IMAGE AND DATAVIEW]
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+### Creating Note Lists with Previews
+
+You can also create lists of notes with image previews:
+
+1. Ensure your notes have featured images set.
+2. Create a new note for your list.
+3. Use Dataview queries to generate a list view of your notes, including the featured image as a preview.
+
+Example Dataview query for a list with previews:
+
+```dataview
+LIST WITHOUT ID
+  "![](" + featured-image + ")" + " " + file.link
+FROM "YourFolderPath"
+WHERE featured-image
+SORT file.name ASC
 ```
 
-## API Documentation
+[INSERT SCREENSHOT OF A NOTE LIST WITH PREVIEWS]
 
-See https://github.com/obsidianmd/obsidian-api
+## Settings
+
+Featured Image offers several customizable settings to tailor the plugin to your needs:
+
+1. **Frontmatter Property Name**
+   - Default: `feature`
+   - Description: The name of the frontmatter property used to store the featured image path.
+   - Usage: Change this if you want to use a different property name in your frontmatter.
+
+2. **YouTube Download Folder**
+   - Default: `thumbnails`
+   - Description: The folder where YouTube thumbnails will be downloaded and stored.
+   - Usage: Set this to your preferred location for storing downloaded thumbnails.
+
+3. **Image Extensions**
+   - Default: `["png", "jpg", "jpeg", "gif", "webp"]`
+   - Description: List of image file extensions to consider when searching for featured images.
+   - Usage: Add or remove extensions based on the image types you use in your vault.
+
+4. **Excluded Folders**
+   - Default: `[]`
+   - Description: List of folders to exclude from processing.
+   - Usage: Add folder paths (e.g., `"templates"`, `"archive"`) to prevent the plugin from processing files in these locations.
+
+5. **Only Update Existing**
+   - Default: `false`
+   - Description: When enabled, the plugin will only update notes that already have a featured image property.
+   - Usage: Enable this if you want to manually control which notes have featured images.
+
+6. **Require Exclamation for YouTube**
+   - Default: `true`
+   - Description: When enabled, YouTube links must be prefixed with `!` to be considered for featured images.
+   - Usage: Enable this if you want more control over which YouTube links become featured images.
+
+7. **Download WebP**
+   - Default: `true`
+   - Description: When enabled, the plugin will attempt to download WebP format thumbnails for YouTube videos.
+   - Usage: Disable this if you prefer JPG thumbnails or if you're experiencing issues with WebP images.
+
+[INSERT SCREENSHOT OF THE SETTINGS PAGE]
+
+To access these settings:
+
+1. Open Obsidian Settings
+2. Navigate to "Community Plugins"
+3. Find "Featured Image" in the list
+4. Click on the gear icon to open the plugin settings
+
+## Installation
+
+1. Open Obsidian and go to Settings
+2. Navigate to "Community Plugins" and click "Browse"
+3. Search for "Featured Image"
+4. Click "Install" and then "Enable" to activate the plugin
+
+## Support and Feedback
+
+If you encounter any issues or have suggestions for improving the Featured Image plugin, please visit our [GitHub repository](https://github.com/johansan/obsidian-featured-image) to submit an issue or contribute to the project.
+
+If you enjoy using Featured Image or use it commercially, consider [buying me a coffee](https://buymeacoffee.com/johansan).
+
+Enjoy using Featured Image to enhance your Obsidian experience!

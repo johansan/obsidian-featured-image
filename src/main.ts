@@ -18,6 +18,10 @@ export default class FeaturedImage extends Plugin {
 		await this.loadSettings();
 		this.debugLog('Plugin loaded, debug mode:', this.debugMode, 'dry run:', this.dryRun);
 
+        // Load the welcome modal state
+        const data = await this.loadData();
+        this.hasShownWelcomeModal = data?.hasShownWelcomeModal || false;
+
         // Show welcome modal if it's the first time
         if (!this.hasShownWelcomeModal) {
             this.showWelcomeModal();
@@ -379,26 +383,29 @@ export default class FeaturedImage extends Plugin {
 
     private showWelcomeModal() {
         const modal = new Modal(this.app);
-        modal.titleEl.setText('Welcome to Featured Image Plugin');
+        modal.titleEl.setText('Welcome to Featured Image');
         
         const content = modal.contentEl;
         content.empty();
         
-        content.createEl('p', { text: 'This plugin automatically sets a featured image property in your notes based on the first image or YouTube link in the document.' });
+        content.createEl('p', { text: 'Featured Image is a highly optimized plugin for Obsidian to automatically set a featured image property in your notes based on the first image or YouTube link in the document.' });
+        content.createEl('p', { text: 'You can use Featured Image together with plugins like Folder Notes and Dataview to create amazing galleries and lists of your notes.' });
         
         content.createEl('h4', { text: 'Key Features:' });
         const featureList = content.createEl('ul');
         featureList.createEl('li', { text: 'Automatically updates Frontmatter with a featured image' });
         featureList.createEl('li', { text: 'Supports both local images and YouTube thumbnails' });
-        featureList.createEl('li', { text: 'Bulk update commands for all documents, search for "Featured Image"' });
+        featureList.createEl('li', { text: 'Bulk update commands for all documents, search for "Featured Image" in the command palette' });
+        featureList.createEl('li', { text: 'Uses very little memory and is highly optimized for performance' });
+        featureList.createEl('li', { text: 'Works on both mobile and desktop' });
         
-        content.createEl('h4', { text: 'Available Settings:' });
+        content.createEl('h4', { text: 'Settings you might want to change:' });
         const settingsList = content.createEl('ul');
-        settingsList.createEl('li', { text: 'Frontmatter property name' });
-        settingsList.createEl('li', { text: 'Image file extensions' });
-        settingsList.createEl('li', { text: 'YouTube thumbnail options' });
-        settingsList.createEl('li', { text: 'Excluded folders' });
-        
+        settingsList.createEl('li', { text: 'Frontmatter property name: ' + this.settings.frontmatterProperty });
+        settingsList.createEl('li', { text: 'YouTube download folder: ' + this.settings.youtubeDownloadFolder });
+        settingsList.createEl('li', { text: 'Excluded folders: Set this to your template folder or other folders you don\'t want to include for processing.'});
+        settingsList.createEl('li', { text: 'Require "!" for YouTube links: Only use Youtube links for featured image if they are prefixed with "!".'});
+
         content.createEl('p', { text: 'To get started, review the settings first and set excluded folders and the property name, then consider running "Set featured images in all files" command to update all your existing documents.' });
         
         modal.open();
