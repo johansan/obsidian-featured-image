@@ -19,12 +19,14 @@ export interface FeaturedImageSettings {
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   showNotificationsOnUpdate: false,
   excludedFolders: [],
+
+  // Frontmatter settings
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
 
   // Youtube settings
   requireExclamationForYoutube: true,
-  downloadWebP: false,
+  downloadWebP: true,
   youtubeDownloadFolder: 'thumbnails',
 
   // Local media settings
