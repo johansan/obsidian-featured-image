@@ -52,6 +52,28 @@ Featured Image is designed with efficiency and performance in mind:
 
 [INSERT GIF SHOWING THE AUTOMATIC FRONTMATTER UPDATE]
 
+### Using Bulk Update Commands
+
+Featured Image provides two powerful bulk update commands to manage featured images across your entire vault:
+
+1. **Set featured images in all files**
+   - This command scans all markdown files in your vault and sets or updates the featured image property based on the first image or YouTube link found in each file.
+   - To use:
+     1. Open the Command Palette (Ctrl/Cmd + P)
+     2. Search for "Featured Image: Set featured images in all files"
+     3. Select the command and confirm the action in the modal that appears
+
+2. **Remove featured images from all files**
+   - This command removes the featured image property from the frontmatter of all markdown files in your vault.
+   - To use:
+     1. Open the Command Palette (Ctrl/Cmd + P)
+     2. Search for "Featured Image: Remove featured images from all files"
+     3. Select the command and confirm the action in the modal that appears
+
+Note: These commands will update the modification date of processed files, which may affect sorting if you sort by modified date.
+
+[INSERT GIF DEMONSTRATING THE BULK UPDATE COMMANDS]
+
 ### Creating Note Lists with Previews
 
 You can use Featured Image in combination with other plugins like [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) and [Folder Notes](https://github.com/LostPaul/obsidian-folder-notes) to create beautiful lists of your notes:
