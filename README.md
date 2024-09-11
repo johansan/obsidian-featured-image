@@ -6,7 +6,7 @@
 - [Benefits and Optimizations](#benefits-and-optimizations)
 - [How to Use](#how-to-use)
   - [Basic Usage](#basic-usage)
-  - [Creating Note Galleries](#creating-note-galleries)
+  - [Using Bulk Update Commands](#using-bulk-update-commands)
   - [Creating Note Lists with Previews](#creating-note-lists-with-previews)
 - [Installation](#installation)
 - [Settings](#settings)
