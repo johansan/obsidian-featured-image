@@ -63,8 +63,7 @@ export class WelcomeModal extends Modal {
     
     contentEl.empty();
     
-    contentEl.createEl("p", { text: "Featured Image is a plugin for Obsidian to automatically set a \"Featured image\" property in your notes based on the first image or YouTube link in the document." });
-    contentEl.createEl("p", { text: "You can use Featured Image together with plugins like Folder Notes and Dataview to create amazing galleries and lists of your notes." });
+    contentEl.createEl("p", { text: "Featured Image is a plugin for Obsidian to automatically set a \"Featured image\" property in your notes based on the first image or YouTube link in the document. You can use Featured Image together with plugins like Folder Notes and Dataview to create amazing galleries and lists of your notes." });
     
     contentEl.createEl("h4", { text: "Key Features:" });
     const featureList = contentEl.createEl("ul");

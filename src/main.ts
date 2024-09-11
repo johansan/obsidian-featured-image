@@ -189,7 +189,6 @@ export default class FeaturedImage extends Plugin {
         const webpFilename = `${videoId}.webp`;
         const webpFilePath = normalizePath(`${thumbnailFolder}/${webpFilename}`);
         if (await this.app.vault.adapter.exists(webpFilePath)) {
-            this.debugLog('Thumbnail already exists:', webpFilePath);
             return webpFilePath;
         }
 
@@ -197,7 +196,6 @@ export default class FeaturedImage extends Plugin {
         const jpgFilename = `${videoId}.jpg`;
         const jpgFilePath = normalizePath(`${thumbnailFolder}/${jpgFilename}`);
         if (await this.app.vault.adapter.exists(jpgFilePath)) {
-            this.debugLog('Thumbnail already exists:', jpgFilePath);
             return jpgFilePath;
         }
 
