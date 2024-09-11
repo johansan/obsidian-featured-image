@@ -99,15 +99,15 @@ Featured Image offers several customizable settings to tailor the plugin to your
    - Description: The name of the frontmatter property used to store the featured image path.
    - Usage: Change this if you want to use a different property name in your frontmatter.
 
-4. **Only Update Existing**
+4. **Only Update if frontmatter property exists**
    - Default: `false`
    - Description: When enabled, the plugin will only update notes that already have a featured image property.
    - Usage: Enable this if you want to manually control which notes have featured images.
 
-5. **Require Exclamation for YouTube**
+5. **Require Exclamation mark for YouTube thumbnails**
    - Default: `true`
    - Description: When enabled, YouTube links must be prefixed with `!` to be considered for featured images.
-   - Usage: Enable this if you want more control over which YouTube links become featured images.
+   - Usage: Keep this enabled if you want more control over which YouTube links become featured images.
 
 6. **Download WebP**
    - Default: `true`
@@ -117,7 +117,7 @@ Featured Image offers several customizable settings to tailor the plugin to your
 7. **YouTube Download Folder**
    - Default: `thumbnails`
    - Description: The folder where YouTube thumbnails will be downloaded and stored.
-   - Usage: Set this to your preferred location for storing downloaded thumbnails.
+   - Usage: Set this to your preferred location for storing downloaded thumbnails. You can use subfolders like "resources/thumbnails" to keep your vault organized.
 
 8. **Image Extensions**
    - Default: `["png", "jpg", "jpeg", "gif", "webp"]`
