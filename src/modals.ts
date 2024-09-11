@@ -76,7 +76,7 @@ export class WelcomeModal extends Modal {
     contentEl.createEl("h4", { text: "Settings you might want to change:" });
     const settingsList = contentEl.createEl("ul");
     settingsList.createEl("li", { text: `Frontmatter property name: "${this.settings.frontmatterProperty}"` });
-    settingsList.createEl("li", { text: `YouTube download folder: "${this.settings.youtubeDownloadFolder}"` });
+    settingsList.createEl("li", { text: `YouTube download folder: "${this.settings.thumbnailDownloadFolder}"` });
     settingsList.createEl("li", { text: "Require Youtube links to be prefixed with \"!\" to use them as featured image" });
     settingsList.createEl("li", { text: "List of excluded folders, such as templates folder" });
 

@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } fro
 import { ConfirmationModal, WelcomeModal } from './modals';
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
+import { createHash } from 'crypto';
 
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
@@ -12,7 +13,7 @@ export default class FeaturedImage extends Plugin {
     private hasShownWelcomeModal: boolean = false;
 
     // Developer options
-	private debugMode: boolean = true;
+	private debugMode: boolean = false;
 	private dryRun: boolean = false;
 
 	async onload() {
@@ -121,18 +122,15 @@ export default class FeaturedImage extends Plugin {
     }
 
     private async findFeaturedImageInDocument(content: string): Promise<string | undefined> {
-        // Combined regex for wiki-style images, Markdown-style images, and YouTube links
+        // Define individual regex patterns
+        const wikiStyleImageRegex = `!\\[\\[([^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
+        const markdownStyleImageRegex = `!\\[.*?\\]\\(([^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
+        const youtubeRegex = `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\\[.*?\\]\\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
+        const autoCardLinkRegex = /```cardlink[\s\S]*?image:\s*(.+?)(?=\s*[\n}])/;
+
+        // Combine all regex patterns
         const combinedRegex = new RegExp(
-            `(` +
-            // Wiki-style image link
-            `!\\[\\[([^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]` +
-            `|` +
-            // Markdown-style image link
-            `!\\[.*?\\]\\(([^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)` +
-            `|` +
-            // YouTube link
-            `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\\[.*?\\]\\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)` +
-            `)`,
+            `(${wikiStyleImageRegex}|${markdownStyleImageRegex}|${youtubeRegex}|${autoCardLinkRegex.source})`,
             'i'
         );
 
@@ -145,11 +143,72 @@ export default class FeaturedImage extends Plugin {
             } else if (match[6]) {
                 // It's a YouTube link
                 const videoId = this.getVideoId(match[6]);
-                return videoId ? await this.downloadThumbnail(videoId, this.settings.youtubeDownloadFolder) : undefined;
+                return videoId ? await this.downloadThumbnail(videoId, this.settings.thumbnailDownloadFolder) : undefined;
+            } else if (match[7]) {
+                // It's an Auto Card Link image
+                return await this.processAutoCardLinkImage(match[7]);
             }
         }
 
         return undefined;
+    }
+
+    private async processAutoCardLinkImage(imagePath: string): Promise<string | undefined> {
+        imagePath = imagePath.trim();
+        this.debugLog('Auto Card Link image:', imagePath);
+    
+        // Auto Card Link always embeds local images within quotes
+        if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
+            // Remove quotes
+            let localPath = imagePath.slice(1, -1).trim();
+            // Remove [[ and ]] if present
+            localPath = localPath.replace(/^\[\[|\]\]$/g, '');
+            this.debugLog('Local image:', localPath);
+            return localPath;
+        }
+    
+        // Download remote image to thumbnail folder
+        const filename = this.getFilenameFromUrl(imagePath);
+        const downloadPath = `${this.settings.thumbnailDownloadFolder}/${filename}`;
+        
+        if (this.dryRun) {
+            this.debugLog('Dry run: Skipping Auto Card Link image download, using mock path');
+            return downloadPath;
+        }
+    
+        try {
+            const response = await requestUrl({
+                url: imagePath,
+                method: 'GET',
+            });
+    
+            await this.app.vault.adapter.writeBinary(downloadPath, response.arrayBuffer);
+            return downloadPath;
+        } catch (error) {
+            this.debugLog('Failed to download Auto Card Link image:', error);
+            return undefined;
+        }
+    }
+
+    private getFilenameFromUrl(url: string): string | undefined {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+    
+        // Get the original filename from the URL
+        let originalFilename = pathname.split('/').pop();
+        
+        // If there's no filename or no extension, return undefined
+        if (!originalFilename || !originalFilename.includes('.')) {
+            return undefined;
+        }
+    
+        const extension = originalFilename.split('.').pop() || '';
+        
+        // Create a hash of the full URL
+        const hash = createHash('md5').update(url).digest('hex').slice(0, 8);
+        
+        // Construct the new filename, hash + extension
+        return `${hash}.${extension}`;
     }
 
     private async updateFrontmatter(file: TFile, newFeature: string | undefined) {

@@ -10,9 +10,9 @@ export interface FeaturedImageSettings {
   // Youtube settings
   requireExclamationForYoutube: boolean;
   downloadWebP: boolean;
-  youtubeDownloadFolder: string;
 
   // Local media settings
+  thumbnailDownloadFolder: string;
   imageExtensions: string[];
 }
 
@@ -27,9 +27,9 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Youtube settings
   requireExclamationForYoutube: true,
   downloadWebP: true,
-  youtubeDownloadFolder: 'thumbnails',
 
   // Local media settings
+  thumbnailDownloadFolder: 'thumbnails',
   imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
 }
 
@@ -52,6 +52,11 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       text: "GitHub Repository",
       href: "https://github.com/johansan/obsidian-featured-image",
     });
+
+    // Add donation text and button
+    containerEl.createEl("p", { text: "If you like using this plugin, please consider donating." });
+    const donationButton = containerEl.createEl("div");
+    donationButton.innerHTML = '<a href="https://www.buymeacoffee.com/johansan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>';
 
     new Setting(containerEl)
       .setName('General settings')
@@ -136,22 +141,22 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           })
       })
 
-    // Youtube download folder
-    new Setting(containerEl)
-      .setName('Youtube thumbnail download folder')
-      .setDesc('Youtube thumbnails will be downloaded to this folder.')
-      .addText(text => text
-        .setPlaceholder(DEFAULT_SETTINGS.youtubeDownloadFolder)
-        .setValue(this.plugin.settings.youtubeDownloadFolder)
-        .onChange(async (value) => {
-          // Remove trailing slash so we can use normalizePath in main.ts
-          this.plugin.settings.youtubeDownloadFolder = value.replace(/\/$/, '');
-          await this.plugin.saveSettings();
-        }))
-
     new Setting(containerEl)
       .setName('Local media settings')
       .setHeading()
+
+    // Youtube download folder
+    new Setting(containerEl)
+      .setName('Thumbnail download folder')
+      .setDesc('Youtube thumbnails and external Auto Card Link images will be downloaded to this folder.')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_SETTINGS.thumbnailDownloadFolder)
+        .setValue(this.plugin.settings.thumbnailDownloadFolder)
+        .onChange(async (value) => {
+          // Remove trailing slash so we can use normalizePath in main.ts
+          this.plugin.settings.thumbnailDownloadFolder = value.replace(/\/$/, '');
+          await this.plugin.saveSettings();
+        }))
 
     // Local image extensions
     new Setting(containerEl)
@@ -164,5 +169,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           this.plugin.settings.imageExtensions = value.split(',').map(ext => ext.trim());
           await this.plugin.saveSettings();
         }));
+ 
   }
+  
 }
