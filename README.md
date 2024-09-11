@@ -14,7 +14,7 @@
 
 ## Introduction
 
-Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a featured image property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image in the document. This plugin enhances your note-taking experience by allowing you to create visually appealing galleries and lists of your notes with minimal effort.
+Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a featured image property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image in your document. This plugin enhances your note-taking experience by allowing you to create visually appealing galleries and lists of your notes with minimal effort.
 
 [INSERT SCREENSHOT OR GIF DEMONSTRATING THE PLUGIN IN ACTION]
 
