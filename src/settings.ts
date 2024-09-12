@@ -14,6 +14,9 @@ export interface FeaturedImageSettings {
   // Local media settings
   thumbnailDownloadFolder: string;
   imageExtensions: string[];
+
+  // Other settings
+  hasShownWelcomeModal: boolean;
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -31,6 +34,9 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Local media settings
   thumbnailDownloadFolder: 'thumbnails',
   imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
+
+  // Other settings
+  hasShownWelcomeModal: false,
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {
