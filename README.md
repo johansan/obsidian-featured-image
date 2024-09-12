@@ -46,11 +46,10 @@ Featured Image is designed with efficiency and performance in mind:
 ### Basic Usage
 
 1. Install the Featured Image plugin (see [Installation](#installation) section).
-2. Open a note containing an image, a YouTube link, or an Auto Card Link.
-3. Change the contents of the note, for example add a new image, YouTube link, or Auto Card Link.
-4. The plugin will automatically set the featured image property in the note's frontmatter.
-
-[INSERT GIF SHOWING THE AUTOMATIC FRONTMATTER UPDATE]
+2. Make sure to review and adjust the [settings](#settings) to your liking.
+3. Open a note containing an image, a YouTube link, or an Auto Card Link.
+4. Change the contents of the note, for example add a new image, YouTube link, or Auto Card Link.
+5. The plugin will automatically set the featured image property in the note's frontmatter.
 
 ### Using Bulk Update Commands
 
@@ -72,7 +71,7 @@ Featured Image provides two powerful bulk update commands to manage featured ima
 
 Note: These commands will update the modification date of processed files, which may affect sorting if you sort by modified date.
 
-[INSERT GIF DEMONSTRATING THE BULK UPDATE COMMANDS]
+![Set featured images in all files](images/bulk-update-1.png)
 
 ### Creating Note Lists with Previews
 
@@ -85,7 +84,33 @@ You can use Featured Image in combination with other plugins like [Dataview](htt
 Example Dataview query for a list with previews:
 
 ```dataview
-TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", embed(link(feature)) as Image
+TAonOpen() {
+  const { contentEl, titleEl } = this;
+  titleEl.setText("Welcome to Featured Image!");
+  
+  contentEl.empty();
+  
+  contentEl.createEl("p", { text: "Featured Image is a plugin for Obsidian to automatically set a \"Featured image\" property in your notes based on the first image, YouTube link, or Auto Card Link image in the document. You can use Featured Image together with plugins like Folder Notes and Dataview to create amazing galleries and lists of your notes." });
+  
+  contentEl.createEl("h4", { text: "Key Features:" });
+  const featureList = contentEl.createEl("ul");
+  featureList.createEl("li", { text: "Automatically updates Frontmatter with a featured image" });
+  featureList.createEl("li", { text: "Supports local images, YouTube thumbnails, and Auto Card Link images" });
+  featureList.createEl("li", { text: "Bulk update commands for all documents, search for \"Featured Image\" in the command palette" });
+  featureList.createEl("li", { text: "Uses very little memory and is highly optimized for performance" });
+  featureList.createEl("li", { text: "Works on both mobile and desktop" });
+  
+  contentEl.createEl("h4", { text: "Settings you might want to change:" });
+  const settingsList = contentEl.createEl("ul");
+  settingsList.createEl("li", { text: `Frontmatter property name: "${this.settings.frontmatterProperty}"` });
+  settingsList.createEl("li", { text: `YouTube download folder: "${this.settings.thumbnailDownloadFolder}"` });
+  settingsList.createEl("li", { text: "Require Youtube links to be prefixed with \"!\" to use them as featured image" });
+  settingsList.createEl("li", { text: "List of excluded folders, such as templates folder" });
+  settingsList.createEl("li", { text: "Image file extensions to consider" });
+
+  contentEl.createEl("p", { text: "To get started, review the settings first and set excluded folders and the property name, then consider running \"Set featured images in all files\" command to update all your existing documents." });
+  contentEl.createEl("p", { text: "Have fun and continue creating amazing notes!" });
+ BLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", embed(link(feature)) as Image
 FROM ""
 WHERE contains(file.folder, this.file.folder)
 WHERE file.name != this.file.name
@@ -146,14 +171,7 @@ Featured Image offers several customizable settings to tailor the plugin to your
    - Description: List of image file extensions to consider when searching for featured images.
    - Usage: Add or remove extensions based on the image types you use in your vault.
 
-[INSERT SCREENSHOT OF THE SETTINGS PAGE]
-
-To access these settings:
-
-1. Open Obsidian Settings
-2. Navigate to "Community Plugins"
-3. Find "Featured Image" in the list
-4. Click on the gear icon to open the plugin settings
+![Settings](images/settings.png)
 
 ## Support and Feedback
 
