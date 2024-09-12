@@ -16,7 +16,7 @@
 
 Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a featured image property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image in your document. This plugin enhances your note-taking experience by allowing you to create visually appealing galleries and lists of your notes with minimal effort.
 
-[INSERT SCREENSHOT OR GIF DEMONSTRATING THE PLUGIN IN ACTION]
+![Featured Image in action](featured-image.mov)
 
 ## Key Features
 
@@ -84,33 +84,7 @@ You can use Featured Image in combination with other plugins like [Dataview](htt
 Example Dataview query for a list with previews:
 
 ```dataview
-TAonOpen() {
-  const { contentEl, titleEl } = this;
-  titleEl.setText("Welcome to Featured Image!");
-  
-  contentEl.empty();
-  
-  contentEl.createEl("p", { text: "Featured Image is a plugin for Obsidian to automatically set a \"Featured image\" property in your notes based on the first image, YouTube link, or Auto Card Link image in the document. You can use Featured Image together with plugins like Folder Notes and Dataview to create amazing galleries and lists of your notes." });
-  
-  contentEl.createEl("h4", { text: "Key Features:" });
-  const featureList = contentEl.createEl("ul");
-  featureList.createEl("li", { text: "Automatically updates Frontmatter with a featured image" });
-  featureList.createEl("li", { text: "Supports local images, YouTube thumbnails, and Auto Card Link images" });
-  featureList.createEl("li", { text: "Bulk update commands for all documents, search for \"Featured Image\" in the command palette" });
-  featureList.createEl("li", { text: "Uses very little memory and is highly optimized for performance" });
-  featureList.createEl("li", { text: "Works on both mobile and desktop" });
-  
-  contentEl.createEl("h4", { text: "Settings you might want to change:" });
-  const settingsList = contentEl.createEl("ul");
-  settingsList.createEl("li", { text: `Frontmatter property name: "${this.settings.frontmatterProperty}"` });
-  settingsList.createEl("li", { text: `YouTube download folder: "${this.settings.thumbnailDownloadFolder}"` });
-  settingsList.createEl("li", { text: "Require Youtube links to be prefixed with \"!\" to use them as featured image" });
-  settingsList.createEl("li", { text: "List of excluded folders, such as templates folder" });
-  settingsList.createEl("li", { text: "Image file extensions to consider" });
-
-  contentEl.createEl("p", { text: "To get started, review the settings first and set excluded folders and the property name, then consider running \"Set featured images in all files\" command to update all your existing documents." });
-  contentEl.createEl("p", { text: "Have fun and continue creating amazing notes!" });
- BLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", embed(link(feature)) as Image
+TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", embed(link(feature)) as Image
 FROM ""
 WHERE contains(file.folder, this.file.folder)
 WHERE file.name != this.file.name
