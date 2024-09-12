@@ -61,12 +61,19 @@ export default class FeaturedImage extends Plugin {
 		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
 	}
 
+    // Debug logging
 	private debugLog(...args: any[]) {
 		if (this.debugMode) {
 			const timestamp = new Date().toTimeString().split(' ')[0];
 			console.log(`${timestamp} [FeaturedImage]`, ...args);
 		}
 	}
+
+    // Error logging
+    private errorLog(...args: any[]) {
+        const timestamp = new Date().toTimeString().split(' ')[0];
+        console.error(`${timestamp} [FeaturedImage]`, ...args);
+    }
 
 	onunload() {
 	}
@@ -321,7 +328,7 @@ export default class FeaturedImage extends Plugin {
             await this.app.vault.adapter.writeBinary(fullFilePath, response.arrayBuffer);
             return normalizePath(`${thumbnailFolder}/${filename}`);
         } catch (error) {
-            console.error(`Error writing file: ${error}`);
+            this.errorLog(`Error writing file: ${error}`);
             return undefined;
         }
     }
