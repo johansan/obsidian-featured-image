@@ -1,8 +1,6 @@
 import { normalizePath, Plugin, Notice, TFile, requestUrl, debounce, Modal, Setting } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { ConfirmationModal, WelcomeModal } from './modals';
-import { parse as parseUrl } from 'url';
-import { parse as parseQueryString } from 'querystring';
 import { createHash } from 'crypto';
 
 export default class FeaturedImage extends Plugin {
@@ -10,28 +8,26 @@ export default class FeaturedImage extends Plugin {
 	private setFeaturedImageDebounced: (file: TFile) => void;
 	private isUpdatingFrontmatter: boolean = false;
 	private isRunningBulkUpdate: boolean = false;
-    private hasShownWelcomeModal: boolean = false;
 
     // Developer options
 	private debugMode: boolean = false;
 	private dryRun: boolean = false;
 
+	/**
+	 * Loads the plugin, initializes settings, and sets up event listeners.
+	 */
 	async onload() {
 		await this.loadSettings();
 		this.debugLog('Plugin loaded, debug mode:', this.debugMode, 'dry run:', this.dryRun);
 
-        // Load the welcome modal state
-        const data = await this.loadData();
-        this.hasShownWelcomeModal = data?.hasShownWelcomeModal || false;
+		// Show welcome modal if it's the first time
+		if (!this.settings.hasShownWelcomeModal) {
+			this.showWelcomeModal();
+			this.settings.hasShownWelcomeModal = true;
+			await this.saveSettings();
+		}
 
-        // Show welcome modal if it's the first time
-        if (!this.hasShownWelcomeModal) {
-            this.showWelcomeModal();
-            this.hasShownWelcomeModal = true;
-            await this.saveData({ hasShownWelcomeModal: true });
-        }
-
-        // Make sure setFeaturedImage is not called too often
+		// Make sure setFeaturedImage is not called too often
 		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
 
         // Add command for updating all featured images
@@ -61,7 +57,10 @@ export default class FeaturedImage extends Plugin {
 		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
 	}
 
-    // Debug logging
+    /**
+     * Logs debug messages if debug mode is enabled.
+     * @param {...any} args - The arguments to log.
+     */
 	private debugLog(...args: any[]) {
 		if (this.debugMode) {
 			const timestamp = new Date().toTimeString().split(' ')[0];
@@ -69,7 +68,10 @@ export default class FeaturedImage extends Plugin {
 		}
 	}
 
-    // Error logging
+    /**
+     * Logs error messages.
+     * @param {...any} args - The arguments to log.
+     */
     private errorLog(...args: any[]) {
         const timestamp = new Date().toTimeString().split(' ')[0];
         console.error(`${timestamp} [FeaturedImage]`, ...args);
@@ -79,13 +81,19 @@ export default class FeaturedImage extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const data = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
 
+    /**
+     * Sets the featured image for a given file.
+     * @param {TFile} file - The file to process.
+     * @returns {Promise<boolean>} True if the featured image was updated, false otherwise.
+     */
     async setFeaturedImage(file: TFile): Promise<boolean> {
         const currentFeature = this.getCurrentFeature(file);
         
@@ -107,12 +115,23 @@ export default class FeaturedImage extends Plugin {
         }
     }
 
+    /**
+     * Gets the current featured image from the file's frontmatter.
+     * @param {TFile} file - The file to check.
+     * @returns {string | undefined} The current featured image, if any.
+     */
     private getCurrentFeature(file: TFile): string | undefined {
         const cache = this.app.metadataCache.getFileCache(file);
         const feature = cache?.frontmatter?.[this.settings.frontmatterProperty];
         return feature;
     }
 
+    /**
+     * Determines if a file should be skipped for processing.
+     * @param {TFile} file - The file to check.
+     * @param {string | undefined} currentFeature - The current featured image.
+     * @returns {Promise<boolean>} True if the file should be skipped, false otherwise.
+     */
     private async shouldSkipProcessing(file: TFile, currentFeature: string | undefined): Promise<boolean> {
         const cache = this.app.metadataCache.getFileCache(file);
         const frontmatter = cache?.frontmatter;
@@ -128,6 +147,11 @@ export default class FeaturedImage extends Plugin {
         return shouldSkip;
     }
 
+    /**
+     * Finds the featured image in the document content.
+     * @param {string} content - The document content to search.
+     * @returns {Promise<string | undefined>} The found featured image, if any.
+     */
     private async findFeaturedImageInDocument(content: string): Promise<string | undefined> {
         // Define individual regex patterns
         const wikiStyleImageRegex = `!\\[\\[([^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
@@ -160,6 +184,11 @@ export default class FeaturedImage extends Plugin {
         return undefined;
     }
 
+    /**
+     * Processes an Auto Card Link image.
+     * @param {string} imagePath - The image path from the Auto Card Link.
+     * @returns {Promise<string | undefined>} The processed image path.
+     */
     private async processAutoCardLinkImage(imagePath: string): Promise<string | undefined> {
         imagePath = imagePath.trim();
         this.debugLog('Auto Card Link image:', imagePath);
@@ -197,6 +226,11 @@ export default class FeaturedImage extends Plugin {
         }
     }
 
+    /**
+     * Extracts the filename from a URL.
+     * @param {string} url - The URL to process.
+     * @returns {string | undefined} The extracted filename.
+     */
     private getFilenameFromUrl(url: string): string | undefined {
         const urlObj = new URL(url);
         const pathname = urlObj.pathname;
@@ -218,6 +252,11 @@ export default class FeaturedImage extends Plugin {
         return `${hash}.${extension}`;
     }
 
+    /**
+     * Updates the frontmatter of a file with the new featured image.
+     * @param {TFile} file - The file to update.
+     * @param {string | undefined} newFeature - The new featured image.
+     */
     private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
         this.isUpdatingFrontmatter = true;
         try {
@@ -246,10 +285,18 @@ export default class FeaturedImage extends Plugin {
         }
     }
 
+    /**
+     * Downloads a YouTube video thumbnail.
+     * @param {string} videoId - The YouTube video ID.
+     * @param {string} thumbnailFolder - The folder to save the thumbnail.
+     * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
+     */
     async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | undefined> {
         
         // Create the thumbnail directory if it doesn't exist
-        await this.app.vault.adapter.mkdir(thumbnailFolder);
+        if (!(await this.app.vault.adapter.exists(thumbnailFolder))) {
+            await this.app.vault.adapter.mkdir(thumbnailFolder);
+        }
 
         // Check if WebP thumbnail already exists
         const webpFilename = `${videoId}.webp`;
@@ -311,6 +358,12 @@ export default class FeaturedImage extends Plugin {
         return undefined;
     }
 
+    /**
+     * Fetches a YouTube thumbnail.
+     * @param {string} videoId - The YouTube video ID.
+     * @param {string} quality - The quality of the thumbnail to fetch.
+     * @returns {Promise<any>} The response from the fetch request.
+     */
     private async fetchThumbnail(videoId: string, quality: string) {
         const isWebp = quality.endsWith('.webp');
         const baseUrl = isWebp ? 'https://i.ytimg.com/vi_webp' : 'https://img.youtube.com/vi';
@@ -321,6 +374,14 @@ export default class FeaturedImage extends Plugin {
         });
     }
 
+    /**
+     * Saves a downloaded thumbnail.
+     * @param {object} response - The response containing the thumbnail data.
+     * @param {string} fullFilePath - The full path to save the thumbnail.
+     * @param {string} thumbnailFolder - The folder to save the thumbnail.
+     * @param {string} filename - The filename for the thumbnail.
+     * @returns {Promise<string | undefined>} The path to the saved thumbnail.
+     */
     private async saveThumbnail(response: { arrayBuffer: ArrayBuffer }, fullFilePath: string, thumbnailFolder: string, filename: string) {
         
         try {
@@ -333,31 +394,40 @@ export default class FeaturedImage extends Plugin {
         }
     }
 
+    /**
+     * Extracts the video ID from a YouTube URL.
+     * @param {string} url - The YouTube URL.
+     * @returns {string | null} The extracted video ID, or null if not found.
+     */
     getVideoId(url: string): string | null {
-        const parsedUrl = parseUrl(url);
-        const hostname = parsedUrl.hostname;
-        const pathname = parsedUrl.pathname || '';
-        const query = parseQueryString(parsedUrl.query || '');
-
-        if (hostname === 'youtu.be' || hostname === 'www.youtu.be') {
-            const result = pathname.split('/')[1].split('?')[0];
-            return result;
-        }
-
-        if (hostname === 'youtube.com' || hostname === 'www.youtube.com') {
+        try {
+          const parsedUrl = new URL(url);
+          const hostname = parsedUrl.hostname;
+          const pathname = parsedUrl.pathname;
+          const searchParams = parsedUrl.searchParams;
+      
+          if (hostname.includes('youtu.be')) {
+            return pathname.slice(1);
+          }
+      
+          if (hostname.includes('youtube.com')) {
             if (pathname === '/watch') {
-                const result = query.v as string;
-                return result;
+              return searchParams.get('v');
             }
             if (pathname.startsWith('/embed/') || pathname.startsWith('/v/')) {
-                const result = pathname.split('/')[2];
-                return result;
+              return pathname.split('/')[2];
             }
+          }
+          return null;
+        } catch (error) {
+          this.errorLog('Invalid URL:', url);
+          return null;
         }
+      }
 
-        return null;
-    }
-
+    /**
+     * Updates featured images for all markdown files in the vault.
+     */
     async updateAllFeaturedImages() {
         const confirmation = await this.showConfirmationModal(
             'Update All Featured Images',
@@ -382,6 +452,9 @@ export default class FeaturedImage extends Plugin {
         new Notice(`Finished ${this.dryRun ? 'dry run of ' : ''}updating featured images for ${updatedCount} files.`);
     }
 
+    /**
+     * Removes featured images from all markdown files in the vault.
+     */
     async removeAllFeaturedImages() {
         const confirmation = await this.showConfirmationModal(
             'Remove All Featured Images',
@@ -406,6 +479,11 @@ export default class FeaturedImage extends Plugin {
         new Notice(`Finished ${this.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`);
     }
 
+    /**
+     * Removes the featured image from a specific file.
+     * @param {TFile} file - The file to remove the featured image from.
+     * @returns {Promise<boolean>} True if the featured image was removed, false otherwise.
+     */
     async removeFeaturedImage(file: TFile): Promise<boolean> {
         const currentFeature = this.getCurrentFeature(file);
         if (!currentFeature) {
@@ -417,6 +495,12 @@ export default class FeaturedImage extends Plugin {
         return true;
     }
 
+    /**
+     * Shows a confirmation modal to the user.
+     * @param {string} title - The title of the modal.
+     * @param {string} message - The message to display in the modal.
+     * @returns {Promise<boolean>} True if the user confirms, false otherwise.
+     */
     private async showConfirmationModal(title: string, message: string): Promise<boolean> {
         return new Promise((resolve) => {
             new ConfirmationModal(this.app, title, message, (result) => {
@@ -425,6 +509,9 @@ export default class FeaturedImage extends Plugin {
         });
     }
 
+    /**
+     * Shows the welcome modal to the user.
+     */
     private showWelcomeModal() {
         new WelcomeModal(this.app, this.settings).open();
     }
