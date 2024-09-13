@@ -82,15 +82,18 @@ You can use Featured Image in combination with other plugins like [Dataview](htt
 2. Create a new note for your list, for example using the [Folder Notes plugin](https://github.com/LostPaul/obsidian-folder-notes).
 3. Use [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) to generate a list view of your notes, including the featured image as a preview.
 
-Example Dataview query for a list with previews:
+Here is an example Dataview query for a list with previews that also shows the subfolders of your notes.
+I have chosen to include a Frontmatter property called "foldernote" in my folder notes so they are not shown in the list.
 
 ```dataview
-TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", embed(link(feature)) as Image
+TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", regexreplace(file.folder, ".*\/([^\/]+)$", "$1") as "Folder", embed(link(feature)) as Image
 FROM ""
 WHERE contains(file.folder, this.file.folder)
 WHERE file.name != this.file.name
+WHERE !contains(foldernote, true)
 SORT file.ctime DESC
 ```
+
 ![Settings](images/dataview.png)
 
 ## Installation
