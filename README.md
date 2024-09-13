@@ -69,7 +69,7 @@ Featured Image provides two powerful bulk update commands to manage featured ima
      2. Search for "Featured Image: Remove featured images from all files"
      3. Select the command and confirm the action in the modal that appears
 
-Note: These commands will update the modification date of processed files, which may affect sorting if you sort by modified date.
+== Note: These commands will update the modification date of processed files, which may affect sorting if you sort by modified date. ==
 
 ![Set featured images in all files](images/bulk-update-1.png)
 
