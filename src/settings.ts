@@ -15,6 +15,10 @@ export interface FeaturedImageSettings {
   thumbnailDownloadFolder: string;
   imageExtensions: string[];
 
+  // Developer options
+  debugMode: boolean;
+  dryRun: boolean;
+
   // Other settings
   hasShownWelcomeModal: boolean;
 }
@@ -34,6 +38,10 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Local media settings
   thumbnailDownloadFolder: 'thumbnails',
   imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
+
+  // Developer options
+  debugMode: false,
+  dryRun: false,
 
   // Other settings
   hasShownWelcomeModal: false,
@@ -151,7 +159,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .setName('Local media settings')
       .setHeading()
 
-    // Youtube download folder
+    // Thumbnail download folder
     new Setting(containerEl)
       .setName('Thumbnail download folder')
       .setDesc('Youtube thumbnails and external Auto Card Link images will be downloaded to this folder.')
@@ -159,8 +167,13 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         .setPlaceholder(DEFAULT_SETTINGS.thumbnailDownloadFolder)
         .setValue(this.plugin.settings.thumbnailDownloadFolder)
         .onChange(async (value) => {
-          // Remove trailing slash so we can use normalizePath in main.ts
-          this.plugin.settings.thumbnailDownloadFolder = value.replace(/\/$/, '');
+          const sanitizedValue = value.trim();
+          if (!sanitizedValue) {
+            // Set to default if empty
+            this.plugin.settings.thumbnailDownloadFolder = DEFAULT_SETTINGS.thumbnailDownloadFolder;
+          } else {
+            this.plugin.settings.thumbnailDownloadFolder = sanitizedValue.replace(/\/$/, '');
+          }
           await this.plugin.saveSettings();
         }))
 
@@ -172,10 +185,41 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         .setPlaceholder('png,jpg,jpeg,gif,webp')
         .setValue(this.plugin.settings.imageExtensions.join(','))
         .onChange(async (value) => {
-          this.plugin.settings.imageExtensions = value.split(',').map(ext => ext.trim());
+          const extensions = value.split(',').map(ext => ext.trim()).filter(ext => ext);
+          if (extensions.length === 0) {
+            // Set to default if empty
+            this.plugin.settings.imageExtensions = DEFAULT_SETTINGS.imageExtensions;
+          } else {
+            this.plugin.settings.imageExtensions = extensions;
+          }
+          await this.plugin.saveSettings();
+        }))
+
+    new Setting(containerEl)
+      .setName('Developer options')
+      .setHeading()
+
+    // Debug mode
+    new Setting(containerEl)
+      .setName('Debug mode')
+      .setDesc('Enable debug mode to log more information to the console.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.debugMode)
+        .onChange(async (value) => {
+          this.plugin.settings.debugMode = value;
           await this.plugin.saveSettings();
         }));
- 
+
+    // Dry run
+    new Setting(containerEl)
+      .setName('Dry run')
+      .setDesc('Enable dry run to prevent any changes from being made.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.dryRun)
+        .onChange(async (value) => {
+          this.plugin.settings.dryRun = value;
+          await this.plugin.saveSettings();
+        }));
   }
-  
+
 }

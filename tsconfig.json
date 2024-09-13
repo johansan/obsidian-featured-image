@@ -4,7 +4,6 @@
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
-    "target": "ES6",
     "allowJs": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
@@ -16,7 +15,11 @@
       "ES5",
       "ES6",
       "ES7",
+      "ES2018" // Added
     ],
+    // Changed from to default plugin settings
+    // "target": "ES6",
+    "target": "ES2018",
     "allowSyntheticDefaultImports": true
   },
   "include": [

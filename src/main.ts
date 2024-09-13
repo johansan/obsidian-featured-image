@@ -1,24 +1,24 @@
-import { normalizePath, Plugin, Notice, TFile, requestUrl, debounce, Modal, Setting } from 'obsidian';
+import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce, Modal, Setting } from 'obsidian';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { ConfirmationModal, WelcomeModal } from './modals';
 import { createHash } from 'crypto';
 
+/**
+ * FeaturedImage plugin for Obsidian.
+ * This plugin automatically sets featured images for markdown files based on their content.
+ */
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
 	private setFeaturedImageDebounced: (file: TFile) => void;
 	private isUpdatingFrontmatter: boolean = false;
 	private isRunningBulkUpdate: boolean = false;
 
-    // Developer options
-	private debugMode: boolean = false;
-	private dryRun: boolean = false;
-
 	/**
 	 * Loads the plugin, initializes settings, and sets up event listeners.
 	 */
 	async onload() {
 		await this.loadSettings();
-		this.debugLog('Plugin loaded, debug mode:', this.debugMode, 'dry run:', this.dryRun);
+		this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
 
 		// Show welcome modal if it's the first time
 		if (!this.settings.hasShownWelcomeModal) {
@@ -62,7 +62,7 @@ export default class FeaturedImage extends Plugin {
      * @param {...any} args - The arguments to log.
      */
 	private debugLog(...args: any[]) {
-		if (this.debugMode) {
+		if (this.settings.debugMode) {
 			const timestamp = new Date().toTimeString().split(' ')[0];
 			console.log(`${timestamp} [FeaturedImage]`, ...args);
 		}
@@ -77,14 +77,23 @@ export default class FeaturedImage extends Plugin {
         console.error(`${timestamp} [FeaturedImage]`, ...args);
     }
 
-	onunload() {
+    /**
+     * Called when the plugin is being disabled.
+     */
+    onunload() {
 	}
 
+    /**
+     * Loads the plugin settings.
+     */
 	async loadSettings() {
 		const data = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 	}
 
+    /**
+     * Saves the plugin settings.
+     */
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
@@ -105,9 +114,7 @@ export default class FeaturedImage extends Plugin {
         const newFeature = await this.findFeaturedImageInDocument(fileContent);
 
         if (currentFeature !== newFeature) {
-            this.debugLog(file.path);
-            this.debugLog('Current feature:', currentFeature);
-            this.debugLog('New feature:', newFeature);
+            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             await this.updateFrontmatter(file, newFeature);
             return true;
         } else {
@@ -136,8 +143,15 @@ export default class FeaturedImage extends Plugin {
         const cache = this.app.metadataCache.getFileCache(file);
         const frontmatter = cache?.frontmatter;
 
-        // Check for the excalidraw tag
-        const hasExcalidrawTag = frontmatter?.tags?.includes('excalidraw') || false;
+        // Check for excalidraw tag
+        let hasExcalidrawTag = false;
+        const tags = frontmatter?.tags;
+        
+        if (Array.isArray(tags)) {
+          hasExcalidrawTag = tags.includes('excalidraw');
+        } else if (typeof tags === 'string') {
+          hasExcalidrawTag = tags.split(',').map(tag => tag.trim()).includes('excalidraw');
+        }
 
         const shouldSkip = (
             hasExcalidrawTag ||
@@ -153,31 +167,32 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The found featured image, if any.
      */
     private async findFeaturedImageInDocument(content: string): Promise<string | undefined> {
-        // Define individual regex patterns
-        const wikiStyleImageRegex = `!\\[\\[([^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
-        const markdownStyleImageRegex = `!\\[.*?\\]\\(([^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
-        const youtubeRegex = `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\\[.*?\\]\\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
-        const autoCardLinkRegex = /```cardlink[\s\S]*?image:\s*(.+?)(?=\s*[\n}])/;
-
+        // Define individual regex patterns with named groups
+        const wikiStyleImageRegex = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
+        const markdownStyleImageRegex = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
+        const youtubeRegex = `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
+        const autoCardLinkRegex = /```cardlink[\s\S]*?image:\s*(?<autoCardImage>.+?)(?=\s*[\n}])/;
+        
         // Combine all regex patterns
         const combinedRegex = new RegExp(
             `(${wikiStyleImageRegex}|${markdownStyleImageRegex}|${youtubeRegex}|${autoCardLinkRegex.source})`,
             'i'
         );
-
+        
         const match = content.match(combinedRegex);
         if (match) {
-            if (match[2] || match[4]) {
+            const { groups } = match ?? {};
+            if (groups?.wikiImage || groups?.mdImage) {
                 // It's an image link (wiki-style or Markdown-style)
-                const imagePath = match[2] || match[4];
+                const imagePath = groups.wikiImage || groups.mdImage;
                 return imagePath ? decodeURIComponent(imagePath) : undefined;
-            } else if (match[6]) {
+            } else if (groups?.youtube) {
                 // It's a YouTube link
-                const videoId = this.getVideoId(match[6]);
+                const videoId = this.getVideoId(groups.youtube);
                 return videoId ? await this.downloadThumbnail(videoId, this.settings.thumbnailDownloadFolder) : undefined;
-            } else if (match[7]) {
+            } else if (groups?.autoCardImage) {
                 // It's an Auto Card Link image
-                return await this.processAutoCardLinkImage(match[7]);
+                return await this.processAutoCardLinkImage(groups?.autoCardImage);
             }
         }
 
@@ -191,7 +206,6 @@ export default class FeaturedImage extends Plugin {
      */
     private async processAutoCardLinkImage(imagePath: string): Promise<string | undefined> {
         imagePath = imagePath.trim();
-        this.debugLog('Auto Card Link image:', imagePath);
     
         // Auto Card Link always embeds local images within quotes
         if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
@@ -199,15 +213,20 @@ export default class FeaturedImage extends Plugin {
             let localPath = imagePath.slice(1, -1).trim();
             // Remove [[ and ]] if present
             localPath = localPath.replace(/^\[\[|\]\]$/g, '');
-            this.debugLog('Local image:', localPath);
             return localPath;
         }
+
+        // Check if the image path is a valid URL
+        if (!this.isValidUrl(imagePath)) {
+            this.errorLog('Invalid Auto Card Link URL:', imagePath);
+            return undefined;
+        }            
     
         // Download remote image to thumbnail folder
         const filename = this.getFilenameFromUrl(imagePath);
         const downloadPath = `${this.settings.thumbnailDownloadFolder}/${filename}`;
         
-        if (this.dryRun) {
+        if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping Auto Card Link image download, using mock path');
             return downloadPath;
         }
@@ -221,9 +240,25 @@ export default class FeaturedImage extends Plugin {
             await this.app.vault.adapter.writeBinary(downloadPath, response.arrayBuffer);
             return downloadPath;
         } catch (error) {
-            this.debugLog('Failed to download Auto Card Link image:', error);
+            this.errorLog('Failed to download Auto Card Link image, error:', error);
             return undefined;
         }
+    }
+
+    /**
+     * Validates a URL.
+     * @param {string} url - The URL to validate.
+     * @returns {boolean} True if the URL is valid, false otherwise.
+     */
+    private isValidUrl(url: string): boolean {
+        try {
+          const parsedUrl = new URL(url);
+          // In the future we might want to enforce HTTPS
+          // return parsedUrl.protocol === 'https:';
+        } catch (error) {
+          return false;
+        }
+        return true;
     }
 
     /**
@@ -260,7 +295,7 @@ export default class FeaturedImage extends Plugin {
     private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
         this.isUpdatingFrontmatter = true;
         try {
-            if (this.dryRun) {
+            if (this.settings.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
                     new Notice(`Dry run: Would ${newFeature ? 'set' : 'remove'} featured image ${newFeature ? `to ${newFeature}` : ''}`);
@@ -312,7 +347,7 @@ export default class FeaturedImage extends Plugin {
             return jpgFilePath;
         }
 
-        if (this.dryRun) {
+        if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping thumbnail download, using mock path');
             return `${thumbnailFolder}/${videoId}.webp`; // Return a mock path
         }
@@ -321,9 +356,8 @@ export default class FeaturedImage extends Plugin {
         if (this.settings.downloadWebP) {
             try {
                 const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
-                if (webpResponse.status === 200) {
+                if (webpResponse?.status === 200) {
                     const result = await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
-                    this.debugLog('Downloaded WebP thumbnail');
                     return result;
                 }
             } catch (error) {
@@ -334,9 +368,8 @@ export default class FeaturedImage extends Plugin {
         // Fall back to JPG versions
         try {
             const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
-            if (maxResResponse.status === 200) {
+            if (maxResResponse?.status === 200) {
                 const result = await this.saveThumbnail(maxResResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                this.debugLog('Downloaded maxresdefault.jpg');
                 return result;
             }
         } catch (error) {
@@ -345,16 +378,15 @@ export default class FeaturedImage extends Plugin {
 
         try {
             const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
-            if (hqDefaultResponse.status === 200) {
+            if (hqDefaultResponse?.status === 200) {
                 const result = await this.saveThumbnail(hqDefaultResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                this.debugLog('Downloaded hqdefault.jpg');
                 return result;
             }
         } catch (error) {
             this.debugLog('Failed to download hqdefault.jpg:');
         }
 
-        this.debugLog('!! Thumbnail could not be downloaded !!');
+        this.errorLog(`Thumbnail for video ${videoId} could not be downloaded`);
         return undefined;
     }
 
@@ -362,13 +394,18 @@ export default class FeaturedImage extends Plugin {
      * Fetches a YouTube thumbnail.
      * @param {string} videoId - The YouTube video ID.
      * @param {string} quality - The quality of the thumbnail to fetch.
-     * @returns {Promise<any>} The response from the fetch request.
+     * @returns {Promise<RequestUrlResponse | undefined>} The response from the fetch request.
+     * @throws {Error} If the URL is invalid or if the network request fails.
      */
-    private async fetchThumbnail(videoId: string, quality: string) {
+    private async fetchThumbnail(videoId: string, quality: string): Promise<RequestUrlResponse | undefined> {
         const isWebp = quality.endsWith('.webp');
         const baseUrl = isWebp ? 'https://i.ytimg.com/vi_webp' : 'https://img.youtube.com/vi';
+        const url = `${baseUrl}/${videoId}/${quality}`;
+        if (!this.isValidUrl(url)) {
+            throw new Error('Invalid Youtube thumbnail URL: ' + url);
+        }
         return await requestUrl({
-            url: `${baseUrl}/${videoId}/${quality}`,
+            url: url,
             method: 'GET',
             headers: { 'Accept': isWebp ? 'image/webp' : 'image/jpeg' },
         });
@@ -420,7 +457,7 @@ export default class FeaturedImage extends Plugin {
           }
           return null;
         } catch (error) {
-          this.errorLog('Invalid URL:', url);
+          this.errorLog('Invalid Youtube URL:', url);
           return null;
         }
       }
@@ -436,7 +473,7 @@ export default class FeaturedImage extends Plugin {
         if (!confirmation) return;
 
         this.isRunningBulkUpdate = true;
-        new Notice(`Starting ${this.dryRun ? 'dry run of ' : ''}bulk update of featured images...`);
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}bulk update of featured images...`);
 
         const files = this.app.vault.getMarkdownFiles();
         let updatedCount = 0;
@@ -449,7 +486,7 @@ export default class FeaturedImage extends Plugin {
         }
 
         this.isRunningBulkUpdate = false;
-        new Notice(`Finished ${this.dryRun ? 'dry run of ' : ''}updating featured images for ${updatedCount} files.`);
+        new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}updating featured images for ${updatedCount} files.`);
     }
 
     /**
@@ -463,7 +500,7 @@ export default class FeaturedImage extends Plugin {
         if (!confirmation) return;
 
         this.isRunningBulkUpdate = true;
-        new Notice(`Starting ${this.dryRun ? 'dry run of ' : ''}removal of featured images from all files...`);
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}removal of featured images from all files...`);
 
         const files = this.app.vault.getMarkdownFiles();
         let removedCount = 0;
@@ -476,7 +513,7 @@ export default class FeaturedImage extends Plugin {
         }
 
         this.isRunningBulkUpdate = false;
-        new Notice(`Finished ${this.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`);
+        new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`);
     }
 
     /**
@@ -490,7 +527,7 @@ export default class FeaturedImage extends Plugin {
             return false; // No featured image to remove
         }
 
-        this.debugLog('Removing featured image from file:', file.path);
+        this.debugLog('FEATURE REMOVED\n- File: ', file.path);
         await this.updateFrontmatter(file, undefined);
         return true;
     }
