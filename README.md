@@ -91,8 +91,7 @@ WHERE contains(file.folder, this.file.folder)
 WHERE file.name != this.file.name
 SORT file.ctime DESC
 ```
-
-[INSERT SCREENSHOT OF A NOTE LIST WITH PREVIEWS]
+![Settings](images/dataview.png)
 
 ## Installation
 
