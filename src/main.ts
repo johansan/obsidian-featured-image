@@ -430,13 +430,16 @@ export default class FeaturedImage extends Plugin {
           const searchParams = parsedUrl.searchParams;
       
           if (hostname.includes('youtu.be')) {
+            // Example URL: https://youtu.be/dQw4w9WgXcQ
             return pathname.slice(1);
           }
       
           if (hostname.includes('youtube.com')) {
+            // Example URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
             if (pathname === '/watch') {
               return searchParams.get('v');
             }
+            // Example URLs: https://www.youtube.com/embed/dQw4w9WgXcQ and https://www.youtube.com/v/dQw4w9WgXcQ
             if (pathname.startsWith('/embed/') || pathname.startsWith('/v/')) {
               return pathname.split('/')[2];
             }
