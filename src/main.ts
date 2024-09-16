@@ -1,6 +1,11 @@
+// Obsidian imports
 import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce, Modal, Setting } from 'obsidian';
+
+// Internal imports
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { ConfirmationModal, WelcomeModal } from './modals';
+
+// External imports
 import { createHash } from 'crypto';
 
 /**
@@ -104,12 +109,11 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<boolean>} True if the featured image was updated, false otherwise.
      */
     async setFeaturedImage(file: TFile): Promise<boolean> {
-        const currentFeature = this.getCurrentFeature(file);
-        
-        if (await this.shouldSkipProcessing(file, currentFeature)) {
+        if (this.shouldSkipProcessing(file)) {
             return false;
         }
 
+        const currentFeature = this.getCurrentFeature(file);
         const fileContent = await this.app.vault.cachedRead(file);
         const newFeature = await this.findFeaturedImageInDocument(fileContent);
 
@@ -129,19 +133,18 @@ export default class FeaturedImage extends Plugin {
      */
     private getCurrentFeature(file: TFile): string | undefined {
         const cache = this.app.metadataCache.getFileCache(file);
-        const feature = cache?.frontmatter?.[this.settings.frontmatterProperty];
-        return feature;
+        return cache?.frontmatter?.[this.settings.frontmatterProperty];
     }
 
     /**
-     * Determines if a file should be skipped for processing.
+     * Checks if the file should be skipped for processing.
      * @param {TFile} file - The file to check.
-     * @param {string | undefined} currentFeature - The current featured image.
-     * @returns {Promise<boolean>} True if the file should be skipped, false otherwise.
+     * @returns {boolean} True if the file should be skipped, false otherwise.
      */
-    private async shouldSkipProcessing(file: TFile, currentFeature: string | undefined): Promise<boolean> {
+    private shouldSkipProcessing(file: TFile): boolean {
         const cache = this.app.metadataCache.getFileCache(file);
         const frontmatter = cache?.frontmatter;
+        const currentFeature = frontmatter?.[this.settings.frontmatterProperty];
 
         // Check for excalidraw tag
         let hasExcalidrawTag = false;
