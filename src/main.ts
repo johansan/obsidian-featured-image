@@ -69,7 +69,7 @@ export default class FeaturedImage extends Plugin {
 	private debugLog(...args: any[]) {
 		if (this.settings.debugMode) {
 			const timestamp = new Date().toTimeString().split(' ')[0];
-			console.log(`${timestamp} [FeaturedImage]`, ...args);
+			console.log(`${timestamp}`, ...args);
 		}
 	}
 
@@ -79,7 +79,7 @@ export default class FeaturedImage extends Plugin {
      */
     private errorLog(...args: any[]) {
         const timestamp = new Date().toTimeString().split(' ')[0];
-        console.error(`${timestamp} [FeaturedImage]`, ...args);
+        console.error(`${timestamp}`, ...args);
     }
 
     /**
@@ -225,9 +225,10 @@ export default class FeaturedImage extends Plugin {
             return undefined;
         }            
     
-        // Download remote image to thumbnail folder
+        // Download remote image to autocardlink folder
         const filename = this.getFilenameFromUrl(imagePath);
-        const downloadPath = `${this.settings.thumbnailDownloadFolder}/${filename}`;
+        const autoCardLinkFolder = `${this.settings.thumbnailDownloadFolder}/autocardlink`;
+        const downloadPath = `${autoCardLinkFolder}/${filename}`;
         
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping Auto Card Link image download, using mock path');
@@ -235,6 +236,11 @@ export default class FeaturedImage extends Plugin {
         }
     
         try {
+            // Create the Auto Card Link directory if it doesn't exist
+            if (!(await this.app.vault.adapter.exists(autoCardLinkFolder))) {
+                await this.app.vault.adapter.mkdir(autoCardLinkFolder);
+            }
+
             const response = await requestUrl({
                 url: imagePath,
                 method: 'GET',
@@ -333,29 +339,30 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
      */
     async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | undefined> {
+        const youtubeFolder = `${thumbnailFolder}/youtube`;
         
-        // Create the thumbnail directory if it doesn't exist
-        if (!(await this.app.vault.adapter.exists(thumbnailFolder))) {
-            await this.app.vault.adapter.mkdir(thumbnailFolder);
+        // Create the YouTube thumbnail directory if it doesn't exist
+        if (!(await this.app.vault.adapter.exists(youtubeFolder))) {
+            await this.app.vault.adapter.mkdir(youtubeFolder);
         }
 
         // Check if WebP thumbnail already exists
         const webpFilename = `${videoId}.webp`;
-        const webpFilePath = normalizePath(`${thumbnailFolder}/${webpFilename}`);
+        const webpFilePath = normalizePath(`${youtubeFolder}/${webpFilename}`);
         if (await this.app.vault.adapter.exists(webpFilePath)) {
             return webpFilePath;
         }
 
         // Check if JPG thumbnail already exists
         const jpgFilename = `${videoId}.jpg`;
-        const jpgFilePath = normalizePath(`${thumbnailFolder}/${jpgFilename}`);
+        const jpgFilePath = normalizePath(`${youtubeFolder}/${jpgFilename}`);
         if (await this.app.vault.adapter.exists(jpgFilePath)) {
             return jpgFilePath;
         }
 
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping thumbnail download, using mock path');
-            return `${thumbnailFolder}/${videoId}.webp`; // Return a mock path
+            return `${youtubeFolder}/${videoId}.webp`; // Return a mock path
         }
 
         // Try to download the thumbnail in WebP format if enabled
@@ -466,11 +473,21 @@ export default class FeaturedImage extends Plugin {
 
         const files = this.app.vault.getMarkdownFiles();
         let updatedCount = 0;
+        let totalFiles = files.length;
+        let lastNotificationTime = Date.now();
 
-        for (const file of files) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
             const wasUpdated = await this.setFeaturedImage(file);
             if (wasUpdated) {
                 updatedCount++;
+            }
+
+            // Show notification every 5 seconds
+            const currentTime = Date.now();
+            if (currentTime - lastNotificationTime >= 5000) {
+                new Notice(`Processed ${i} of ${totalFiles} files. Updated ${updatedCount} featured images.`);
+                lastNotificationTime = currentTime;
             }
         }
 
