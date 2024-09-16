@@ -118,8 +118,8 @@ export default class FeaturedImage extends Plugin {
         const newFeature = await this.findFeaturedImageInDocument(fileContent);
 
         if (currentFeature !== newFeature) {
-            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             await this.updateFrontmatter(file, newFeature);
+            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             return true;
         } else {
             return false;
@@ -282,9 +282,12 @@ export default class FeaturedImage extends Plugin {
         }
     
         const extension = originalFilename.split('.').pop() || '';
+        if (!extension) {
+            return undefined;
+        }
         
         // Create a hash of the full URL
-        const hash = createHash('md5').update(url).digest('hex').slice(0, 8);
+        const hash = createHash('md5').update(url).digest('hex');
         
         // Construct the new filename, hash + extension
         return `${hash}.${extension}`;
@@ -360,8 +363,8 @@ export default class FeaturedImage extends Plugin {
             try {
                 const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
                 if (webpResponse?.status === 200) {
-                    const result = await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
-                    return result;
+                    await this.app.vault.adapter.writeBinary(webpFilePath, webpResponse.arrayBuffer);
+                    return webpFilePath;
                 }
             } catch (error) {
                 this.debugLog('Failed to download WebP thumbnail');
@@ -372,8 +375,8 @@ export default class FeaturedImage extends Plugin {
         try {
             const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
             if (maxResResponse?.status === 200) {
-                const result = await this.saveThumbnail(maxResResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                return result;
+                await this.app.vault.adapter.writeBinary(jpgFilePath, maxResResponse.arrayBuffer);
+                return jpgFilePath;
             }
         } catch (error) {
             this.debugLog('Failed to download maxresdefault.jpg');
@@ -382,8 +385,8 @@ export default class FeaturedImage extends Plugin {
         try {
             const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
             if (hqDefaultResponse?.status === 200) {
-                const result = await this.saveThumbnail(hqDefaultResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                return result;
+                await this.app.vault.adapter.writeBinary(jpgFilePath, hqDefaultResponse.arrayBuffer);
+                return jpgFilePath;
             }
         } catch (error) {
             this.debugLog('Failed to download hqdefault.jpg:');
@@ -412,26 +415,6 @@ export default class FeaturedImage extends Plugin {
             method: 'GET',
             headers: { 'Accept': isWebp ? 'image/webp' : 'image/jpeg' },
         });
-    }
-
-    /**
-     * Saves a downloaded thumbnail.
-     * @param {object} response - The response containing the thumbnail data.
-     * @param {string} fullFilePath - The full path to save the thumbnail.
-     * @param {string} thumbnailFolder - The folder to save the thumbnail.
-     * @param {string} filename - The filename for the thumbnail.
-     * @returns {Promise<string | undefined>} The path to the saved thumbnail.
-     */
-    private async saveThumbnail(response: { arrayBuffer: ArrayBuffer }, fullFilePath: string, thumbnailFolder: string, filename: string) {
-        
-        try {
-            // Save thumbnail using Obsidian's API
-            await this.app.vault.adapter.writeBinary(fullFilePath, response.arrayBuffer);
-            return normalizePath(`${thumbnailFolder}/${filename}`);
-        } catch (error) {
-            this.errorLog(`Error writing file: ${error}`);
-            return undefined;
-        }
     }
 
     /**
