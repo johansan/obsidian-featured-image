@@ -1,6 +1,11 @@
+// Obsidian imports
 import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce, Modal, Setting } from 'obsidian';
+
+// Internal imports
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { ConfirmationModal, WelcomeModal } from './modals';
+
+// External imports
 import { createHash } from 'crypto';
 
 /**
@@ -64,7 +69,7 @@ export default class FeaturedImage extends Plugin {
 	private debugLog(...args: any[]) {
 		if (this.settings.debugMode) {
 			const timestamp = new Date().toTimeString().split(' ')[0];
-			console.log(`${timestamp} [FeaturedImage]`, ...args);
+			console.log(`${timestamp}`, ...args);
 		}
 	}
 
@@ -74,7 +79,7 @@ export default class FeaturedImage extends Plugin {
      */
     private errorLog(...args: any[]) {
         const timestamp = new Date().toTimeString().split(' ')[0];
-        console.error(`${timestamp} [FeaturedImage]`, ...args);
+        console.error(`${timestamp}`, ...args);
     }
 
     /**
@@ -104,18 +109,17 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<boolean>} True if the featured image was updated, false otherwise.
      */
     async setFeaturedImage(file: TFile): Promise<boolean> {
-        const currentFeature = this.getCurrentFeature(file);
-        
-        if (await this.shouldSkipProcessing(file, currentFeature)) {
+        if (this.shouldSkipProcessing(file)) {
             return false;
         }
 
+        const currentFeature = this.getCurrentFeature(file);
         const fileContent = await this.app.vault.cachedRead(file);
-        const newFeature = await this.findFeaturedImageInDocument(fileContent, currentFeature);
+        const newFeature = await this.findFeaturedImageInDocument(fileContent);
 
         if (currentFeature !== newFeature) {
-            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             await this.updateFrontmatter(file, newFeature);
+            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             return true;
         } else {
             return false;
@@ -129,19 +133,18 @@ export default class FeaturedImage extends Plugin {
      */
     private getCurrentFeature(file: TFile): string | undefined {
         const cache = this.app.metadataCache.getFileCache(file);
-        const feature = cache?.frontmatter?.[this.settings.frontmatterProperty];
-        return feature;
+        return cache?.frontmatter?.[this.settings.frontmatterProperty];
     }
 
     /**
-     * Determines if a file should be skipped for processing.
+     * Checks if the file should be skipped for processing.
      * @param {TFile} file - The file to check.
-     * @param {string | undefined} currentFeature - The current featured image.
-     * @returns {Promise<boolean>} True if the file should be skipped, false otherwise.
+     * @returns {boolean} True if the file should be skipped, false otherwise.
      */
-    private async shouldSkipProcessing(file: TFile, currentFeature: string | undefined): Promise<boolean> {
+    private shouldSkipProcessing(file: TFile): boolean {
         const cache = this.app.metadataCache.getFileCache(file);
         const frontmatter = cache?.frontmatter;
+        const currentFeature = frontmatter?.[this.settings.frontmatterProperty];
 
         // Check for excalidraw tag
         let hasExcalidrawTag = false;
@@ -164,14 +167,13 @@ export default class FeaturedImage extends Plugin {
     /**
      * Finds the featured image in the document content.
      * @param {string} content - The document content to search.
-     * @param {string | undefined} currentFeature - The current featured image.
      * @returns {Promise<string | undefined>} The found featured image, if any.
      */
-    private async findFeaturedImageInDocument(content: string, currentFeature: string | undefined): Promise<string | undefined> {
+    private async findFeaturedImageInDocument(content: string): Promise<string | undefined> {
         // Define individual regex patterns with named groups
-        const wikiStyleImageRegex = `!\$begin:math:display$\\\\[(?<wikiImage>[^\\$end:math:display$]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
-        const markdownStyleImageRegex = `!\$begin:math:display$.*?\\$end:math:display$\$begin:math:text$(?<mdImage>[^)]+\\\\.(${this.settings.imageExtensions.join('|')}))\\$end:math:text$`;
-        const youtubeRegex = `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\$begin:math:display$.*?\\$end:math:display$\$begin:math:text$(?<youtube>https?:\\/\\/(?:www\\.)?(?:youtube\\.com|youtu\\.be)\\/\\\\S+)\\$end:math:text$`;
+        const wikiStyleImageRegex = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
+        const markdownStyleImageRegex = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
+        const youtubeRegex = `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
         const autoCardLinkRegex = /```cardlink[\s\S]*?image:\s*(?<autoCardImage>.+?)(?=\s*[\n}])/;
         
         // Combine all regex patterns
@@ -190,72 +192,14 @@ export default class FeaturedImage extends Plugin {
             } else if (groups?.youtube) {
                 // It's a YouTube link
                 const videoId = this.getVideoId(groups.youtube);
-                if (videoId) {
-                    const expectedPaths = this.getExpectedThumbnailPaths(videoId);
-                    const normalizedCurrentFeature = normalizePath(currentFeature ?? '');
-
-                    if (expectedPaths.map(p => normalizePath(p)).includes(normalizedCurrentFeature)) {
-                        // Thumbnail already set as featured image, no need to download
-                        return currentFeature;
-                    } else {
-                        return await this.downloadThumbnail(videoId, this.settings.thumbnailDownloadFolder);
-                    }
-                }
+                return videoId ? await this.downloadThumbnail(videoId, this.settings.thumbnailDownloadFolder) : undefined;
             } else if (groups?.autoCardImage) {
                 // It's an Auto Card Link image
-                const expectedPath = await this.getExpectedAutoCardLinkImagePath(groups.autoCardImage);
-                const normalizedCurrentFeature = normalizePath(currentFeature ?? '');
-
-                if (normalizePath(expectedPath ?? '') === normalizedCurrentFeature) {
-                    // Image already set as featured image, no need to download
-                    return currentFeature;
-                } else {
-                    return await this.processAutoCardLinkImage(groups.autoCardImage);
-                }
+                return await this.processAutoCardLinkImage(groups?.autoCardImage);
             }
         }
 
         return undefined;
-    }
-    
-    // Helper function to get expected YouTube thumbnail paths
-    private getExpectedThumbnailPaths(videoId: string): string[] {
-        const youtubeFolder = `${this.settings.thumbnailDownloadFolder}/youtube`;
-        const paths = [];
-        if (this.settings.downloadWebP) {
-            paths.push(normalizePath(`${youtubeFolder}/${videoId}.webp`));
-        }
-        paths.push(normalizePath(`${youtubeFolder}/${videoId}.jpg`));
-        return paths;
-    }
-
-    // Helper function to get expected Auto Card Link image path
-    private async getExpectedAutoCardLinkImagePath(imagePath: string): Promise<string | undefined> {
-        imagePath = imagePath.trim();
-
-        // Auto Card Link always embeds local images within quotes
-        if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
-            // Remove quotes
-            let localPath = imagePath.slice(1, -1).trim();
-            // Remove [[ and ]] if present
-            localPath = localPath.replace(/^\[\[|\]\]$/g, '');
-            return localPath;
-        }
-
-        // Check if the image path is a valid URL
-        if (!this.isValidUrl(imagePath)) {
-            this.errorLog('Invalid Auto Card Link URL:', imagePath);
-            return undefined;
-        }
-
-        // For remote images, construct the expected download path
-        const filename = this.getFilenameFromUrl(imagePath);
-        if (!filename) {
-            return undefined;
-        }
-        const autoCardLinkFolder = `${this.settings.thumbnailDownloadFolder}/autocardlink`;
-        const downloadPath = normalizePath(`${autoCardLinkFolder}/${filename}`);
-        return downloadPath;
     }
 
     /**
@@ -281,9 +225,10 @@ export default class FeaturedImage extends Plugin {
             return undefined;
         }            
     
-        // Download remote image to thumbnail folder
+        // Download remote image to autocardlink folder
         const filename = this.getFilenameFromUrl(imagePath);
-        const downloadPath = `${this.settings.thumbnailDownloadFolder}/${filename}`;
+        const autoCardLinkFolder = `${this.settings.thumbnailDownloadFolder}/autocardlink`;
+        const downloadPath = `${autoCardLinkFolder}/${filename}`;
         
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping Auto Card Link image download, using mock path');
@@ -291,6 +236,11 @@ export default class FeaturedImage extends Plugin {
         }
     
         try {
+            // Create the Auto Card Link directory if it doesn't exist
+            if (!(await this.app.vault.adapter.exists(autoCardLinkFolder))) {
+                await this.app.vault.adapter.mkdir(autoCardLinkFolder);
+            }
+
             const response = await requestUrl({
                 url: imagePath,
                 method: 'GET',
@@ -338,9 +288,12 @@ export default class FeaturedImage extends Plugin {
         }
     
         const extension = originalFilename.split('.').pop() || '';
+        if (!extension) {
+            return undefined;
+        }
         
         // Create a hash of the full URL
-        const hash = createHash('md5').update(url).digest('hex').slice(0, 8);
+        const hash = createHash('md5').update(url).digest('hex');
         
         // Construct the new filename, hash + extension
         return `${hash}.${extension}`;
@@ -386,29 +339,30 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
      */
     async downloadThumbnail(videoId: string, thumbnailFolder: string): Promise<string | undefined> {
+        const youtubeFolder = `${thumbnailFolder}/youtube`;
         
-        // Create the thumbnail directory if it doesn't exist
-        if (!(await this.app.vault.adapter.exists(thumbnailFolder))) {
-            await this.app.vault.adapter.mkdir(thumbnailFolder);
+        // Create the YouTube thumbnail directory if it doesn't exist
+        if (!(await this.app.vault.adapter.exists(youtubeFolder))) {
+            await this.app.vault.adapter.mkdir(youtubeFolder);
         }
 
         // Check if WebP thumbnail already exists
         const webpFilename = `${videoId}.webp`;
-        const webpFilePath = normalizePath(`${thumbnailFolder}/${webpFilename}`);
+        const webpFilePath = normalizePath(`${youtubeFolder}/${webpFilename}`);
         if (await this.app.vault.adapter.exists(webpFilePath)) {
             return webpFilePath;
         }
 
         // Check if JPG thumbnail already exists
         const jpgFilename = `${videoId}.jpg`;
-        const jpgFilePath = normalizePath(`${thumbnailFolder}/${jpgFilename}`);
+        const jpgFilePath = normalizePath(`${youtubeFolder}/${jpgFilename}`);
         if (await this.app.vault.adapter.exists(jpgFilePath)) {
             return jpgFilePath;
         }
 
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping thumbnail download, using mock path');
-            return `${thumbnailFolder}/${videoId}.webp`; // Return a mock path
+            return `${youtubeFolder}/${videoId}.webp`; // Return a mock path
         }
 
         // Try to download the thumbnail in WebP format if enabled
@@ -416,8 +370,8 @@ export default class FeaturedImage extends Plugin {
             try {
                 const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
                 if (webpResponse?.status === 200) {
-                    const result = await this.saveThumbnail(webpResponse, webpFilePath, thumbnailFolder, webpFilename);
-                    return result;
+                    await this.app.vault.adapter.writeBinary(webpFilePath, webpResponse.arrayBuffer);
+                    return webpFilePath;
                 }
             } catch (error) {
                 this.debugLog('Failed to download WebP thumbnail');
@@ -428,8 +382,8 @@ export default class FeaturedImage extends Plugin {
         try {
             const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
             if (maxResResponse?.status === 200) {
-                const result = await this.saveThumbnail(maxResResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                return result;
+                await this.app.vault.adapter.writeBinary(jpgFilePath, maxResResponse.arrayBuffer);
+                return jpgFilePath;
             }
         } catch (error) {
             this.debugLog('Failed to download maxresdefault.jpg');
@@ -438,8 +392,8 @@ export default class FeaturedImage extends Plugin {
         try {
             const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
             if (hqDefaultResponse?.status === 200) {
-                const result = await this.saveThumbnail(hqDefaultResponse, jpgFilePath, thumbnailFolder, jpgFilename);
-                return result;
+                await this.app.vault.adapter.writeBinary(jpgFilePath, hqDefaultResponse.arrayBuffer);
+                return jpgFilePath;
             }
         } catch (error) {
             this.debugLog('Failed to download hqdefault.jpg:');
@@ -471,26 +425,6 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Saves a downloaded thumbnail.
-     * @param {object} response - The response containing the thumbnail data.
-     * @param {string} fullFilePath - The full path to save the thumbnail.
-     * @param {string} thumbnailFolder - The folder to save the thumbnail.
-     * @param {string} filename - The filename for the thumbnail.
-     * @returns {Promise<string | undefined>} The path to the saved thumbnail.
-     */
-    private async saveThumbnail(response: { arrayBuffer: ArrayBuffer }, fullFilePath: string, thumbnailFolder: string, filename: string) {
-        
-        try {
-            // Save thumbnail using Obsidian's API
-            await this.app.vault.adapter.writeBinary(fullFilePath, response.arrayBuffer);
-            return normalizePath(`${thumbnailFolder}/${filename}`);
-        } catch (error) {
-            this.errorLog(`Error writing file: ${error}`);
-            return undefined;
-        }
-    }
-
-    /**
      * Extracts the video ID from a YouTube URL.
      * @param {string} url - The YouTube URL.
      * @returns {string | null} The extracted video ID, or null if not found.
@@ -503,13 +437,16 @@ export default class FeaturedImage extends Plugin {
           const searchParams = parsedUrl.searchParams;
       
           if (hostname.includes('youtu.be')) {
+            // Example URL: https://youtu.be/dQw4w9WgXcQ
             return pathname.slice(1);
           }
       
           if (hostname.includes('youtube.com')) {
+            // Example URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
             if (pathname === '/watch') {
               return searchParams.get('v');
             }
+            // Example URLs: https://www.youtube.com/embed/dQw4w9WgXcQ and https://www.youtube.com/v/dQw4w9WgXcQ
             if (pathname.startsWith('/embed/') || pathname.startsWith('/v/')) {
               return pathname.split('/')[2];
             }
@@ -536,11 +473,21 @@ export default class FeaturedImage extends Plugin {
 
         const files = this.app.vault.getMarkdownFiles();
         let updatedCount = 0;
+        let totalFiles = files.length;
+        let lastNotificationTime = Date.now();
 
-        for (const file of files) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
             const wasUpdated = await this.setFeaturedImage(file);
             if (wasUpdated) {
                 updatedCount++;
+            }
+
+            // Show notification every 5 seconds
+            const currentTime = Date.now();
+            if (currentTime - lastNotificationTime >= 5000) {
+                new Notice(`Processed ${i} of ${totalFiles} files. Updated ${updatedCount} featured images.`);
+                lastNotificationTime = currentTime;
             }
         }
 
