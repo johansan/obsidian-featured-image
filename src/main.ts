@@ -113,9 +113,9 @@ export default class FeaturedImage extends Plugin {
             return false;
         }
 
-        const currentFeature = this.getCurrentFeatureFromFrontmatter(file);
+        const currentFeature = this.getFeatureFromFrontmatterCache(file);
         const fileContent = await this.app.vault.cachedRead(file);
-        const newFeature = await this.getFeaturedImageFromDocument(fileContent, currentFeature);
+        const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
 
         if (currentFeature !== newFeature) {
             await this.updateFrontmatter(file, newFeature);
@@ -127,17 +127,17 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Gets the current featured image from the file's frontmatter.
+     * Get the current featured image from the file's frontmatter.
      * @param {TFile} file - The file to check.
      * @returns {string | undefined} The current featured image, if any.
      */
-    private getCurrentFeatureFromFrontmatter(file: TFile): string | undefined {
+    private getFeatureFromFrontmatterCache(file: TFile): string | undefined {
         const cache = this.app.metadataCache.getFileCache(file);
         return cache?.frontmatter?.[this.settings.frontmatterProperty];
     }
 
     /**
-     * Checks if the file should be skipped for processing.
+     * Check if the file should be skipped for processing.
      * @param {TFile} file - The file to check.
      * @returns {boolean} True if the file should be skipped, false otherwise.
      */
@@ -170,7 +170,7 @@ export default class FeaturedImage extends Plugin {
      * @param {string | undefined} currentFeature - The current featured image.
      * @returns {Promise<string | undefined>} The found featured image, if any.
      */
-    private async getFeaturedImageFromDocument(content: string, currentFeature: string | undefined): Promise<string | undefined> {
+    private async getFeatureFromDocument(content: string, currentFeature: string | undefined): Promise<string | undefined> {
         // Define individual regex patterns with named groups
         const wikiStyleImageRegex = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
         const markdownStyleImageRegex = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
@@ -230,7 +230,7 @@ export default class FeaturedImage extends Plugin {
         }            
 
         // Generate the filename and download path
-        const filename = this.getFilenameFromUrl(imagePath);
+        const filename = this.generateHashedFilenameFromUrl(imagePath);
         const autoCardLinkFolder = `${this.settings.thumbnailDownloadFolder}/autocardlink`;
         const downloadPath = `${autoCardLinkFolder}/${filename}`;
 
@@ -265,27 +265,25 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Validates a URL.
-     * @param {string} url - The URL to validate.
+     * Check if the URL is valid and that the protocol is HTTPS.
+     * @param {string} url - The URL to check.
      * @returns {boolean} True if the URL is valid, false otherwise.
      */
     private isValidUrl(url: string): boolean {
         try {
           const parsedUrl = new URL(url);
-          // In the future we might want to enforce HTTPS
-          // return parsedUrl.protocol === 'https:';
+          return parsedUrl.protocol === 'https:';
         } catch (error) {
           return false;
         }
-        return true;
     }
 
     /**
-     * Extracts the filename from a URL.
-     * @param {string} url - The URL to process.
-     * @returns {string | undefined} The extracted filename.
+     * Generate a hashed filename from a URL.
+     * @param {string} url - The URL to hash.
+     * @returns {string | undefined} The hashed filename.
      */
-    private getFilenameFromUrl(url: string): string | undefined {
+    private generateHashedFilenameFromUrl(url: string): string | undefined {
         const urlObj = new URL(url);
         const pathname = urlObj.pathname;
     
@@ -545,7 +543,7 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<boolean>} True if the featured image was removed, false otherwise.
      */
     async removeFeaturedImage(file: TFile): Promise<boolean> {
-        const currentFeature = this.getCurrentFeatureFromFrontmatter(file);
+        const currentFeature = this.getFeatureFromFrontmatterCache(file);
         if (!currentFeature) {
             return false; // No featured image to remove
         }
