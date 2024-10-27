@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-featured-image",
 	"version": "1.0.1",
-	"description": "Sets a featured image property from first image, Youtube link or Auto Card Link in your document. You can use this to show thumbnail previews for all your documents.",
+	"description": "Featured Image automatically sets a featured image property in your notes based on the first image, YouTube link, or Auto Card Link image found in your document. This allows you to create rich note galleries using Folder Notes and Dataview.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
