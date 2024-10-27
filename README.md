@@ -14,9 +14,9 @@
 
 ## Introduction
 
-Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a featured image property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image in your document. This allows you to create rich note galleries similar to Apple Notes, Bear and Evernote.
+Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a featured image property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image in your document. This allows you to create rich note lists similar to what you see in other popular note taking applications.
 
-https://github.com/user-attachments/assets/10833df4-29f1-40c0-90cb-c9c013ce4b90
+https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 
 ## Key Features
 
@@ -69,7 +69,7 @@ Featured Image provides two powerful bulk update commands to manage featured ima
      2. Search for "Featured Image: Remove featured images from all files"
      3. Select the command and confirm the action in the modal that appears
 
-== Note: These commands will update the modification date of processed files, which may affect sorting if you sort by modified date. ==
+**WARNING:** These commands will update the modification date of processed files, which may affect sorting if you sort by modified date.
 
 ![Set featured images in all files](images/bulk-update-1.png)
 
