@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-featured-image",
-	"version": "1.0.0",
-	"description": "Sets a featured image property from first Youtube link or first image in document. You can use this to show thumbnail previews in Dataview.",
+	"version": "1.0.1",
+	"description": "Sets a featured image property from first image, Youtube link or Auto Card Link in your document. You can use this to show thumbnail previews for all your documents.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
