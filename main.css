@@ -1,0 +1,12 @@
+/* styles.css */
+.featured-image-warning {
+  background-color: #ffeb3b;
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+.featured-image-donate-button img {
+  height: 60px !important;
+  width: 217px !important;
+}
+/*# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsic3R5bGVzLmNzcyJdLAogICJzb3VyY2VzQ29udGVudCI6IFsiLmZlYXR1cmVkLWltYWdlLXdhcm5pbmcge1xuICAgIGJhY2tncm91bmQtY29sb3I6ICNmZmViM2I7XG4gICAgcGFkZGluZzogMTBweDtcbiAgICBib3JkZXItcmFkaXVzOiA1cHg7XG4gICAgbWFyZ2luLXRvcDogMTBweDtcbn1cblxuLmZlYXR1cmVkLWltYWdlLWRvbmF0ZS1idXR0b24gaW1nIHtcbiAgICBoZWlnaHQ6IDYwcHggIWltcG9ydGFudDtcbiAgICB3aWR0aDogMjE3cHggIWltcG9ydGFudDtcbn1cbiJdLAogICJtYXBwaW5ncyI6ICI7QUFBQTtBQUNJO0FBQ0E7QUFDQTtBQUNBO0FBQUE7QUFHSjtBQUNJO0FBQ0E7QUFBQTsiLAogICJuYW1lcyI6IFtdCn0K */

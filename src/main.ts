@@ -1,6 +1,9 @@
 // Obsidian imports
 import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce, Modal, Setting } from 'obsidian';
 
+// Styles
+import '../styles.css';
+
 // Internal imports
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
 import { ConfirmationModal, WelcomeModal } from './modals';

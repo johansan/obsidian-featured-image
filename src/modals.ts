@@ -22,8 +22,9 @@ export class ConfirmationModal extends Modal {
     contentEl.createEl("p", { text: this.message });
 
     const warningEl = contentEl.createEl("p", { cls: "featured-image-warning" });
-    warningEl.innerHTML = "<strong>Important!</strong> This function will change the modification date of all files that have been processed. This will change your sort order if you sort by modified date.";
-    warningEl.style.cssText = "background-color: #ffeb3b; padding: 10px; border-radius: 5px; margin-top: 10px;";
+    const strongEl = warningEl.createEl("strong");
+    strongEl.setText("Important!");
+    warningEl.appendChild(document.createTextNode(" This function will change the modification date of all files that have been processed. This will change your sort order if you sort by modified date."));
 
     new Setting(contentEl)
       .addButton((btn) =>

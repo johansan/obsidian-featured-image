@@ -1,0 +1,11 @@
+.featured-image-warning {
+    background-color: #ffeb3b;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.featured-image-donate-button img {
+    height: 60px !important;
+    width: 217px !important;
+}
