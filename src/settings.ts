@@ -54,30 +54,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
     containerEl.empty()
 
-    containerEl.createEl("h1", { text: "Featured Image" });
-    containerEl.createEl("p", { text: "An Obsidian plugin to set a featured image property in your markdown files. Full documentation available at the "}).createEl("a", {
-      text: "GitHub Repository",
-      href: "https://github.com/johansan/obsidian-featured-image",
-    });
-
-    // Add donation text and button
-    containerEl.createEl("p", { text: "If you like using this plugin, please consider donating." });
-    const donationButton = containerEl.createEl("div", { cls: "featured-image-donate-button" });
-    const donationLink = donationButton.createEl("a", {
-        href: "https://www.buymeacoffee.com/johansan",
-    });
-    donationLink.setAttribute("target", "_blank");
-    const donationImg = donationLink.createEl("img", {
-        attr: {
-            src: "https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png",
-            alt: "Buy Me A Coffee"
-        }
-    });
-
-    new Setting(containerEl)
-      .setName('General settings')
-      .setHeading()
-
     // Show notifications on update
     new Setting(containerEl)
       .setName('Show notifications')
@@ -222,6 +198,21 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           this.plugin.settings.dryRun = value;
           await this.plugin.saveSettings();
         }));
+
+    // Add donation text and button
+    containerEl.createEl("p", { text: "If you like using this plugin, please consider donating." });
+    const donationButton = containerEl.createEl("div", { cls: "featured-image-donate-button" });
+    const donationLink = donationButton.createEl("a", {
+        href: "https://www.buymeacoffee.com/johansan",
+    });
+    donationLink.setAttribute("target", "_blank");
+    const donationImg = donationLink.createEl("img", {
+        attr: {
+            src: "https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png",
+            alt: "Buy Me A Coffee"
+        }
+    });
+
   }
 
 }
