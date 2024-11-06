@@ -18,9 +18,6 @@ export interface FeaturedImageSettings {
   // Developer options
   debugMode: boolean;
   dryRun: boolean;
-
-  // Other settings
-  hasShownWelcomeModal: boolean;
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -42,9 +39,6 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Developer options
   debugMode: false,
   dryRun: false,
-
-  // Other settings
-  hasShownWelcomeModal: false,
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {

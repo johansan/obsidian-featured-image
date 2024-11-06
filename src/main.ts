@@ -6,7 +6,7 @@ import '../styles.css';
 
 // Internal imports
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings'
-import { ConfirmationModal, WelcomeModal } from './modals';
+import { ConfirmationModal } from './modals';
 
 // External imports
 import { createHash } from 'crypto';
@@ -27,13 +27,6 @@ export default class FeaturedImage extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
-
-		// Show welcome modal if it's the first time
-		if (!this.settings.hasShownWelcomeModal) {
-			this.showWelcomeModal();
-			this.settings.hasShownWelcomeModal = true;
-			await this.saveSettings();
-		}
 
 		// Make sure setFeaturedImage is not called too often
 		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
@@ -197,7 +190,7 @@ export default class FeaturedImage extends Plugin {
                 // It's a YouTube link
                 const videoId = this.getVideoId(groups.youtube);
                 if (videoId) {
-                    return await this.downloadThumbnail(videoId, this.settings.thumbnailDownloadFolder, currentFeature);
+                    return await this.downloadThumbnail(videoId, currentFeature);
                 }
             } else if (groups?.autoCardImage) {
                 // It's an Auto Card Link image
@@ -232,9 +225,11 @@ export default class FeaturedImage extends Plugin {
             return undefined;
         }            
 
-        // Generate the filename and download path
+        // Generate unique local filename from image path
         const filename = this.generateHashedFilenameFromUrl(imagePath);
-        const autoCardLinkFolder = `${this.settings.thumbnailDownloadFolder}/autocardlink`;
+
+        // Normalize Auto Card Link path
+        const autoCardLinkFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/autocardlink`);
         const downloadPath = `${autoCardLinkFolder}/${filename}`;
 
         // If currentFeature matches the downloadPath, return it without downloading
@@ -350,8 +345,9 @@ export default class FeaturedImage extends Plugin {
      * @param {string | undefined} currentFeature - The current featured image.
      * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
      */
-    async downloadThumbnail(videoId: string, thumbnailFolder: string, currentFeature: string | undefined): Promise<string | undefined> {
-        const youtubeFolder = `${thumbnailFolder}/youtube`;
+    async downloadThumbnail(videoId: string, currentFeature: string | undefined): Promise<string | undefined> {
+        // Normalize Youtube folder path
+        const youtubeFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/youtube`);
         const expectedPath = `${youtubeFolder}/${videoId}`;
         
         // If we already have a feature set to the expected path, return it
@@ -366,14 +362,14 @@ export default class FeaturedImage extends Plugin {
 
         // Check if WebP thumbnail already exists
         const webpFilename = `${videoId}.webp`;
-        const webpFilePath = normalizePath(`${youtubeFolder}/${webpFilename}`);
+        const webpFilePath = `${youtubeFolder}/${webpFilename}`;
         if (await this.app.vault.adapter.exists(webpFilePath)) {
             return webpFilePath;
         }
 
         // Check if JPG thumbnail already exists
         const jpgFilename = `${videoId}.jpg`;
-        const jpgFilePath = normalizePath(`${youtubeFolder}/${jpgFilename}`);
+        const jpgFilePath = `${youtubeFolder}/${jpgFilename}`;
         if (await this.app.vault.adapter.exists(jpgFilePath)) {
             return jpgFilePath;
         }
@@ -481,7 +477,7 @@ export default class FeaturedImage extends Plugin {
      */
     async updateAllFeaturedImages() {
         const confirmation = await this.showConfirmationModal(
-            'Update All Featured Images',
+            'Update all featured images',
             'This will scan all markdown files in your vault and update or add featured images based on the first image or YouTube link found in each file. Proceed?'
         );
         if (!confirmation) return;
@@ -518,7 +514,7 @@ export default class FeaturedImage extends Plugin {
      */
     async removeAllFeaturedImages() {
         const confirmation = await this.showConfirmationModal(
-            'Remove All Featured Images',
+            'Remove all featured images',
             `This will remove the "${this.settings.frontmatterProperty}" property from the frontmatter of all markdown files in your vault. Proceed?`
         );
         if (!confirmation) return;
@@ -568,13 +564,6 @@ export default class FeaturedImage extends Plugin {
                 resolve(result);
             }).open();
         });
-    }
-
-    /**
-     * Shows the welcome modal to the user.
-     */
-    private showWelcomeModal() {
-        new WelcomeModal(this.app, this.settings).open();
     }
 
 }
