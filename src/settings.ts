@@ -7,8 +7,8 @@ export interface FeaturedImageSettings {
 	frontmatterProperty: string;
   onlyUpdateExisting: boolean;
 
-  // Youtube settings
-  requireExclamationForYoutube: boolean;
+  // YouTube settings
+  requireExclamationForYouTube: boolean;
   downloadWebP: boolean;
 
   // Local media settings
@@ -28,8 +28,8 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
 
-  // Youtube settings
-  requireExclamationForYoutube: true,
+  // YouTube settings
+  requireExclamationForYouTube: true,
   downloadWebP: true,
 
   // Local media settings
@@ -79,7 +79,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         }))
 
     new Setting(containerEl)
-      .setName('Frontmatter settings')
+      .setName('Frontmatter')
       .setHeading()
 
     // Frontmatter property
@@ -107,7 +107,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       })
 
     new Setting(containerEl)
-      .setName('Youtube settings')
+      .setName('YouTube')
       .setHeading()
 
       // Require exclamation mark for YouTube thumbnails
@@ -115,16 +115,16 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .setName('Require exclamation mark for YouTube thumbnails')
       .setDesc('If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.')
       .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.requireExclamationForYoutube)
+        .setValue(this.plugin.settings.requireExclamationForYouTube)
         .onChange(async (value) => {
-          this.plugin.settings.requireExclamationForYoutube = value;
+          this.plugin.settings.requireExclamationForYouTube = value;
           await this.plugin.saveSettings();
         }));
 
     // Download webp
     new Setting(containerEl)
       .setName('Download WebP')
-      .setDesc('Download WebP versions of images from Youtube if available, otherwise download JPG.')
+      .setDesc('Download WebP versions of images from YouTube if available, otherwise download JPG.')
       .addToggle(toggle => { toggle
           .setValue(this.plugin.settings.downloadWebP)
           .onChange(async value => {
@@ -134,13 +134,13 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       })
 
     new Setting(containerEl)
-      .setName('Local media settings')
+      .setName('Local media')
       .setHeading()
 
     // Thumbnail download folder
     new Setting(containerEl)
       .setName('Thumbnail download folder')
-      .setDesc('Youtube thumbnails and external Auto Card Link images will be downloaded to this folder.')
+      .setDesc('YouTube thumbnails and external Auto Card Link images will be downloaded to this folder.')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.thumbnailDownloadFolder)
         .setValue(this.plugin.settings.thumbnailDownloadFolder)
