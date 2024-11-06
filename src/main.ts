@@ -170,7 +170,7 @@ export default class FeaturedImage extends Plugin {
         // Define individual regex patterns with named groups
         const wikiStyleImageRegex = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
         const markdownStyleImageRegex = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
-        const youtubeRegex = `${this.settings.requireExclamationForYoutube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
+        const youtubeRegex = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
         const autoCardLinkRegex = /```cardlink[\s\S]*?image:\s*(?<autoCardImage>.+?)(?=\s*[\n}])/;
         
         // Combine all regex patterns
@@ -346,7 +346,7 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
      */
     async downloadThumbnail(videoId: string, currentFeature: string | undefined): Promise<string | undefined> {
-        // Normalize Youtube folder path
+        // Normalize YouTube folder path
         const youtubeFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/youtube`);
         const expectedPath = `${youtubeFolder}/${videoId}`;
         
@@ -429,7 +429,7 @@ export default class FeaturedImage extends Plugin {
         const baseUrl = isWebp ? 'https://i.ytimg.com/vi_webp' : 'https://img.youtube.com/vi';
         const url = `${baseUrl}/${videoId}/${quality}`;
         if (!this.isValidUrl(url)) {
-            throw new Error('Invalid Youtube thumbnail URL: ' + url);
+            throw new Error('Invalid YouTube thumbnail URL: ' + url);
         }
         return await requestUrl({
             url: url,
@@ -454,7 +454,7 @@ export default class FeaturedImage extends Plugin {
             // Example URL: https://youtu.be/dQw4w9WgXcQ
             return pathname.slice(1);
           }
-      
+          
           if (hostname.includes('youtube.com')) {
             // Example URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
             if (pathname === '/watch') {
@@ -467,7 +467,7 @@ export default class FeaturedImage extends Plugin {
           }
           return null;
         } catch (error) {
-          this.errorLog('Invalid Youtube URL:', url);
+          this.errorLog('Invalid YouTube URL:', url);
           return null;
         }
       }
