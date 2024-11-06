@@ -174,13 +174,13 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         }))
 
     new Setting(containerEl)
-      .setName('Developer options')
+      .setName('Developer')
       .setHeading()
 
     // Debug mode
     new Setting(containerEl)
       .setName('Debug mode')
-      .setDesc('Enable debug mode to log more information to the console.')
+      .setDesc('Enable debug mode to log detailed information to the console.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.debugMode)
         .onChange(async (value) => {
@@ -191,7 +191,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     // Dry run
     new Setting(containerEl)
       .setName('Dry run')
-      .setDesc('Enable dry run to prevent any changes from being made.')
+      .setDesc('Enable dry run to prevent any changes from being made to your files.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.dryRun)
         .onChange(async (value) => {
