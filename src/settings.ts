@@ -199,20 +199,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    // Add donation text and button
-    containerEl.createEl("p", { text: "If you like using this plugin, please consider donating." });
-    const donationButton = containerEl.createEl("div", { cls: "featured-image-donate-button" });
-    const donationLink = donationButton.createEl("a", {
-        href: "https://www.buymeacoffee.com/johansan",
-    });
-    donationLink.setAttribute("target", "_blank");
-    const donationImg = donationLink.createEl("img", {
-        attr: {
-            src: "https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png",
-            alt: "Buy Me A Coffee"
-        }
-    });
-
   }
 
 }
