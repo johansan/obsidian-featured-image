@@ -14,7 +14,9 @@
 
 ## Introduction
 
-Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a featured image property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image in your document. This allows you to create rich note lists similar to what you see in other popular note taking applications.
+Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a **featured image** property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image found in your document.
+
+This allows you to create rich note lists similar to what you see in other popular note taking applications such as [Apple Notes](https://apps.apple.com/us/app/notes/id1110145109), [Evernote](https://evernote.com/) and [Bear](https://bear.app/).
 
 https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 
@@ -26,6 +28,10 @@ https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 - Highly optimized for performance and low memory usage
 - Cross-platform compatibility (desktop and mobile)
 - Customizable settings to fit your workflow
+
+If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan).
+
+<a href="https://www.buymeacoffee.com/johansan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Benefits and Optimizations
 
@@ -151,8 +157,6 @@ Featured Image offers several customizable settings to tailor the plugin to your
 
 ## Support and Feedback
 
-If you enjoy using Featured Image or use it commercially, consider [buying me a coffee](https://buymeacoffee.com/johansan).
-
 If you have any questions, suggestions, or issues, please open an issue on the [GitHub repository](https://github.com/johansan/obsidian-featured-image).
 
-Enjoy using Featured Image to enhance your Obsidian experience!
+Enjoy using Featured Image!
