@@ -89,8 +89,12 @@ export default class FeaturedImage extends Plugin {
      * Called when the plugin is being disabled.
      */
     onunload() {
-	}
+        // Clean up debounced function
+        if (this.setFeaturedImageDebounced) {
             // @ts-ignore - Access private property
+            this.setFeaturedImageDebounced.cancel();
+        }
+    }
 
     /**
      * Loads the plugin settings.
