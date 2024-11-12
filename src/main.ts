@@ -29,7 +29,14 @@ export default class FeaturedImage extends Plugin {
 		this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
 
 		// Make sure setFeaturedImage is not called too often
-		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
+		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, false);
+
+		// Add command for updating all featured images in current folder
+		this.addCommand({
+			id: 'featured-image-update-folder',
+			name: 'Set featured images in current folder',
+			callback: () => this.updateFolderFeaturedImages(),
+		});
 
         // Add command for updating all featured images
         this.addCommand({
@@ -83,6 +90,7 @@ export default class FeaturedImage extends Plugin {
      */
     onunload() {
 	}
+            // @ts-ignore - Access private property
 
     /**
      * Loads the plugin settings.
@@ -226,11 +234,15 @@ export default class FeaturedImage extends Plugin {
         }            
 
         // Generate unique local filename from image path
-        const filename = this.generateHashedFilenameFromUrl(imagePath);
+        const hashedFilename = this.generateHashedFilenameFromUrl(imagePath);
+        if (!hashedFilename) {
+            this.errorLog('Failed to generate hashed filename for:', imagePath);
+            return undefined;
+        }
 
         // Normalize Auto Card Link path
         const autoCardLinkFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/autocardlink`);
-        const downloadPath = `${autoCardLinkFolder}/${filename}`;
+        const downloadPath = `${autoCardLinkFolder}/${hashedFilename}`;
 
         // If currentFeature matches the downloadPath, return it without downloading
         if (currentFeature === downloadPath) {
@@ -435,6 +447,7 @@ export default class FeaturedImage extends Plugin {
             url: url,
             method: 'GET',
             headers: { 'Accept': isWebp ? 'image/webp' : 'image/jpeg' },
+            throw: false  // Don't throw on non-200 responses
         });
     }
 
@@ -478,35 +491,87 @@ export default class FeaturedImage extends Plugin {
     async updateAllFeaturedImages() {
         const confirmation = await this.showConfirmationModal(
             'Update all featured images',
-            'This will scan all markdown files in your vault and update or add featured images based on the first image or YouTube link found in each file. Proceed?'
+            'This will scan all markdown files in your vault and update or add featured images based on the first image, YouTube link, or Auto Card Link image found in each file. Proceed?'
         );
         if (!confirmation) return;
 
-        this.isRunningBulkUpdate = true;
-        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}bulk update of featured images...`);
-
         const files = this.app.vault.getMarkdownFiles();
+        await this.processFilesWithProgress(
+            files,
+            'bulk update of featured images',
+            'updating featured images'
+        );
+    }
+
+    /**
+     * Updates featured images for all markdown files in the current folder and subfolders.
+     */
+    async updateFolderFeaturedImages() {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) {
+            new Notice('No file is currently active');
+            return;
+        }
+
+        const currentFolder = activeFile.parent?.path || '';
+        
+        const confirmation = await this.showConfirmationModal(
+            'Update folder featured images',
+            `This will scan all markdown files in "${currentFolder}" and its subfolders, and update or add featured images based on the first image, YouTube link, or Auto Card Link image found in each file. Proceed?`
+        );
+        if (!confirmation) return;
+
+        const allFiles = this.app.vault.getMarkdownFiles();
+        const folderFiles = allFiles.filter(file => {
+            // Include files in current folder and subfolders, but handle root folder case
+            return currentFolder === '' 
+                ? file.path === file.name  // For root folder, only include files in root
+                : file.path.startsWith(currentFolder + '/');
+        });
+
+        await this.processFilesWithProgress(
+            folderFiles,
+            'bulk update of featured images in folder',
+            'updating featured images'
+        );
+    }
+
+    /**
+     * Process a list of files with progress notifications.
+     * @param {TFile[]} files - The files to process.
+     * @param {string} operationName - Name of the operation for notifications.
+     * @param {string} progressText - Text to show in progress notifications.
+     */
+    private async processFilesWithProgress(
+        files: TFile[],
+        operationName: string,
+        progressText: string
+    ) {
+        this.isRunningBulkUpdate = true;
+        const batchSize = 5; // Process 5 files at a time
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}...`);
+
         let updatedCount = 0;
         let totalFiles = files.length;
         let lastNotificationTime = Date.now();
 
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const wasUpdated = await this.setFeaturedImage(file);
-            if (wasUpdated) {
-                updatedCount++;
-            }
+        try {
+            for (let i = 0; i < files.length; i += batchSize) {
+                const batch = files.slice(i, i + batchSize);
+                const results = await Promise.all(batch.map(file => this.setFeaturedImage(file)));
+                updatedCount += results.filter(result => result).length;
 
-            // Show notification every 5 seconds
-            const currentTime = Date.now();
-            if (currentTime - lastNotificationTime >= 5000) {
-                new Notice(`Processed ${i} of ${totalFiles} files. Updated ${updatedCount} featured images.`);
-                lastNotificationTime = currentTime;
+                // Show notification every 5 seconds
+                const currentTime = Date.now();
+                if (currentTime - lastNotificationTime >= 5000) {
+                    new Notice(`Processed ${i + 1} of ${totalFiles} files. Updated ${updatedCount} featured images.`);
+                    lastNotificationTime = currentTime;
+                }
             }
+        } finally {
+            this.isRunningBulkUpdate = false;
+            new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText} for ${updatedCount} files.`);
         }
-
-        this.isRunningBulkUpdate = false;
-        new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}updating featured images for ${updatedCount} files.`);
     }
 
     /**
