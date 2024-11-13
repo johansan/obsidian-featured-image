@@ -99,7 +99,7 @@ WHERE !contains(foldernote, true)
 SORT file.ctime DESC
 ```
 
-![Settings](images/dataview.png)
+![Dataview with previews](images/dataview.png)
 
 ## Settings
 
