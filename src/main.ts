@@ -121,7 +121,7 @@ export default class FeaturedImage extends Plugin {
             return false;
         }
 
-        const currentFeature = this.getFeatureFromFrontmatterCache(file);
+        const currentFeature = this.getFeatureFromFrontmatter(file);
         const fileContent = await this.app.vault.cachedRead(file);
         const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
 
@@ -139,7 +139,7 @@ export default class FeaturedImage extends Plugin {
      * @param {TFile} file - The file to check.
      * @returns {string | undefined} The current featured image, if any.
      */
-    private getFeatureFromFrontmatterCache(file: TFile): string | undefined {
+    private getFeatureFromFrontmatter(file: TFile): string | undefined {
         const cache = this.app.metadataCache.getFileCache(file);
         const feature = cache?.frontmatter?.[this.settings.frontmatterProperty];
         
@@ -158,27 +158,32 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
+     * Get the tags from the file's frontmatter.
+     * @param {TFile} file - The file to check.
+     * @returns {string[] | undefined} The tags, if any.
+     */
+    private getTagsFromFrontmatter(file: TFile): string[] | undefined {
+        const cache = this.app.metadataCache.getFileCache(file);
+        return cache?.frontmatter?.tags;
+    }
+
+    /**
      * Check if the file should be skipped for processing.
      * @param {TFile} file - The file to check.
      * @returns {boolean} True if the file should be skipped, false otherwise.
      */
     private shouldSkipProcessing(file: TFile): boolean {
-        const cache = this.app.metadataCache.getFileCache(file);
-        const frontmatter = cache?.frontmatter;
-        const currentFeature = this.getFeatureFromFrontmatterCache(file);
-        
-        // Check for excalidraw tag
-        let hasExcalidrawTag = false;
-        const tags = frontmatter?.tags;
-        
-        if (Array.isArray(tags)) {
-            hasExcalidrawTag = tags.includes('excalidraw');
-        } else if (typeof tags === 'string') {
-            hasExcalidrawTag = tags.split(',').map(tag => tag.trim()).includes('excalidraw');
+        const tags = this.getTagsFromFrontmatter(file);
+        const allTags = tags ? tags.map((t: any) => t.tag) : [];
+
+        // Skip processing if the file has the 'excalidraw' tag
+        if (allTags.includes('excalidraw')) {
+            return true;
         }
 
+        const currentFeature = this.getFeatureFromFrontmatter(file);
+        
         const shouldSkip = (
-            hasExcalidrawTag ||
             (this.settings.onlyUpdateExisting && !currentFeature) ||
             this.settings.excludedFolders.some((folder: string) => file.path.startsWith(folder + '/'))
         );
@@ -630,7 +635,7 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<boolean>} True if the featured image was removed, false otherwise.
      */
     async removeFeaturedImage(file: TFile): Promise<boolean> {
-        const currentFeature = this.getFeatureFromFrontmatterCache(file);
+        const currentFeature = this.getFeatureFromFrontmatter(file);
         if (!currentFeature) {
             return false; // No featured image to remove
         }
