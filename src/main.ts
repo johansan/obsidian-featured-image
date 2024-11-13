@@ -31,19 +31,19 @@ export default class FeaturedImage extends Plugin {
 		// Make sure setFeaturedImage is not called too often
 		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, false);
 
-		// Add command for updating all featured images in current folder
-		this.addCommand({
-			id: 'featured-image-update-folder',
-			name: 'Set featured images in current folder',
-			callback: () => this.updateFolderFeaturedImages(),
-		});
-
         // Add command for updating all featured images
         this.addCommand({
             id: 'featured-image-update-all',
             name: 'Set featured images in all files',
             callback: () => this.updateAllFeaturedImages(),
         });
+
+		// Add command for updating all featured images in current folder
+		this.addCommand({
+			id: 'featured-image-update-folder',
+			name: 'Set featured images in current folder',
+			callback: () => this.updateFolderFeaturedImages(),
+		});
 
         // Add command for removing all featured images
         this.addCommand({
@@ -515,23 +515,24 @@ export default class FeaturedImage extends Plugin {
             new Notice('No file is currently active');
             return;
         }
-
-        const currentFolder = activeFile.parent?.path || '';
+        
+        const currentFolder = activeFile.parent?.path || '/';
         
         const confirmation = await this.showConfirmationModal(
             'Update folder featured images',
             `This will scan all markdown files in "${currentFolder}" and its subfolders, and update or add featured images based on the first image, YouTube link, or Auto Card Link image found in each file. Proceed?`
         );
         if (!confirmation) return;
-
+    
         const allFiles = this.app.vault.getMarkdownFiles();
         const folderFiles = allFiles.filter(file => {
-            // Include files in current folder and subfolders, but handle root folder case
-            return currentFolder === '' 
-                ? file.path === file.name  // For root folder, only include files in root
-                : file.path.startsWith(currentFolder + '/');
+            if (currentFolder === '/') {
+                // For root folder, include all files
+                return true;
+            }
+            return file.path.startsWith(currentFolder + '/');
         });
-
+    
         await this.processFilesWithProgress(
             folderFiles,
             'bulk update of featured images in folder',
