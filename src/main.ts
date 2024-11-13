@@ -173,11 +173,10 @@ export default class FeaturedImage extends Plugin {
      * @returns {boolean} True if the file should be skipped, false otherwise.
      */
     private shouldSkipProcessing(file: TFile): boolean {
-        const tags = this.getTagsFromFrontmatter(file);
-        const allTags = tags ? tags.map((t: any) => t.tag) : [];
+        const tags = this.getTagsFromFrontmatter(file) ?? [];
 
         // Skip processing if the file has the 'excalidraw' tag
-        if (allTags.includes('excalidraw')) {
+        if (tags.includes('excalidraw')) {
             return true;
         }
 
