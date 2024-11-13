@@ -141,7 +141,20 @@ export default class FeaturedImage extends Plugin {
      */
     private getFeatureFromFrontmatterCache(file: TFile): string | undefined {
         const cache = this.app.metadataCache.getFileCache(file);
-        return cache?.frontmatter?.[this.settings.frontmatterProperty];
+        const feature = cache?.frontmatter?.[this.settings.frontmatterProperty];
+        
+        if (feature) {
+            // Attempt to extract the image path from wiki-style link
+            const match = feature.match(/!\[\[(.*?)\]\]/);
+            if (match) {
+                return match[1];
+            } else {
+                // Return the feature as-is if it's not a wiki-style link
+                return feature;
+            }
+        }
+        
+        return undefined;
     }
 
     /**
@@ -152,16 +165,16 @@ export default class FeaturedImage extends Plugin {
     private shouldSkipProcessing(file: TFile): boolean {
         const cache = this.app.metadataCache.getFileCache(file);
         const frontmatter = cache?.frontmatter;
-        const currentFeature = frontmatter?.[this.settings.frontmatterProperty];
-
+        const currentFeature = this.getFeatureFromFrontmatterCache(file);
+        
         // Check for excalidraw tag
         let hasExcalidrawTag = false;
         const tags = frontmatter?.tags;
         
         if (Array.isArray(tags)) {
-          hasExcalidrawTag = tags.includes('excalidraw');
+            hasExcalidrawTag = tags.includes('excalidraw');
         } else if (typeof tags === 'string') {
-          hasExcalidrawTag = tags.split(',').map(tag => tag.trim()).includes('excalidraw');
+            hasExcalidrawTag = tags.split(',').map(tag => tag.trim()).includes('excalidraw');
         }
 
         const shouldSkip = (
@@ -179,6 +192,9 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The found featured image, if any.
      */
     private async getFeatureFromDocument(content: string, currentFeature: string | undefined): Promise<string | undefined> {
+        // Remove frontmatter section from content before processing
+        const contentWithoutFrontmatter = content.replace(/^---\n[\s\S]*?\n---\n/, '');
+
         // Define individual regex patterns with named groups
         const wikiStyleImageRegex = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
         const markdownStyleImageRegex = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
@@ -191,7 +207,7 @@ export default class FeaturedImage extends Plugin {
             'i'
         );
         
-        const match = content.match(combinedRegex);
+        const match = contentWithoutFrontmatter.match(combinedRegex);
         if (match) {
             const { groups } = match ?? {};
             if (groups?.wikiImage || groups?.mdImage) {
@@ -337,7 +353,10 @@ export default class FeaturedImage extends Plugin {
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
                     if (newFeature) {
-                        frontmatter[this.settings.frontmatterProperty] = newFeature;
+                        // Convert to wiki link format if useMediaLinks is enabled
+                        const featureValue = this.settings.useMediaLinks ? `![[${newFeature}]]` : newFeature;
+                        
+                        frontmatter[this.settings.frontmatterProperty] = featureValue;
                         if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
                             new Notice(`Featured image set to ${newFeature}`);
                         }

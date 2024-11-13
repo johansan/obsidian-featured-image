@@ -6,6 +6,7 @@ export interface FeaturedImageSettings {
   excludedFolders: string[];
 	frontmatterProperty: string;
   onlyUpdateExisting: boolean;
+  useMediaLinks: boolean;
 
   // YouTube settings
   requireExclamationForYouTube: boolean;
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Frontmatter settings
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
+  useMediaLinks: false,
 
   // YouTube settings
   requireExclamationForYouTube: true,
@@ -102,6 +104,17 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.onlyUpdateExisting)
           .onChange(async value => {
             this.plugin.settings.onlyUpdateExisting = value
+            await this.plugin.saveSettings()
+          })
+      })
+
+    new Setting(containerEl)
+      .setName('Use media links')
+      .setDesc('Use Obsidian media links (e.g. ![[image.png]]) instead of plain text (e.g. image.png) for the featured image property.')
+      .addToggle(toggle => { toggle
+          .setValue(this.plugin.settings.useMediaLinks)
+          .onChange(async value => {
+            this.plugin.settings.useMediaLinks = value
             await this.plugin.saveSettings()
           })
       })
