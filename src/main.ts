@@ -450,8 +450,7 @@ export default class FeaturedImage extends Plugin {
         return await requestUrl({
             url: url,
             method: 'GET',
-            headers: { 'Accept': isWebp ? 'image/webp' : 'image/jpeg' },
-            throw: false  // Don't throw on non-200 responses
+            headers: { 'Accept': isWebp ? 'image/webp' : 'image/jpeg' }
         });
     }
 
