@@ -14,7 +14,7 @@
 
 ## Introduction
 
-Featured Image is a powerful and highly optimized plugin for Obsidian that automatically sets a **featured image** property in your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image found in your document.
+Featured Image is a plugin for Obsidian that automatically sets a **featured image** property in the Frontmatter section of your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image found in your document.
 
 This allows you to create rich note lists similar to what you see in other popular note taking applications such as [Apple Notes](https://apps.apple.com/us/app/notes/id1110145109), [Evernote](https://evernote.com/) and [Bear](https://bear.app/).
 
@@ -22,30 +22,23 @@ https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 
 ## Key Features
 
-- Automatic frontmatter updates with featured image properties
+- Automatically updates the Frontmatter section in your notes with a featured image property
 - Support for local images, YouTube thumbnails, and Auto Card Link images
-- Bulk update commands for processing all documents at once
-- Highly optimized for performance and low memory usage
-- Cross-platform compatibility (desktop and mobile)
-- Customizable settings to fit your workflow
+- Bulk update commands for processing all files or all documents in the current folder
+- Cross-platform support for desktop and mobile
+- Highly customizible (see [Settings](#settings))
+
+## Installation
+
+1. Open Obsidian and go to **Settings**
+2. Navigate to "Community Plugins" and click "Browse"
+3. Search for "Featured Image"
+4. Click "Install" and then "Enable" to activate the plugin
+5. Click "Options" to configure the plugin settings
 
 If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan).
 
 <a href="https://www.buymeacoffee.com/johansan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
-
-## Benefits and Optimizations
-
-Featured Image is designed with efficiency and performance in mind:
-
-1. **Debounced Processing**: The plugin uses a debounce mechanism to prevent excessive processing when files are modified rapidly. This ensures that the plugin only runs when necessary, reducing CPU usage and improving overall performance.
-
-2. **Smart Caching**: The plugin utilizes Obsidian's built-in caching system to quickly access file metadata, minimizing the need for repeated file reads and improving processing speed.
-
-3. **Optimized Document Scanning**: A combined regex is used to match various image formats, YouTube links, and Auto Card Link images in a single pass, reducing the number of regex operations to just one, improving efficiency.
-
-4. **Intelligent Image Handling**: For YouTube links the plugin attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats. This ensures the best quality thumbnail while minimizing bandwidth usage.
-
-5. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
 
 ## How to Use
 
@@ -62,13 +55,21 @@ Featured Image is designed with efficiency and performance in mind:
 Featured Image provides two powerful bulk update commands to manage featured images across your entire vault:
 
 1. **Set featured images in all files**
-   - This command scans all markdown files in your vault and sets or updates the featured image property based on the first image or YouTube link found in each file.
+   - This command scans all markdown files in your vault, and sets or updates the featured image property based on the first image or YouTube link found in each file.
    - To use:
      1. Open the Command Palette (Ctrl/Cmd + P)
      2. Search for "Featured Image: Set featured images in all files"
      3. Select the command and confirm the action in the modal that appears
 
-2. **Remove featured images from all files**
+2. **Set featured images in current folder**
+   - This command scans all markdown files in the current folder and its subfolders, and sets or updates the featured image property based on the first image or YouTube link found in each file.
+   - To use:
+     1. Open the Command Palette (Ctrl/Cmd + P)
+     2. Search for "Featured Image: Set featured images in current folder"
+     3. Select the command and confirm the action in the modal that appears
+
+
+3. **Remove featured images from all files**
    - This command removes the featured image property from the frontmatter of all markdown files in your vault.
    - To use:
      1. Open the Command Palette (Ctrl/Cmd + P)
@@ -100,14 +101,6 @@ SORT file.ctime DESC
 ```
 
 ![Settings](images/dataview.png)
-
-## Installation
-
-1. Open Obsidian and go to Settings
-2. Navigate to "Community Plugins" and click "Browse"
-3. Search for "Featured Image"
-4. Click "Install" and then "Enable" to activate the plugin
-5. Click "Options" to configure the plugin settings
 
 ## Settings
 
@@ -154,6 +147,20 @@ Featured Image offers several customizable settings to tailor the plugin to your
    - Usage: Add or remove extensions based on the image types you use in your vault.
 
 ![Settings](images/settings.png)
+
+## Benefits and Optimizations
+
+Featured Image is designed with efficiency and performance in mind:
+
+1. **Debounced Processing**: The plugin uses a debounce mechanism to prevent excessive processing when files are modified rapidly. This ensures that the plugin only runs when necessary, reducing CPU usage and improving overall performance.
+
+2. **Smart Caching**: The plugin utilizes Obsidian's built-in caching system to quickly access file metadata, minimizing the need for repeated file reads and improving processing speed.
+
+3. **Optimized Document Scanning**: A combined regex is used to match various image formats, YouTube links, and Auto Card Link images in a single pass, reducing the number of regex operations to just one, improving efficiency.
+
+4. **Intelligent Image Handling**: For YouTube links the plugin attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats. This ensures the best quality thumbnail while minimizing bandwidth usage.
+
+5. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
 
 ## Support and Feedback
 
