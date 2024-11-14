@@ -56,6 +56,7 @@ Featured Image provides two powerful bulk update commands to manage featured ima
 
 1. **Set featured images in all files**
    - This command scans all markdown files in your vault, and sets or updates the featured image property based on the first image or YouTube link found in each file.
+   - The original modification dates of your files are preserved.
    - To use:
      1. Open the Command Palette (Ctrl/Cmd + P)
      2. Search for "Featured Image: Set featured images in all files"
@@ -63,6 +64,7 @@ Featured Image provides two powerful bulk update commands to manage featured ima
 
 2. **Set featured images in current folder**
    - This command scans all markdown files in the current folder and its subfolders, and sets or updates the featured image property based on the first image or YouTube link found in each file.
+   - The original modification dates of your files are preserved.
    - To use:
      1. Open the Command Palette (Ctrl/Cmd + P)
      2. Search for "Featured Image: Set featured images in current folder"
@@ -70,12 +72,11 @@ Featured Image provides two powerful bulk update commands to manage featured ima
 
 3. **Remove featured images from all files**
    - This command removes the featured image property from the frontmatter of all markdown files in your vault.
+   - The original modification dates of your files are preserved.
    - To use:
      1. Open the Command Palette (Ctrl/Cmd + P)
      2. Search for "Featured Image: Remove featured images from all files"
      3. Select the command and confirm the action in the modal that appears
-
-**WARNING:** These commands will update the modification date of processed files, which may affect sorting if you sort by modified date.
 
 ![Set featured images in all files](images/bulk-update-1.png)
 
