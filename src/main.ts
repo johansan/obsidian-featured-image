@@ -572,16 +572,19 @@ export default class FeaturedImage extends Plugin {
         progressText: string
     ) {
         this.isRunningBulkUpdate = true;
-        const batchSize = 5; // Process 5 files at a time
+        const batchSize = 5;
         new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}...`);
 
+        // Sort files by modification time (oldest first) to keep modified date order
+        const sortedFiles = files.sort((a, b) => a.stat.mtime - b.stat.mtime);
+
         let updatedCount = 0;
-        let totalFiles = files.length;
+        let totalFiles = sortedFiles.length;
         let lastNotificationTime = Date.now();
 
         try {
-            for (let i = 0; i < files.length; i += batchSize) {
-                const batch = files.slice(i, i + batchSize);
+            for (let i = 0; i < sortedFiles.length; i += batchSize) {
+                const batch = sortedFiles.slice(i, i + batchSize);
                 const results = await Promise.all(batch.map(file => this.setFeaturedImage(file)));
                 updatedCount += results.filter(result => result).length;
 
