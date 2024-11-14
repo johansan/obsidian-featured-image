@@ -1,11 +1,12 @@
-.featured-image-warning {
-    background-color: #ffeb3b;
-    padding: 10px;
+.featured-image-info {
+    background-color: var(--background-secondary);
     border-radius: 5px;
-    margin-top: 10px;
+    padding: 10px;
+    margin: 10px 0;
 }
 
-.featured-image-donate-button img {
-    height: 60px !important;
-    width: 217px !important;
+.featured-image-info-text {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9em;
 }

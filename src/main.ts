@@ -572,7 +572,7 @@ export default class FeaturedImage extends Plugin {
         progressText: string
     ) {
         this.isRunningBulkUpdate = true;
-        const batchSize = 5; // Process 5 files at a time
+        const batchSize = 5;
         new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}...`);
 
         let updatedCount = 0;
@@ -582,7 +582,19 @@ export default class FeaturedImage extends Plugin {
         try {
             for (let i = 0; i < files.length; i += batchSize) {
                 const batch = files.slice(i, i + batchSize);
-                const results = await Promise.all(batch.map(file => this.setFeaturedImage(file)));
+                const results = await Promise.all(batch.map(async file => {
+                    // Store original mtime before modification
+                    const originalMtime = file.stat.mtime;
+                    const wasUpdated = await this.setFeaturedImage(file);
+                    
+                    // If file was updated and not in dry run mode, restore the original mtime
+                    if (wasUpdated && !this.settings.dryRun) {
+                        await this.app.vault.modify(file, await this.app.vault.read(file), {
+                            mtime: originalMtime
+                        });
+                    }
+                    return wasUpdated;
+                }));
                 updatedCount += results.filter(result => result).length;
 
                 // Show notification every 5 seconds
@@ -615,7 +627,17 @@ export default class FeaturedImage extends Plugin {
         let removedCount = 0;
 
         for (const file of files) {
+            // Store original mtime before modification
+            const originalMtime = file.stat.mtime;
             const wasRemoved = await this.removeFeaturedImage(file);
+            
+            // If file was modified and not in dry run mode, restore the original mtime
+            if (wasRemoved && !this.settings.dryRun) {
+                await this.app.vault.modify(file, await this.app.vault.read(file), {
+                    mtime: originalMtime
+                });
+            }
+            
             if (wasRemoved) {
                 removedCount++;
             }

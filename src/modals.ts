@@ -21,10 +21,13 @@ export class ConfirmationModal extends Modal {
     contentEl.empty();
     contentEl.createEl("p", { text: this.message });
 
-    const warningEl = contentEl.createEl("p", { cls: "featured-image-warning" });
-    const strongEl = warningEl.createEl("strong");
-    strongEl.setText("Important!");
-    warningEl.appendChild(document.createTextNode(" This function will change the modification date of all files that have been processed. This will change your sort order if you sort by modified date."));
+    const infoEl = contentEl.createEl("div", { 
+      cls: "featured-image-info" 
+    });
+    infoEl.createEl("p", { 
+      text: "Note: The original modification dates of all files will be preserved.",
+      cls: "featured-image-info-text"
+    });
 
     new Setting(contentEl)
       .addButton((btn) =>
