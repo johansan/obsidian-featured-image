@@ -359,18 +359,15 @@ export default class FeaturedImage extends Plugin {
                     if (newFeature) {
                         // Convert to wiki link format if useMediaLinks is enabled
                         const featureValue = this.settings.useMediaLinks ? `![[${newFeature}]]` : newFeature;
-                        
                         frontmatter[this.settings.frontmatterProperty] = featureValue;
-                        if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                            new Notice(`Featured image set to ${newFeature}`);
-                        }
                     } else {
                         delete frontmatter[this.settings.frontmatterProperty];
-                        if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                            new Notice('Featured image removed');
-                        }
                     }
                 });
+
+                if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
+                    new Notice(newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed');
+                }
             }
         } finally {
             this.isUpdatingFrontmatter = false;
