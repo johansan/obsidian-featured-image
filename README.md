@@ -1,15 +1,16 @@
 # Featured Image Plugin for Obsidian
 
 ## Table of Contents
+
 - [Introduction](#introduction)
 - [Key Features](#key-features)
-- [Benefits and Optimizations](#benefits-and-optimizations)
+- [Installation](#installation)
 - [How to Use](#how-to-use)
   - [Basic Usage](#basic-usage)
   - [Using Bulk Update Commands](#using-bulk-update-commands)
   - [Creating Note Lists with Previews](#creating-note-lists-with-previews)
-- [Installation](#installation)
 - [Settings](#settings)
+- [Benefits and Optimizations](#benefits-and-optimizations)
 - [Support and Feedback](#support-and-feedback)
 
 ## Introduction
