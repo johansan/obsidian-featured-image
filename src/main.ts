@@ -481,32 +481,46 @@ export default class FeaturedImage extends Plugin {
      */
     getVideoId(url: string): string | null {
         try {
-          const parsedUrl = new URL(url);
-          const hostname = parsedUrl.hostname;
-          const pathname = parsedUrl.pathname;
-          const searchParams = parsedUrl.searchParams;
-      
-          if (hostname.includes('youtu.be')) {
-            // Example URL: https://youtu.be/dQw4w9WgXcQ
-            return pathname.slice(1);
-          }
-          
-          if (hostname.includes('youtube.com')) {
-            // Example URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
-            if (pathname === '/watch') {
-              return searchParams.get('v');
+            const parsedUrl = new URL(url);
+            const hostname = parsedUrl.hostname;
+            const pathname = parsedUrl.pathname;
+            const searchParams = parsedUrl.searchParams;
+        
+            // Handle mobile URLs by normalizing the hostname
+            const normalizedHostname = hostname.replace('m.youtube.com', 'youtube.com');
+        
+            if (hostname.includes('youtu.be')) {
+                // Short URLs: https://youtu.be/dQw4w9WgXcQ
+                return pathname.slice(1);
             }
-            // Example URLs: https://www.youtube.com/embed/dQw4w9WgXcQ and https://www.youtube.com/v/dQw4w9WgXcQ
-            if (pathname.startsWith('/embed/') || pathname.startsWith('/v/')) {
-              return pathname.split('/')[2];
+            
+            if (normalizedHostname.includes('youtube.com')) {
+                // Standard watch URLs: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+                // Mobile URLs: https://m.youtube.com/watch?v=dQw4w9WgXcQ
+                if (pathname === '/watch') {
+                    return searchParams.get('v');
+                }
+                
+                // Embed URLs: https://www.youtube.com/embed/dQw4w9WgXcQ
+                // Direct video URLs: https://www.youtube.com/v/dQw4w9WgXcQ
+                // Shortened URLs: https://www.youtube.com/shorts/dQw4w9WgXcQ
+                if (pathname.startsWith('/embed/') || 
+                    pathname.startsWith('/v/') || 
+                    pathname.startsWith('/shorts/')) {
+                    return pathname.split('/')[2];
+                }
+                
+                // Playlist with specific video: https://www.youtube.com/playlist?v=dQw4w9WgXcQ
+                if (pathname === '/playlist') {
+                    return searchParams.get('v');
+                }
             }
-          }
-          return null;
+            return null;
         } catch (error) {
-          this.errorLog('Invalid YouTube URL:', url);
-          return null;
+            this.errorLog('Invalid YouTube URL:', url);
+            return null;
         }
-      }
+    }
 
     /**
      * Updates featured images for all markdown files in the vault.
