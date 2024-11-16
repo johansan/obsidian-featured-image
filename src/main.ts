@@ -1,5 +1,5 @@
 // Obsidian imports
-import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce, Modal, Setting } from 'obsidian';
+import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce } from 'obsidian';
 
 // Styles
 import '../styles.css';
