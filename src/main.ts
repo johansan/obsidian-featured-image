@@ -590,6 +590,7 @@ export default class FeaturedImage extends Plugin {
         new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}...`);
 
         let updatedCount = 0;
+        let errorCount = 0;
         let totalFiles = files.length;
         let lastNotificationTime = Date.now();
 
@@ -597,30 +598,37 @@ export default class FeaturedImage extends Plugin {
             for (let i = 0; i < files.length; i += batchSize) {
                 const batch = files.slice(i, i + batchSize);
                 const results = await Promise.all(batch.map(async file => {
-                    // Store original mtime before modification
-                    const originalMtime = file.stat.mtime;
-                    const wasUpdated = await this.setFeaturedImage(file);
-                    
-                    // If file was updated and not in dry run mode, restore the original mtime
-                    if (wasUpdated && !this.settings.dryRun) {
-                        await this.app.vault.modify(file, await this.app.vault.read(file), {
-                            mtime: originalMtime
-                        });
+                    try {
+                        // Store original mtime before modification
+                        const originalMtime = file.stat.mtime;
+                        const wasUpdated = await this.setFeaturedImage(file);
+                        
+                        // If file was updated and not in dry run mode, restore the original mtime
+                        if (wasUpdated && !this.settings.dryRun) {
+                            await this.app.vault.modify(file, await this.app.vault.read(file), {
+                                mtime: originalMtime
+                            });
+                        }
+                        return { success: true, updated: wasUpdated };
+                    } catch (error) {
+                        this.errorLog(`Error processing file ${file.path}:`, error);
+                        return { success: false, updated: false };
                     }
-                    return wasUpdated;
                 }));
-                updatedCount += results.filter(result => result).length;
+
+                updatedCount += results.filter(result => result.success && result.updated).length;
+                errorCount += results.filter(result => !result.success).length;
 
                 // Show notification every 5 seconds
                 const currentTime = Date.now();
                 if (currentTime - lastNotificationTime >= 5000) {
-                    new Notice(`Processed ${i + 1} of ${totalFiles} files. Updated ${updatedCount} featured images.`);
+                    new Notice(`Processed ${i + 1} of ${totalFiles} files. Updated ${updatedCount} featured images. Errors: ${errorCount}`);
                     lastNotificationTime = currentTime;
                 }
             }
         } finally {
             this.isRunningBulkUpdate = false;
-            new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText} for ${updatedCount} files.`);
+            new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files. Errors: ${errorCount}`);
         }
     }
 
