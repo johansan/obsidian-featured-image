@@ -1,5 +1,5 @@
 // Obsidian imports
-import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce } from 'obsidian';
+import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse, debounce, Debouncer } from 'obsidian';
 
 // Styles
 import '../styles.css';
@@ -17,7 +17,7 @@ import { createHash } from 'crypto';
  */
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
-	private setFeaturedImageDebounced: (file: TFile) => void;
+	private setFeaturedImageDebounced: Debouncer<[file: TFile], void>;
 	private isUpdatingFrontmatter: boolean = false;
 	private isRunningBulkUpdate: boolean = false;
 
@@ -91,7 +91,6 @@ export default class FeaturedImage extends Plugin {
     onunload() {
         // Clean up debounced function
         if (this.setFeaturedImageDebounced) {
-            // @ts-ignore - Access private property
             this.setFeaturedImageDebounced.cancel();
         }
     }
