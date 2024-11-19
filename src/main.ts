@@ -158,23 +158,14 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Get the tags from the file's frontmatter.
-     * @param {TFile} file - The file to check.
-     * @returns {string[] | undefined} The tags, if any.
-     */
-    private getTagsFromFrontmatter(file: TFile): string[] | undefined {
-        const cache = this.app.metadataCache.getFileCache(file);
-        return cache?.frontmatter?.tags;
-    }
-
-    /**
      * Check if the file should be skipped for processing.
      * @param {TFile} file - The file to check.
      * @param {string | undefined} currentFeature - The current featured image.
      * @returns {boolean} True if the file should be skipped, false otherwise.
      */
     private shouldSkipProcessing(file: TFile, currentFeature: string | undefined): boolean {
-        const tags = this.getTagsFromFrontmatter(file) ?? [];
+        const cache = this.app.metadataCache.getFileCache(file);
+        const tags = cache?.frontmatter?.tags ?? [];
 
         // Skip processing if the file has the 'excalidraw' tag
         if (tags.includes('excalidraw')) {
@@ -352,10 +343,7 @@ export default class FeaturedImage extends Plugin {
             if (this.settings.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                    const message = newFeature 
-                        ? `Dry run: Would change featured image\nFrom: ${currentFeature}\nTo: ${newFeature}`
-                        : `Dry run: Would remove featured image ${currentFeature}`;
-                    new Notice(message);
+                    new Notice(newFeature ? `Dry run: Featured image set to ${newFeature}` : 'Featured image removed');
                 }
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
@@ -369,14 +357,7 @@ export default class FeaturedImage extends Plugin {
                 });
 
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                    if (this.settings.debugMode) {
-                        const message = newFeature
-                            ? `Featured image updated\nFrom: ${currentFeature}\nTo: ${newFeature}`
-                            : `Featured image removed: ${currentFeature}`;
-                        new Notice(message);
-                    } else {
-                        new Notice(newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed');
-                    }
+                    new Notice(newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed');
                 }
             }
         } finally {
