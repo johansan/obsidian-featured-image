@@ -125,7 +125,7 @@ export default class FeaturedImage extends Plugin {
         const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
 
         if (currentFeature !== newFeature) {
-            await this.updateFrontmatter(file, newFeature);
+            await this.updateFrontmatter(file, newFeature, currentFeature);
             this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             return true;
         } else {
@@ -327,7 +327,7 @@ export default class FeaturedImage extends Plugin {
         if (!originalFilename || !originalFilename.includes('.')) {
             return undefined;
         }
-    
+
         const extension = originalFilename.split('.').pop() || '';
         if (!extension) {
             return undefined;
@@ -344,14 +344,18 @@ export default class FeaturedImage extends Plugin {
      * Updates the frontmatter of a file with the new featured image.
      * @param {TFile} file - The file to update.
      * @param {string | undefined} newFeature - The new featured image.
+     * @param {string | undefined} currentFeature - The current featured image.
      */
-    private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
+    private async updateFrontmatter(file: TFile, newFeature: string | undefined, currentFeature: string | undefined) {
         this.isUpdatingFrontmatter = true;
         try {
             if (this.settings.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                    new Notice(`Dry run: Would ${newFeature ? 'set' : 'remove'} featured image ${newFeature ? `to ${newFeature}` : ''}`);
+                    const message = newFeature 
+                        ? `Dry run: Would change featured image\nFrom: ${currentFeature}\nTo: ${newFeature}`
+                        : `Dry run: Would remove featured image ${currentFeature}`;
+                    new Notice(message);
                 }
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
@@ -365,7 +369,14 @@ export default class FeaturedImage extends Plugin {
                 });
 
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                    new Notice(newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed');
+                    if (this.settings.debugMode) {
+                        const message = newFeature
+                            ? `Featured image updated\nFrom: ${currentFeature}\nTo: ${newFeature}`
+                            : `Featured image removed: ${currentFeature}`;
+                        new Notice(message);
+                    } else {
+                        new Notice(newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed');
+                    }
                 }
             }
         } finally {
@@ -680,7 +691,7 @@ export default class FeaturedImage extends Plugin {
         }
 
         this.debugLog('FEATURE REMOVED\n- File: ', file.path);
-        await this.updateFrontmatter(file, undefined);
+        await this.updateFrontmatter(file, undefined, currentFeature);
         return true;
     }
 
