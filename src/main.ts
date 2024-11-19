@@ -52,9 +52,9 @@ export default class FeaturedImage extends Plugin {
             callback: () => this.removeAllFeaturedImages(),
         });
 
-		// Watch for file changes and update the featured image if the file is a markdown file
+		// Watch for metadata changes and update the featured image if the file is a markdown file
 		this.registerEvent(
-			this.app.vault.on('modify', (file: TFile) => {
+			this.app.metadataCache.on('changed', (file) => {
                 // Ignore all file changes if we are currently updating the frontmatter section or running a bulk update
 				if (file instanceof TFile && file.extension === 'md' && !this.isUpdatingFrontmatter && !this.isRunningBulkUpdate) {
 					this.setFeaturedImageDebounced(file);
@@ -116,11 +116,12 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<boolean>} True if the featured image was updated, false otherwise.
      */
     async setFeaturedImage(file: TFile): Promise<boolean> {
-        if (this.shouldSkipProcessing(file)) {
+        const currentFeature = this.getFeatureFromFrontmatter(file);
+
+        if (this.shouldSkipProcessing(file, currentFeature)) {
             return false;
         }
 
-        const currentFeature = this.getFeatureFromFrontmatter(file);
         const fileContent = await this.app.vault.cachedRead(file);
         const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
 
@@ -169,9 +170,10 @@ export default class FeaturedImage extends Plugin {
     /**
      * Check if the file should be skipped for processing.
      * @param {TFile} file - The file to check.
+     * @param {string | undefined} currentFeature - The current featured image.
      * @returns {boolean} True if the file should be skipped, false otherwise.
      */
-    private shouldSkipProcessing(file: TFile): boolean {
+    private shouldSkipProcessing(file: TFile, currentFeature: string | undefined): boolean {
         const tags = this.getTagsFromFrontmatter(file) ?? [];
 
         // Skip processing if the file has the 'excalidraw' tag
@@ -179,8 +181,6 @@ export default class FeaturedImage extends Plugin {
             return true;
         }
 
-        const currentFeature = this.getFeatureFromFrontmatter(file);
-        
         const shouldSkip = (
             (this.settings.onlyUpdateExisting && !currentFeature) ||
             this.settings.excludedFolders.some((folder: string) => file.path.startsWith(folder + '/'))
@@ -387,7 +387,6 @@ export default class FeaturedImage extends Plugin {
     /**
      * Downloads a YouTube video thumbnail.
      * @param {string} videoId - The YouTube video ID.
-     * @param {string} thumbnailFolder - The folder to save the thumbnail.
      * @param {string | undefined} currentFeature - The current featured image.
      * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
      */
@@ -659,9 +658,11 @@ export default class FeaturedImage extends Plugin {
         let removedCount = 0;
 
         for (const file of files) {
+            const currentFeature = this.getFeatureFromFrontmatter(file);
+
             // Store original mtime before modification
             const originalMtime = file.stat.mtime;
-            const wasRemoved = await this.removeFeaturedImage(file);
+            const wasRemoved = await this.removeFeaturedImage(file, currentFeature);
             
             // If file was modified and not in dry run mode, restore the original mtime
             if (wasRemoved && !this.settings.dryRun) {
@@ -682,10 +683,10 @@ export default class FeaturedImage extends Plugin {
     /**
      * Removes the featured image from a specific file.
      * @param {TFile} file - The file to remove the featured image from.
+     * @param {string | undefined} currentFeature - The current featured image.
      * @returns {Promise<boolean>} True if the featured image was removed, false otherwise.
      */
-    async removeFeaturedImage(file: TFile): Promise<boolean> {
-        const currentFeature = this.getFeatureFromFrontmatter(file);
+    async removeFeaturedImage(file: TFile, currentFeature: string | undefined): Promise<boolean> {
         if (!currentFeature) {
             return false; // No featured image to remove
         }
