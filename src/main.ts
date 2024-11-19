@@ -29,7 +29,7 @@ export default class FeaturedImage extends Plugin {
 		this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
 
 		// Make sure setFeaturedImage is not called too often
-		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, false);
+		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
 
         // Add command for updating all featured images
         this.addCommand({
@@ -360,7 +360,11 @@ export default class FeaturedImage extends Plugin {
                 }
             }
         } finally {
-            this.isUpdatingFrontmatter = false;
+            // Add a small delay before setting isUpdatingFrontmatter to false
+            // This is to allow the frontmatter to be updated before the next event listener is triggered
+            setTimeout(() => {
+                this.isUpdatingFrontmatter = false;
+            }, 100);
         }
     }
 
