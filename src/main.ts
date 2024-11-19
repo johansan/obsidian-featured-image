@@ -126,7 +126,7 @@ export default class FeaturedImage extends Plugin {
         const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
 
         if (currentFeature !== newFeature) {
-            await this.updateFrontmatter(file, newFeature, currentFeature);
+            await this.updateFrontmatter(file, newFeature);
             this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             return true;
         } else {
@@ -335,15 +335,14 @@ export default class FeaturedImage extends Plugin {
      * Updates the frontmatter of a file with the new featured image.
      * @param {TFile} file - The file to update.
      * @param {string | undefined} newFeature - The new featured image.
-     * @param {string | undefined} currentFeature - The current featured image.
      */
-    private async updateFrontmatter(file: TFile, newFeature: string | undefined, currentFeature: string | undefined) {
+    private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
         this.isUpdatingFrontmatter = true;
         try {
             if (this.settings.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                    new Notice(newFeature ? `Dry run: Featured image set to ${newFeature}` : 'Featured image removed');
+                    new Notice(newFeature ? `Dry run: Would change featured image to: ${newFeature}` : `Dry run: Would remove featured image`);
                 }
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
@@ -673,7 +672,7 @@ export default class FeaturedImage extends Plugin {
         }
 
         this.debugLog('FEATURE REMOVED\n- File: ', file.path);
-        await this.updateFrontmatter(file, undefined, currentFeature);
+        await this.updateFrontmatter(file, undefined);
         return true;
     }
 
