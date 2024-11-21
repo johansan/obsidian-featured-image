@@ -669,14 +669,16 @@ export default class FeaturedImage extends Plugin {
                 // Show notification every 5 seconds
                 const currentTime = Date.now();
                 if (currentTime - lastNotificationTime >= 5000) {
-                    new Notice(`Processed ${i + 1} of ${totalFiles} files. Updated ${updatedCount} featured images. Errors: ${errorCount}`);
+                    const progressMessage = `Processed ${i + 1} of ${totalFiles} files. Updated ${updatedCount} featured images${errorCount > 0 ? `. Errors: ${errorCount}` : ''}`;
+                    new Notice(progressMessage);
                     lastNotificationTime = currentTime;
                 }
             }
         } finally {
             setTimeout(() => {
                 this.isRunningBulkUpdate = false;
-                new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files. Errors: ${errorCount}`);
+                const completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files${errorCount > 0 ? `. Errors: ${errorCount}` : ''}`;
+                new Notice(completionMessage);
             }, 100);
         }
     }
