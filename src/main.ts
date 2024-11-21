@@ -17,9 +17,8 @@ import { createHash } from 'crypto';
  */
 export default class FeaturedImage extends Plugin {
 	settings: FeaturedImageSettings;
-	private setFeaturedImageDebounced: Debouncer<[file: TFile], void>;
-	private isUpdatingFrontmatter: boolean = false;
 	private isRunningBulkUpdate: boolean = false;
+    private updatingFiles: Set<string> = new Set();
 
 	/**
 	 * Loads the plugin, initializes settings, and sets up event listeners.
@@ -28,10 +27,7 @@ export default class FeaturedImage extends Plugin {
 		await this.loadSettings();
 		this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
 
-		// Make sure setFeaturedImage is not called too often
-		this.setFeaturedImageDebounced = debounce(this.setFeaturedImage.bind(this), 500, true);
-
-        // Add command for updating all featured images
+		// Add command for updating all featured images
         this.addCommand({
             id: 'featured-image-update-all',
             name: 'Set featured images in all files',
@@ -53,14 +49,18 @@ export default class FeaturedImage extends Plugin {
         });
 
 		// Watch for metadata changes and update the featured image if the file is a markdown file
-		this.registerEvent(
-			this.app.metadataCache.on('changed', (file) => {
-                // Ignore all file changes if we are currently updating the frontmatter section or running a bulk update
-				if (file instanceof TFile && file.extension === 'md' && !this.isUpdatingFrontmatter && !this.isRunningBulkUpdate) {
-					this.setFeaturedImageDebounced(file);
-				}
-			})
-		);
+        this.registerEvent(
+            this.app.metadataCache.on('changed', (file) => {
+                if (
+                    file instanceof TFile &&
+                    file.extension === 'md' &&
+                    !this.updatingFiles.has(file.path) &&
+                    !this.isRunningBulkUpdate
+                ) {
+                    this.setFeaturedImage(file);
+                }
+            })
+        );
 
 		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
 	}
@@ -89,10 +89,6 @@ export default class FeaturedImage extends Plugin {
      * Called when the plugin is being disabled.
      */
     onunload() {
-        // Clean up debounced function
-        if (this.setFeaturedImageDebounced) {
-            this.setFeaturedImageDebounced.cancel();
-        }
     }
 
     /**
@@ -337,7 +333,10 @@ export default class FeaturedImage extends Plugin {
      * @param {string | undefined} newFeature - The new featured image.
      */
     private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
-        this.isUpdatingFrontmatter = true;
+        if (!this.isRunningBulkUpdate) {
+            this.updatingFiles.add(file.path);
+        }
+        
         try {
             if (this.settings.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
@@ -360,11 +359,11 @@ export default class FeaturedImage extends Plugin {
                 }
             }
         } finally {
-            // Add a small delay before setting isUpdatingFrontmatter to false
-            // This is to allow the frontmatter to be updated before the next event listener is triggered
-            setTimeout(() => {
-                this.isUpdatingFrontmatter = false;
-            }, 100);
+            if (!this.isRunningBulkUpdate) {
+                setTimeout(() => {
+                    this.updatingFiles.delete(file.path);
+                }, 100); // Just enough time for the cache to update
+            }
         }
     }
 
@@ -620,8 +619,10 @@ export default class FeaturedImage extends Plugin {
                 }
             }
         } finally {
-            this.isRunningBulkUpdate = false;
-            new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files. Errors: ${errorCount}`);
+            setTimeout(() => {
+                this.isRunningBulkUpdate = false;
+                new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files. Errors: ${errorCount}`);
+            }, 100);
         }
     }
 
@@ -660,8 +661,10 @@ export default class FeaturedImage extends Plugin {
             }
         }
 
-        this.isRunningBulkUpdate = false;
-        new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`);
+        setTimeout(() => {
+            this.isRunningBulkUpdate = false;
+            new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`);
+        }, 100);
     }
 
     /**
