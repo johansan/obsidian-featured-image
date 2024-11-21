@@ -235,7 +235,7 @@ export default class FeaturedImage extends Plugin {
                     return await this.downloadThumbnail(videoId, currentFeature);
                 }
             }
-    }
+        }
 
         return undefined;
     }
