@@ -20,12 +20,18 @@ export default class FeaturedImage extends Plugin {
 	private isRunningBulkUpdate: boolean = false;
     private updatingFiles: Set<string> = new Set();
 
+    // Combined regex pattern
+    private combinedImageRegex: RegExp;
+
 	/**
 	 * Loads the plugin, initializes settings, and sets up event listeners.
 	 */
 	async onload() {
 		await this.loadSettings();
 		this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
+
+        // Pre-compile regex patterns
+        this.compileRegexPatterns();
 
 		// Add command for updating all featured images
         this.addCommand({
@@ -104,6 +110,8 @@ export default class FeaturedImage extends Plugin {
      */
 	async saveSettings() {
 		await this.saveData(this.settings);
+        // Recompile regex patterns
+        this.compileRegexPatterns();
 	}
 
     /**
@@ -176,43 +184,61 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
+     * Compiles the regular expressions used in getFeatureFromDocument.
+     */
+    private compileRegexPatterns() {
+        const imageExtensionsPattern = this.settings.imageExtensions.join('|');
+
+        const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${imageExtensionsPattern}))(?:\\|[^\\]]*)?\\]\\]`;
+        const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${imageExtensionsPattern}))\\)`;
+        const youtubePattern = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
+        const autoCardLinkPattern = /```cardlink[\s\S]*?image:\s*(?<autoCardImage>.+?)(?=\s*[\n}])/;
+
+        const combinedPattern = `${wikiImagePattern}|${mdImagePattern}|${youtubePattern}|${autoCardLinkPattern}`;
+        this.combinedImageRegex = new RegExp(combinedPattern, 'i');
+    }
+
+    /**
      * Finds the featured image in the document content.
      * @param {string} content - The document content to search.
      * @param {string | undefined} currentFeature - The current featured image.
      * @returns {Promise<string | undefined>} The found featured image, if any.
      */
     private async getFeatureFromDocument(content: string, currentFeature: string | undefined): Promise<string | undefined> {
-        // Remove frontmatter section from content before processing
-        const contentWithoutFrontmatter = content.replace(/^---\n[\s\S]*?\n---\n/, '');
+        // Remove frontmatter section from processsing
+        let contentWithoutFrontmatter = content;
+        if (content.startsWith('---\n')) {
+            const frontmatterEnd = content.indexOf('\n---\n', 4);
+            if (frontmatterEnd !== -1) {
+                contentWithoutFrontmatter = content.substring(frontmatterEnd + 5);
+            }
+        }
 
-        // Define individual regex patterns with named groups
-        const wikiStyleImageRegex = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${this.settings.imageExtensions.join('|')}))(?:\\|[^\\]]*)?\\]\\]`;
-        const markdownStyleImageRegex = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${this.settings.imageExtensions.join('|')}))\\)`;
-        const youtubeRegex = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
-        const autoCardLinkRegex = /```cardlink[\s\S]*?image:\s*(?<autoCardImage>.+?)(?=\s*[\n}])/;
-        
-        // Combine all regex patterns
-        const combinedRegex = new RegExp(
-            `(${wikiStyleImageRegex}|${markdownStyleImageRegex}|${youtubeRegex}|${autoCardLinkRegex.source})`,
-            'i'
-        );
-        
-        const match = contentWithoutFrontmatter.match(combinedRegex);
-        if (match) {
-            const { groups } = match ?? {};
-            if (groups?.wikiImage || groups?.mdImage) {
-                // It's an image link (wiki-style or Markdown-style)
-                const imagePath = groups.wikiImage || groups.mdImage;
-                return imagePath ? decodeURIComponent(imagePath) : undefined;
-            } else if (groups?.youtube) {
-                // It's a YouTube link
-                const videoId = this.getVideoId(groups.youtube);
-                if (videoId) {
-                    return await this.downloadThumbnail(videoId, currentFeature);
+        // Process content line by line
+        const lines = contentWithoutFrontmatter.split('\n');
+
+        for (const line of lines) {
+            if (line.trim().length === 0) continue; // Skip empty lines
+
+            const match = this.combinedImageRegex.exec(line);
+            if (match) {
+                if (match.groups?.wikiImage) {
+                    const imagePath = decodeURIComponent(match.groups.wikiImage);
+                    return imagePath;
                 }
-            } else if (groups?.autoCardImage) {
-                // It's an Auto Card Link image
-                return await this.processAutoCardLinkImage(groups?.autoCardImage, currentFeature);
+                if (match.groups?.mdImage) {
+                    const imagePath = decodeURIComponent(match.groups.mdImage);
+                    return imagePath;
+                }
+                if (match.groups?.youtube) {
+                    const videoId = this.getVideoId(match.groups.youtube);
+                    if (videoId) {
+                        return await this.downloadThumbnail(videoId, currentFeature);
+                    }
+                }
+                if (match.groups?.autoCardImage) {
+                    return await this.processAutoCardLinkImage(match.groups.autoCardImage, currentFeature);
+                }
             }
         }
 
