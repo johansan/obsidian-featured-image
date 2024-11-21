@@ -192,10 +192,10 @@ export default class FeaturedImage extends Plugin {
         const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${imageExtensionsPattern}))(?:\\|[^\\]]*)?\\]\\]`;
         const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${imageExtensionsPattern}))\\)`;
         const youtubePattern = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
-        const autoCardLinkPattern = /```cardlink[\s\S]*?image:\s*(?<autoCardImage>.+?)(?=\s*[\n}])/;
+        const autoCardLinkPattern = '```cardlink[\\s\\S]*?image:\\s*(?<autoCardImage>.+?)(?:\\n|$)';
 
         const combinedPattern = `${wikiImagePattern}|${mdImagePattern}|${youtubePattern}|${autoCardLinkPattern}`;
-        this.combinedImageRegex = new RegExp(combinedPattern, 'i');
+        this.combinedImageRegex = new RegExp(combinedPattern, 'is');
     }
 
     /**
@@ -214,33 +214,28 @@ export default class FeaturedImage extends Plugin {
             }
         }
 
-        // Process content line by line
-        const lines = contentWithoutFrontmatter.split('\n');
-
-        for (const line of lines) {
-            if (line.trim().length === 0) continue; // Skip empty lines
-
-            const match = this.combinedImageRegex.exec(line);
-            if (match) {
-                if (match.groups?.wikiImage) {
-                    const imagePath = decodeURIComponent(match.groups.wikiImage);
-                    return imagePath;
-                }
-                if (match.groups?.mdImage) {
-                    const imagePath = decodeURIComponent(match.groups.mdImage);
-                    return imagePath;
-                }
-                if (match.groups?.youtube) {
-                    const videoId = this.getVideoId(match.groups.youtube);
-                    if (videoId) {
-                        return await this.downloadThumbnail(videoId, currentFeature);
-                    }
-                }
-                if (match.groups?.autoCardImage) {
-                    return await this.processAutoCardLinkImage(match.groups.autoCardImage, currentFeature);
+        // Apply the compiled regex to the entire content
+        const match = this.combinedImageRegex.exec(contentWithoutFrontmatter);
+        if (match) {
+            if (match.groups?.autoCardImage) {
+                this.debugLog('Auto Card Link image found:', match.groups.autoCardImage);
+                return await this.processAutoCardLinkImage(match.groups.autoCardImage, currentFeature);
+            }
+            if (match.groups?.wikiImage) {
+                const imagePath = decodeURIComponent(match.groups.wikiImage);
+                return imagePath;
+            }
+            if (match.groups?.mdImage) {
+                const imagePath = decodeURIComponent(match.groups.mdImage);
+                return imagePath;
+            }
+            if (match.groups?.youtube) {
+                const videoId = this.getVideoId(match.groups.youtube);
+                if (videoId) {
+                    return await this.downloadThumbnail(videoId, currentFeature);
                 }
             }
-        }
+    }
 
         return undefined;
     }
@@ -253,7 +248,7 @@ export default class FeaturedImage extends Plugin {
      */
     private async processAutoCardLinkImage(imagePath: string, currentFeature: string | undefined): Promise<string | undefined> {
         imagePath = imagePath.trim();
-
+    
         // Auto Card Link always embeds local images within quotes
         if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
             // Remove quotes
@@ -262,52 +257,105 @@ export default class FeaturedImage extends Plugin {
             localPath = localPath.replace(/^\[\[|\]\]$/g, '');
             return localPath;
         }
-
+    
         // Check if the image path is a valid URL
         if (!this.isValidUrl(imagePath)) {
             this.errorLog('Invalid Auto Card Link URL:', imagePath);
             return undefined;
-        }            
-
-        // Generate unique local filename from image path
+        }
+    
+        // Generate unique local filename from image path (without extension)
         const hashedFilename = this.generateHashedFilenameFromUrl(imagePath);
         if (!hashedFilename) {
             this.errorLog('Failed to generate hashed filename for:', imagePath);
             return undefined;
         }
-
-        // Normalize Auto Card Link path
+    
+        // Prepare the Auto Card Link folder path
         const autoCardLinkFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/autocardlink`);
-        const downloadPath = `${autoCardLinkFolder}/${hashedFilename}`;
-
-        // If currentFeature matches the downloadPath, return it without downloading
-        if (currentFeature === downloadPath) {
-            this.debugLog('Auto Card Link image already exists, skipping download');
-            return currentFeature;
-        }
-
+    
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping Auto Card Link image download, using mock path');
-            return downloadPath;
+            // Assuming JPEG as default extension in dry run
+            return `${autoCardLinkFolder}/${hashedFilename}.jpg`;
         }
-
+    
         try {
             // Create the Auto Card Link directory if it doesn't exist
             if (!(await this.app.vault.adapter.exists(autoCardLinkFolder))) {
                 await this.app.vault.adapter.mkdir(autoCardLinkFolder);
             }
-
+    
+            // Check if the image already exists with any known image extension
+            const existingFilePath = await this.findExistingImageFile(autoCardLinkFolder, hashedFilename);
+            if (existingFilePath) {
+                this.debugLog('Auto Card Link image already exists, skipping download');
+                return existingFilePath;
+            }
+    
+            // Proceed to download the image
             const response = await requestUrl({
                 url: imagePath,
                 method: 'GET',
             });
-
+    
+            // Determine the file extension from Content-Type
+            const contentType = response.headers['content-type'];
+            const extension = this.getExtensionFromContentType(contentType);
+            if (!extension) {
+                this.errorLog('Unknown Content-Type for image:', contentType);
+                return undefined;
+            }
+    
+            const downloadPath = `${autoCardLinkFolder}/${hashedFilename}.${extension}`;
+    
+            // Save the image to the determined path
             await this.app.vault.adapter.writeBinary(downloadPath, response.arrayBuffer);
             return downloadPath;
         } catch (error) {
             this.errorLog('Failed to download Auto Card Link image, error:', error);
             return undefined;
         }
+    }
+
+    /**
+     * Checks if an image file with the hashed filename and any known extension exists.
+     * @param {string} folderPath - The folder to search in.
+     * @param {string} hashedFilename - The hashed filename without extension.
+     * @returns {Promise<string | undefined>} The path to the existing file, or undefined if not found.
+     */
+    private async findExistingImageFile(folderPath: string, hashedFilename: string): Promise<string | undefined> {
+        const extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']; // List of known image extensions
+
+        for (const ext of extensions) {
+            const filePath = `${folderPath}/${hashedFilename}.${ext}`;
+            if (await this.app.vault.adapter.exists(filePath)) {
+                return filePath;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Maps the Content-Type to a file extension.
+     * @param {string} contentType - The Content-Type header value.
+     * @returns {string | undefined} The file extension without the dot.
+     */
+    private getExtensionFromContentType(contentType: string): string | undefined {
+        const mimeTypes: { [key: string]: string } = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/gif': 'gif',
+            'image/webp': 'webp',
+            'image/svg+xml': 'svg',
+            'image/bmp': 'bmp',
+            // Add more mappings if necessary
+        };
+
+        // Handle potential parameters in Content-Type (e.g., "image/jpeg; charset=utf-8")
+        const mimeType = contentType.split(';')[0].trim().toLowerCase();
+
+        return mimeTypes[mimeType];
     }
 
     /**
@@ -325,32 +373,13 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Generate a hashed filename from a URL.
+     * Generates a hashed filename from a URL.
      * @param {string} url - The URL to hash.
      * @returns {string | undefined} The hashed filename.
      */
-    private generateHashedFilenameFromUrl(url: string): string | undefined {
-        const urlObj = new URL(url);
-        const pathname = urlObj.pathname;
-    
-        // Get the original filename from the URL
-        let originalFilename = pathname.split('/').pop();
-        
-        // If there's no filename or no extension, return undefined
-        if (!originalFilename || !originalFilename.includes('.')) {
-            return undefined;
-        }
-
-        const extension = originalFilename.split('.').pop() || '';
-        if (!extension) {
-            return undefined;
-        }
-        
-        // Create a hash of the full URL
+    private generateHashedFilenameFromUrl(url: string): string {
         const hash = createHash('md5').update(url).digest('hex');
-        
-        // Construct the new filename, hash + extension
-        return `${hash}.${extension}`;
+        return hash;
     }
 
     /**
