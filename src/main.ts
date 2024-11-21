@@ -347,9 +347,7 @@ export default class FeaturedImage extends Plugin {
             'image/png': 'png',
             'image/gif': 'gif',
             'image/webp': 'webp',
-            'image/svg+xml': 'svg',
-            'image/bmp': 'bmp',
-            // Add more mappings if necessary
+            'image/svg+xml': 'svg'
         };
 
         // Handle potential parameters in Content-Type (e.g., "image/jpeg; charset=utf-8")
