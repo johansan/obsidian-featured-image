@@ -158,15 +158,13 @@ Featured Image offers several customizable settings to tailor the plugin to your
 
 Featured Image is designed with efficiency and performance in mind:
 
-1. **Debounced Processing**: The plugin uses a debounce mechanism to prevent excessive processing when files are modified rapidly. This ensures that the plugin only runs when necessary, reducing CPU usage and improving overall performance.
+1. **Smart Caching**: The plugin utilizes Obsidian's built-in caching system to quickly access file metadata, minimizing the need for repeated file reads and improving processing speed.
 
-2. **Smart Caching**: The plugin utilizes Obsidian's built-in caching system to quickly access file metadata, minimizing the need for repeated file reads and improving processing speed.
+2. **Optimized Document Scanning**: A combined regex is used to match various image formats, YouTube links, and Auto Card Link images in a single pass, reducing the number of regex operations to just one, improving efficiency.
 
-3. **Optimized Document Scanning**: A combined regex is used to match various image formats, YouTube links, and Auto Card Link images in a single pass, reducing the number of regex operations to just one, improving efficiency.
+3. **Intelligent Image Handling**: For YouTube links the plugin attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats. This ensures the best quality thumbnail while minimizing bandwidth usage.
 
-4. **Intelligent Image Handling**: For YouTube links the plugin attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats. This ensures the best quality thumbnail while minimizing bandwidth usage.
-
-5. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
+4. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
 
 ## Support and Feedback
 
