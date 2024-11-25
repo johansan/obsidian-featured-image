@@ -283,6 +283,12 @@ export default class FeaturedImage extends Plugin {
             let localPath = imagePath.slice(1, -1).trim();
             // Remove [[ and ]] if present
             localPath = localPath.replace(/^\[\[|\]\]$/g, '');
+            // Check if the file exists
+            const fileExists = await this.app.vault.adapter.exists(localPath);
+            if (!fileExists) {
+                this.errorLog('Local image not found:', localPath);
+                return undefined;
+            }
             return localPath;
         }
     
