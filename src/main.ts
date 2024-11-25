@@ -23,6 +23,7 @@ export default class FeaturedImage extends Plugin {
     // Combined regex pattern
     private combinedLineRegex: RegExp;
     private autoCardImageRegex: RegExp;
+    private codeBlockStartRegex: RegExp;
 
 	/**
 	 * Loads the plugin, initializes settings, and sets up event listeners.
@@ -197,6 +198,7 @@ export default class FeaturedImage extends Plugin {
         // Create individual patterns for line-by-line processing
         this.combinedLineRegex = new RegExp(`${wikiImagePattern}|${mdImagePattern}|${youtubePattern}`, 'i');
         this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
+        this.codeBlockStartRegex = /^[\s]*```[\s]*(\w+)?[\s]*$/;
     }
 
     /**
@@ -221,11 +223,11 @@ export default class FeaturedImage extends Plugin {
         let codeBlockBuffer = '';
 
         for (const line of lines) {
-            // Replace regex with simple string check for code block markers
-            if (line.trimStart().startsWith('```')) {
+            const codeBlockMatch = this.codeBlockStartRegex.exec(line);
+            if (codeBlockMatch) {
                 if (!inCodeBlock) {
                     inCodeBlock = true;
-                    codeBlockLanguage = line.trim().slice(3).toLowerCase();
+                    codeBlockLanguage = (codeBlockMatch[1] || '').toLowerCase();
                     codeBlockBuffer = '';
                     continue;
                 } else {
