@@ -234,7 +234,6 @@ export default class FeaturedImage extends Plugin {
                     if (codeBlockLanguage === 'cardlink') {
                         const imageMatch = this.autoCardImageRegex.exec(codeBlockBuffer);
                         if (imageMatch?.groups?.autoCardImage) {
-                            this.debugLog('Auto Card Link image found:', imageMatch.groups.autoCardImage);
                             return await this.processAutoCardLinkImage(imageMatch.groups.autoCardImage, currentFeature);
                         }
                     }
@@ -325,7 +324,6 @@ export default class FeaturedImage extends Plugin {
             // Check if the image already exists with any known image extension
             const existingFilePath = await this.findExistingImageFile(autoCardLinkFolder, hashedFilename);
             if (existingFilePath) {
-                this.debugLog('Auto Card Link image already exists, skipping download');
                 return existingFilePath;
             }
     
