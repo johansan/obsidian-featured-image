@@ -1,7 +1,7 @@
 {
 	"id": "featured-image",
 	"name": "Featured Image",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"minAppVersion": "1.4.4",
 	"description": "Automatically sets a featured image property in your notes based on the first image, YouTube link, or Auto Card Link image found in your document. This allows you to create rich note galleries using Folder Notes and Dataview.",
 	"author": "Johan Sanneblad",
