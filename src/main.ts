@@ -25,6 +25,24 @@ export default class FeaturedImage extends Plugin {
     private autoCardImageRegex: RegExp;
     private codeBlockStartRegex: RegExp;
 
+    // Placeholder image data for failed downloads (1x1 transparent PNG)
+    private static readonly FAILED_IMAGE_DATA = new Uint8Array([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+        0x00, 0x00, 0x00, 0x0D, // IHDR chunk length
+        0x49, 0x48, 0x44, 0x52, // "IHDR"
+        0x00, 0x00, 0x00, 0x01, // width: 1
+        0x00, 0x00, 0x00, 0x01, // height: 1
+        0x08, 0x06, 0x00, 0x00, 0x00, // bit depth, color type, compression, filter, interlace
+        0x1F, 0x15, 0xC4, 0x89, // IHDR CRC
+        0x00, 0x00, 0x00, 0x0A, // IDAT chunk length
+        0x49, 0x44, 0x41, 0x54, // "IDAT"
+        0x78, 0x9C, 0x63, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, // compressed data
+        0xE5, 0x27, 0xDE, 0xFC, // IDAT CRC
+        0x00, 0x00, 0x00, 0x00, // IEND chunk length
+        0x49, 0x45, 0x4E, 0x44, // "IEND"
+        0xAE, 0x42, 0x60, 0x82  // IEND CRC
+    ]);
+
 	/**
 	 * Loads the plugin, initializes settings, and sets up event listeners.
 	 */
@@ -192,7 +210,7 @@ export default class FeaturedImage extends Plugin {
         const imageExtensionsPattern = this.settings.imageExtensions.join('|');
 
         const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${imageExtensionsPattern}))(?:\\|[^\\]]*)?\\]\\]`;
-        const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>[^)]+\\.(${imageExtensionsPattern}))\\)`;
+        const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>(?:[^)(]|\\([^)(]*\\))+)\\)`;
         const youtubePattern = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
     
         // Create individual patterns for line-by-line processing
@@ -255,7 +273,12 @@ export default class FeaturedImage extends Plugin {
                     return decodeURIComponent(match.groups.wikiImage);
                 }
                 if (match.groups?.mdImage) {
-                    return decodeURIComponent(match.groups.mdImage);
+                    const mdImage = decodeURIComponent(match.groups.mdImage);
+                    // Check if it's an external URL
+                    if (this.isValidUrl(mdImage)) {
+                        return await this.downloadExternalImage(mdImage, currentFeature);
+                    }
+                    return mdImage;
                 }
                 if (match.groups?.youtube) {
                     const videoId = this.getVideoId(match.groups.youtube);
@@ -278,13 +301,12 @@ export default class FeaturedImage extends Plugin {
     private async processAutoCardLinkImage(imagePath: string, currentFeature: string | undefined): Promise<string | undefined> {
         imagePath = imagePath.trim();
     
-        // Auto Card Link always embeds local images within quotes
+        this.debugLog('Processing Auto Card Link image:', imagePath);
+
+        // Handle local images (Auto Card Link always embeds local images within quotes)
         if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
-            // Remove quotes
             let localPath = imagePath.slice(1, -1).trim();
-            // Remove [[ and ]] if present
             localPath = localPath.replace(/^\[\[|\]\]$/g, '');
-            // Check if the file exists
             const fileExists = await this.app.vault.adapter.exists(localPath);
             if (!fileExists) {
                 this.errorLog('Local image not found:', localPath);
@@ -293,62 +315,86 @@ export default class FeaturedImage extends Plugin {
             return localPath;
         }
     
-        // Check if the image path is a valid URL
+        // Handle external images
         if (!this.isValidUrl(imagePath)) {
             this.errorLog('Invalid Auto Card Link URL:', imagePath);
             return undefined;
         }
     
-        // Generate unique local filename from image path (without extension)
-        const hashedFilename = this.generateHashedFilenameFromUrl(imagePath);
+        return await this.downloadExternalImage(imagePath, currentFeature, 'autocardlink');
+    }
+
+    /**
+     * Downloads an external image and saves it locally.
+     * @param {string} imageUrl - The URL of the image to download.
+     * @param {string | undefined} currentFeature - The current featured image.
+     * @returns {Promise<string | undefined>} The path to the downloaded image.
+     */
+    private async downloadExternalImage(imageUrl: string, currentFeature: string | undefined, subfolder: string = 'external'): Promise<string | undefined> {
+        // Normalize folder path
+        const downloadFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/${subfolder}`);
+        
+        this.debugLog('Downloading image from:', imageUrl);
+
+        // Generate unique local filename from image URL
+        const hashedFilename = this.generateHashedFilenameFromUrl(imageUrl);
         if (!hashedFilename) {
-            this.errorLog('Failed to generate hashed filename for:', imagePath);
+            this.errorLog('Failed to generate hashed filename for:', imageUrl);
             return undefined;
         }
-    
-        // Prepare the Auto Card Link folder path
-        const autoCardLinkFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/autocardlink`);
-    
-        if (this.settings.dryRun) {
-            this.debugLog('Dry run: Skipping Auto Card Link image download, using mock path');
-            // Assuming JPEG as default extension in dry run
-            return `${autoCardLinkFolder}/${hashedFilename}.jpg`;
+
+        // Check if we already have a failed download marker for this URL
+        const failedMarkerPath = `${downloadFolder}/${hashedFilename}.failed.png`;
+        if (await this.app.vault.adapter.exists(failedMarkerPath)) {
+            this.debugLog('Skipping previously failed download:', imageUrl);
+            return failedMarkerPath;
         }
-    
+
+        if (this.settings.dryRun) {
+            this.debugLog('Dry run: Skipping image download, using mock path');
+            return `${downloadFolder}/${hashedFilename}.jpg`;
+        }
+
         try {
-            // Create the Auto Card Link directory if it doesn't exist
-            if (!(await this.app.vault.adapter.exists(autoCardLinkFolder))) {
-                await this.app.vault.adapter.mkdir(autoCardLinkFolder);
+            // Create the download directory if it doesn't exist
+            if (!(await this.app.vault.adapter.exists(downloadFolder))) {
+                await this.app.vault.adapter.mkdir(downloadFolder);
             }
-    
-            // Check if the image already exists with any known image extension
-            const existingFilePath = await this.findExistingImageFile(autoCardLinkFolder, hashedFilename);
+
+            // Check if the image already exists with any known extension
+            const existingFilePath = await this.findExistingImageFile(downloadFolder, hashedFilename);
             if (existingFilePath) {
                 return existingFilePath;
             }
-    
-            // Proceed to download the image
+
+            // Download the image
             const response = await requestUrl({
-                url: imagePath,
+                url: imageUrl,
                 method: 'GET',
             });
-    
+
             // Determine the file extension from Content-Type
             const contentType = response.headers['content-type'];
             const extension = this.getExtensionFromContentType(contentType);
             if (!extension) {
-                this.errorLog('Unknown Content-Type for image:', contentType);
-                return undefined;
+                throw new Error('Unknown Content-Type for image: ' + contentType);
             }
-    
-            const downloadPath = `${autoCardLinkFolder}/${hashedFilename}.${extension}`;
-    
-            // Save the image to the determined path
+
+            const downloadPath = `${downloadFolder}/${hashedFilename}.${extension}`;
+
+            // Save the image
             await this.app.vault.adapter.writeBinary(downloadPath, response.arrayBuffer);
             return downloadPath;
         } catch (error) {
-            this.errorLog('Failed to download Auto Card Link image, error:', error);
-            return undefined;
+            this.errorLog('Failed to download image, error:', error);
+            
+            try {
+                await this.app.vault.adapter.writeBinary(failedMarkerPath, FeaturedImage.FAILED_IMAGE_DATA.buffer);
+                return failedMarkerPath;
+            } catch (writeError) {
+                this.errorLog('Failed to write placeholder image:', writeError);
+                return undefined;
+            }
         }
     }
 
