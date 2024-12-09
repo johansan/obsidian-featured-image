@@ -209,10 +209,15 @@ export default class FeaturedImage extends Plugin {
     private compileRegexPatterns() {
         const imageExtensionsPattern = this.settings.imageExtensions.join('|');
 
+        // Wiki image pattern, e.g. ![[image.jpg]]  
         const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${imageExtensionsPattern}))(?:\\|[^\\]]*)?\\]\\]`;
-        const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>(?:[^)(]|\\([^)(]*\\))+)\\)`;
+
+        // Markdown image pattern, e.g. external ![](https://example.com/imagelink) or local ![](resources/image.jpg)
+        const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>(?:https?:\\/\\/(?:[^)(]|\\([^)(]*\\))+|[^)(]+\\.(${imageExtensionsPattern})))\\)`;
+        
+        // YouTube pattern remains the same
         const youtubePattern = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
-    
+
         // Create individual patterns for line-by-line processing
         this.combinedLineRegex = new RegExp(`${wikiImagePattern}|${mdImagePattern}|${youtubePattern}`, 'i');
         this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
@@ -269,9 +274,11 @@ export default class FeaturedImage extends Plugin {
             // Process regular lines for images and YouTube links
             const match = this.combinedLineRegex.exec(line);
             if (match) {
+                // Wiki image pattern, e.g. ![[image.jpg]]
                 if (match.groups?.wikiImage) {
                     return decodeURIComponent(match.groups.wikiImage);
                 }
+                // Markdown image pattern, e.g. ![image.jpg](https://example.com/image.jpg)
                 if (match.groups?.mdImage) {
                     const mdImage = decodeURIComponent(match.groups.mdImage);
                     // Check if it's an external URL
@@ -280,6 +287,7 @@ export default class FeaturedImage extends Plugin {
                     }
                     return mdImage;
                 }
+                // YouTube pattern, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
                 if (match.groups?.youtube) {
                     const videoId = this.getVideoId(match.groups.youtube);
                     if (videoId) {
@@ -301,8 +309,6 @@ export default class FeaturedImage extends Plugin {
     private async processAutoCardLinkImage(imagePath: string, currentFeature: string | undefined): Promise<string | undefined> {
         imagePath = imagePath.trim();
     
-        this.debugLog('Processing Auto Card Link image:', imagePath);
-
         // Handle local images (Auto Card Link always embeds local images within quotes)
         if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
             let localPath = imagePath.slice(1, -1).trim();
@@ -334,8 +340,6 @@ export default class FeaturedImage extends Plugin {
         // Normalize folder path
         const downloadFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/${subfolder}`);
         
-        this.debugLog('Downloading image from:', imageUrl);
-
         // Generate unique local filename from image URL
         const hashedFilename = this.generateHashedFilenameFromUrl(imageUrl);
         if (!hashedFilename) {
@@ -346,8 +350,24 @@ export default class FeaturedImage extends Plugin {
         // Check if we already have a failed download marker for this URL
         const failedMarkerPath = `${downloadFolder}/${hashedFilename}.failed.png`;
         if (await this.app.vault.adapter.exists(failedMarkerPath)) {
-            this.debugLog('Skipping previously failed download:', imageUrl);
-            return failedMarkerPath;
+            // Check if the failed marker is less than 12 hours old
+            const stats = await this.app.vault.adapter.stat(failedMarkerPath);
+            if (!stats) return undefined;
+            const markerAge = Date.now() - stats.mtime;
+            const twelveHours = 12 * 60 * 60 * 1000;
+
+            // If the marker is more than 12 hours old, remove it and try again
+            if (markerAge < twelveHours) {
+                this.debugLog('Skipping recently failed download:', imageUrl);
+                return failedMarkerPath;
+            } else {
+                this.debugLog('Retrying old failed download:', imageUrl);
+                try {
+                    await this.app.vault.adapter.remove(failedMarkerPath);
+                } catch (error) {
+                    this.errorLog('Failed to remove old failed marker:', error);
+                }
+            }
         }
 
         if (this.settings.dryRun) {
