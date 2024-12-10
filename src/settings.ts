@@ -153,7 +153,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     // Thumbnail download folder
     new Setting(containerEl)
       .setName('Thumbnail download folder')
-      .setDesc('YouTube thumbnails and external Auto Card Link images will be downloaded to this folder.')
+      .setDesc('External images, YouTube thumbnails, and Auto Card Link images will be downloaded to this folder. The plugin will create separate subfolders for each type.')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.thumbnailDownloadFolder)
         .setValue(this.plugin.settings.thumbnailDownloadFolder)
