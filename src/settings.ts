@@ -6,6 +6,7 @@ export interface FeaturedImageSettings {
   excludedFolders: string[];
 	frontmatterProperty: string;
   onlyUpdateExisting: boolean;
+  keepEmptyProperty: boolean;
   useMediaLinks: boolean;
 
   // YouTube settings
@@ -19,6 +20,7 @@ export interface FeaturedImageSettings {
   // Developer options
   debugMode: boolean;
   dryRun: boolean;
+
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -28,6 +30,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Frontmatter settings
 	frontmatterProperty: 'feature',
   onlyUpdateExisting: false,
+  keepEmptyProperty: false,
   useMediaLinks: false,
 
   // YouTube settings
@@ -104,6 +107,18 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.onlyUpdateExisting)
           .onChange(async value => {
             this.plugin.settings.onlyUpdateExisting = value
+            await this.plugin.saveSettings()
+          })
+      })
+
+    // Keep empty property
+    new Setting(containerEl)
+      .setName('Keep empty property')
+      .setDesc('When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.')
+      .addToggle(toggle => { toggle
+          .setValue(this.plugin.settings.keepEmptyProperty)
+          .onChange(async value => {
+            this.plugin.settings.keepEmptyProperty = value
             await this.plugin.saveSettings()
           })
       })

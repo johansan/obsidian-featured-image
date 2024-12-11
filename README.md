@@ -128,22 +128,27 @@ Featured Image offers several customizable settings to tailor the plugin to your
    - Description: When enabled, the plugin will only update notes that already have a featured image property.
    - Usage: Enable this if you want to manually control which notes have featured images.
 
-5. **Use Media Links**
+5. **Keep Empty Property**
+   - Default: `false`
+   - Description: When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found.
+   - Usage: Enable this if you want to preserve the frontmatter property even when there's no featured image.
+
+6. **Use Media Links**
    - Default: `false`
    - Description: When enabled, the plugin will store the featured image as a media link in the frontmatter property (e.g. `![[path/to/image.png]]`).
    - Usage: Enable this if you want to use the media link format for featured images.
 
-6. **Require Exclamation Mark for YouTube Thumbnails**
+7. **Require Exclamation Mark for YouTube Thumbnails**
    - Default: `true`
    - Description: When enabled, YouTube links must be prefixed with `!` to be considered for featured images.
    - Usage: Keep this enabled if you want more control over which YouTube links become featured images.
 
-7. **Download WebP**
+8. **Download WebP**
    - Default: `true`
    - Description: When enabled, the plugin will attempt to download WebP format thumbnails for YouTube videos.
    - Usage: Disable this if you prefer JPG thumbnails or if you're experiencing issues with WebP images.
 
-8. **Thumbnail Download Folder**
+9. **Thumbnail Download Folder**
    - Default: `thumbnails`
    - Description: The folder where external images, YouTube thumbnails, and Auto Card Link images will be downloaded and stored.
    - Usage: Set this to your preferred location for storing downloaded images. The plugin will automatically create subfolders:
@@ -151,10 +156,10 @@ Featured Image offers several customizable settings to tailor the plugin to your
      - `external/` for external images
      - `autocardlink/` for Auto Card Link external images
 
-9. **Image Extensions**
-   - Default: `["png", "jpg", "jpeg", "gif", "webp"]`
-   - Description: List of image file extensions to consider when searching for featured images.
-   - Usage: Add or remove extensions based on the image types you use in your vault.
+10. **Image Extensions**
+    - Default: `["png", "jpg", "jpeg", "gif", "webp"]`
+    - Description: List of image file extensions to consider when searching for featured images.
+    - Usage: Add or remove extensions based on the image types you use in your vault.
 
 ![Settings](images/settings.png)
 

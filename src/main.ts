@@ -503,7 +503,11 @@ export default class FeaturedImage extends Plugin {
                         const featureValue = this.settings.useMediaLinks ? `![[${newFeature}]]` : newFeature;
                         frontmatter[this.settings.frontmatterProperty] = featureValue;
                     } else {
-                        delete frontmatter[this.settings.frontmatterProperty];
+                        if (this.settings.keepEmptyProperty) {
+                            frontmatter[this.settings.frontmatterProperty] = '';
+                        } else {
+                            delete frontmatter[this.settings.frontmatterProperty];
+                        }
                     }
                 });
 
