@@ -196,10 +196,14 @@ export default class FeaturedImage extends Plugin {
             return true;
         }
 
+        const propertyExists = this.settings.frontmatterProperty in (cache?.frontmatter || {});
+        const folderIsExcluded = this.settings.excludedFolders.some((folder: string) => file.path.startsWith(folder + '/'));
+
         const shouldSkip = (
-            (this.settings.onlyUpdateExisting && !currentFeature) ||
-            this.settings.excludedFolders.some((folder: string) => file.path.startsWith(folder + '/'))
+            (this.settings.onlyUpdateExisting && !propertyExists) ||
+            folderIsExcluded
         );
+        
         return shouldSkip;
     }
 
