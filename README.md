@@ -11,6 +11,8 @@
   - [Creating Note Lists with Previews](#creating-note-lists-with-previews)
 - [Settings](#settings)
 - [Benefits and Optimizations](#benefits-and-optimizations)
+- [Known Issues](#known-issues)
+  - [Conflicts with Mousewheel Image Zoom Plugin](#conflicts-with-mousewheel-image-zoom-plugin)
 - [Support and Feedback](#support-and-feedback)
 
 ## Introduction
@@ -177,6 +179,36 @@ Featured Image is designed with efficiency and performance in mind:
    This ensures the best quality images while minimizing bandwidth usage.
 
 4. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
+
+## Known Issues
+
+### Conflicts with Mousewheel Image Zoom Plugin
+
+There is a known issue in the plugin "Mousewheel Image Zoom" when the same image name appears multiple times in a document. The following examples will not get resized:
+
+1. When an image is mentioned in text and then used as a link:
+   ```markdown
+   Some text mentioning example.jpg in a paragraph
+   Another paragraph
+
+   ![[example.jpg|100]]  # This link would not get resized
+   ```
+
+2. When an image is used in frontmatter and then in the document:
+   ```markdown
+   ---
+   feature: example.jpg
+   ---
+   ![[example.jpg|100]]  # This link would not get resized
+   ```
+
+#### Recommended Workaround
+The "Image Converter" plugin offers similar functionality and has fixed this issue in version 1.2.20. Until the Mousewheel Image Zoom plugin is updated, we recommend:
+
+1. Switch to using the "Image Converter" plugin
+2. Ensure you're using version 1.2.20 or later of Image Converter
+
+The author of Mousewheel Image Zoom has been notified of this issue, but no fix has been implemented yet.
 
 ## Support and Feedback
 
