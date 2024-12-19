@@ -225,8 +225,8 @@ export default class FeaturedImage extends Plugin {
         // IMPORTANT: Put YouTube first in the alternation so it is captured before mdImage
         const combinedRegexString = [
             youtubePattern,    // check youtube group first
-            wikiImagePattern,  // then wiki images
-            mdImagePattern     // then external images
+            wikiImagePattern,  // then wiki image links
+            mdImagePattern     // then markdown image links
         ].join('|');
 
         this.combinedLineRegex = new RegExp(combinedRegexString, 'i');
@@ -256,7 +256,7 @@ export default class FeaturedImage extends Plugin {
         let codeBlockBuffer = '';
 
         for (const line of lines) {
-            // First check for Auto Card Link images
+            // First check for Auto Card Link code blocks
             const codeBlockMatch = this.codeBlockStartRegex.exec(line);
             if (codeBlockMatch) {
                 if (!inCodeBlock) {
@@ -282,23 +282,25 @@ export default class FeaturedImage extends Plugin {
                 continue;
             }
 
-            // Then check for YouTube links, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+            // Check for other images (local or external)
             const match = this.combinedLineRegex.exec(line);
-            if (match?.groups?.youtube) {
-                const videoId = this.getVideoId(match.groups.youtube);
-                if (videoId) {
-                    return await this.downloadThumbnail(videoId, currentFeature);
-                }
-                continue;
-            }
 
-            // Then check for other images (local or external)
             if (match) {
-                // Wiki image pattern, e.g. ![[image.jpg]]
+                // Check for YouTube links, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+                if (match.groups?.youtube) {
+                    const videoId = this.getVideoId(match.groups.youtube);
+                    if (videoId) {
+                        return await this.downloadThumbnail(videoId, currentFeature);
+                    }
+                    continue;
+                }
+
+                // Check for local wiki image links, e.g. ![[image.jpg]]
                 if (match.groups?.wikiImage) {
                     return decodeURIComponent(match.groups.wikiImage);
                 }
-                // Markdown image pattern, e.g. ![image.jpg](https://example.com/image.jpg)
+
+                // Check for markdown image links, e.g. ![image.jpg](https://example.com/image.jpg)
                 if (match.groups?.mdImage) {
                     const mdImage = decodeURIComponent(match.groups.mdImage);
                     // Check if it's an external URL
