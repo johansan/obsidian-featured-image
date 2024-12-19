@@ -250,6 +250,7 @@ export default class FeaturedImage extends Plugin {
         let codeBlockBuffer = '';
 
         for (const line of lines) {
+            // First check for Auto Card Link images
             const codeBlockMatch = this.codeBlockStartRegex.exec(line);
             if (codeBlockMatch) {
                 if (!inCodeBlock) {
@@ -275,8 +276,17 @@ export default class FeaturedImage extends Plugin {
                 continue;
             }
 
-            // Process regular lines for images and YouTube links
+            // Then check for YouTube links, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
             const match = this.combinedLineRegex.exec(line);
+            if (match?.groups?.youtube) {
+                const videoId = this.getVideoId(match.groups.youtube);
+                if (videoId) {
+                    return await this.downloadThumbnail(videoId, currentFeature);
+                }
+                continue;
+            }
+
+            // Then check for other images (local or external)
             if (match) {
                 // Wiki image pattern, e.g. ![[image.jpg]]
                 if (match.groups?.wikiImage) {
@@ -290,13 +300,6 @@ export default class FeaturedImage extends Plugin {
                         return await this.downloadExternalImage(mdImage, currentFeature);
                     }
                     return mdImage;
-                }
-                // YouTube pattern, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
-                if (match.groups?.youtube) {
-                    const videoId = this.getVideoId(match.groups.youtube);
-                    if (videoId) {
-                        return await this.downloadThumbnail(videoId, currentFeature);
-                    }
                 }
             }
         }
