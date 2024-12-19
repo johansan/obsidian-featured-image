@@ -218,12 +218,18 @@ export default class FeaturedImage extends Plugin {
 
         // Markdown image pattern, e.g. external ![](https://example.com/imagelink) or local ![](resources/image.jpg)
         const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>(?:https?:\\/\\/(?:[^)(]|\\([^)(]*\\))+|[^)(]+\\.(${imageExtensionsPattern})))\\)`;
-        
-        // YouTube pattern remains the same
-        const youtubePattern = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/\\S+)\\)`;
 
-        // Create individual patterns for line-by-line processing
-        this.combinedLineRegex = new RegExp(`${wikiImagePattern}|${mdImagePattern}|${youtubePattern}`, 'i');
+        // YouTube pattern, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+        const youtubePattern = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\\/\\/(?:www\\.)?(?:youtube\\.com|youtu\\.be)\\/\\S+)\\)`;
+
+        // IMPORTANT: Put YouTube first in the alternation so it is captured before mdImage
+        const combinedRegexString = [
+            youtubePattern,    // check youtube group first
+            wikiImagePattern,  // then wiki images
+            mdImagePattern     // then external images
+        ].join('|');
+
+        this.combinedLineRegex = new RegExp(combinedRegexString, 'i');
         this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
         this.codeBlockStartRegex = /^[\s]*```[\s]*(\w+)?[\s]*$/;
     }
