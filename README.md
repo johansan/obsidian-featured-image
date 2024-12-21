@@ -165,6 +165,21 @@ Featured Image offers several customizable settings to tailor the plugin to your
 
 ![Settings](images/settings.png)
 
+## Benefits and Optimizations
+
+Featured Image is designed with efficiency and performance in mind:
+
+1. **Smart Caching**: The plugin utilizes Obsidian's built-in caching system to quickly access file metadata, minimizing the need for repeated file reads and improving processing speed.
+
+2. **Optimized Document Scanning**: A combined regex is used to match various image formats, external URLs, YouTube links, and Auto Card Link images in a single pass, reducing the number of regex operations to just one, improving efficiency.
+
+3. **Intelligent Image Handling**: 
+   - For external images: Downloads and caches them locally for offline access
+   - For YouTube links: Attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats
+   This ensures the best quality images while minimizing bandwidth usage.
+
+4. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
+
 ## Known Issues
 
 ### Conflicts with Mousewheel Image Zoom Plugin
