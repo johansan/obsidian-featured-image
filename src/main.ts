@@ -76,7 +76,7 @@ export default class FeaturedImage extends Plugin {
 
 		// Watch for metadata changes and update the featured image if the file is a markdown file
         this.registerEvent(
-            this.app.metadataCache.on('changed', (file) => {
+            this.app.vault.on('modify', (file) => {
                 if (
                     file instanceof TFile &&
                     file.extension === 'md' &&
@@ -146,7 +146,7 @@ export default class FeaturedImage extends Plugin {
             return false;
         }
 
-        const fileContent = await this.app.vault.cachedRead(file);
+        const fileContent = await this.app.vault.read(file);
         const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
 
         if (currentFeature !== newFeature) {
