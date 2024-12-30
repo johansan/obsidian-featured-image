@@ -135,10 +135,13 @@ Featured Image offers several customizable settings to tailor the plugin to your
    - Description: When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found.
    - Usage: Enable this if you want to preserve the frontmatter property even when there's no featured image.
 
-6. **Use Media Links**
-   - Default: `false`
-   - Description: When enabled, the plugin will store the featured image as a media link in the frontmatter property (e.g. `![[path/to/image.png]]`).
-   - Usage: Enable this if you want to use the media link format for featured images.
+6. **Media Link Format**
+   - Default: `plain`
+   - Description: Choose how to format the featured image property in frontmatter:
+     - `Plain text`: Stores the path as-is (e.g., `path/to/image.png`)
+     - `Wiki link`: Stores the path as a wiki link (e.g., `[[path/to/image.png]]`)
+     - `Embedded link`: Stores the path as an embedded link (e.g., `![[path/to/image.png]]`)
+   - Usage: Choose the format that best suits your needs and workflow. Plain text is the most portable, while wiki and embedded links integrate better with Obsidian's linking system.
 
 7. **Require Exclamation Mark for YouTube Thumbnails**
    - Default: `true`
