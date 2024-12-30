@@ -109,9 +109,9 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     .setName('Media link format')
     .setDesc('Choose how to format the featured image property in frontmatter.')
     .addDropdown(dropdown => dropdown
-      .addOption('plain', 'Plain text: image.png')
-      .addOption('wiki', 'Wiki link: [[image.png]]')
-      .addOption('embed', 'Embedded link: ![[image.png]]')
+      .addOption('plain', `${this.plugin.settings.frontmatterProperty}: image.png`)
+      .addOption('wiki', `${this.plugin.settings.frontmatterProperty}: [[image.png]]`)
+      .addOption('embed', `${this.plugin.settings.frontmatterProperty}: ![[image.png]]`)
       .setValue(this.plugin.settings.mediaLinkFormat)
       .onChange(async value => {
         this.plugin.settings.mediaLinkFormat = value as 'plain' | 'wiki' | 'embed';
