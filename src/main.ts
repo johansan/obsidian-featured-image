@@ -121,8 +121,15 @@ export default class FeaturedImage extends Plugin {
      * Loads the plugin settings.
      */
 	async loadSettings() {
-		const data = await this.loadData();
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+        // Migration: Set initial mediaLinkFormat based on legacy useMediaLinks setting
+        // The only time useMediaLinks is true and mediaLinkFormat is 'plain' is when the plugin was updated to the new format
+        // TODO: Remove this code March 1, 2025
+        if (this.settings.useMediaLinks && this.settings.mediaLinkFormat === 'plain') {
+            this.settings.mediaLinkFormat = 'embed'; // Since the old version used embedded links
+            await this.saveData(this.settings);
+        }
 	}
 
     /**
@@ -168,12 +175,12 @@ export default class FeaturedImage extends Plugin {
         const feature = cache?.frontmatter?.[this.settings.frontmatterProperty];
         
         if (feature) {
-            // Attempt to extract the image path from wiki-style link
-            const match = feature.match(/!\[\[(.*?)\]\]/);
+            // Attempt to extract the image path from wiki-style and embedded links
+            const match = feature.match(/!?\[\[(.*?)\]\]/);
             if (match) {
                 return match[1];
             } else {
-                // Return the feature as-is if it's not a wiki-style link
+                // Return the feature as-is if it's not a wiki-style or embedded link
                 return feature;
             }
         }

@@ -4,10 +4,13 @@ import FeaturedImage from './main'
 export interface FeaturedImageSettings {
   showNotificationsOnUpdate: boolean;
   excludedFolders: string[];
+
+  // Frontmatter settings
 	frontmatterProperty: string;
   mediaLinkFormat: 'plain' | 'wiki' | 'embed';
   onlyUpdateExisting: boolean;
   keepEmptyProperty: boolean;
+  // TODO: Remove this setting March 1, 2025 (it has been replaced by mediaLinkFormat)
   useMediaLinks: boolean;
 
   // YouTube settings
@@ -21,7 +24,6 @@ export interface FeaturedImageSettings {
   // Developer options
   debugMode: boolean;
   dryRun: boolean;
-
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -30,10 +32,11 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
 
   // Frontmatter settings
 	frontmatterProperty: 'feature',
+  mediaLinkFormat: 'plain',
   onlyUpdateExisting: false,
   keepEmptyProperty: false,
+  // TODO: Remove this setting March 1, 2025 (it has been replaced by mediaLinkFormat)
   useMediaLinks: false,
-  mediaLinkFormat: 'plain',
 
   // YouTube settings
   requireExclamationForYouTube: true,
@@ -113,6 +116,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .onChange(async value => {
         this.plugin.settings.mediaLinkFormat = value as 'plain' | 'wiki' | 'embed';
         // For backward compatibility
+        // TODO: Remove this code March 1, 2025 when the setting is removed
         this.plugin.settings.useMediaLinks = value !== 'plain';
         await this.plugin.saveSettings();
       }))
