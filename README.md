@@ -108,7 +108,7 @@ SORT file.ctime DESC
 
 ## Settings
 
-Featured Image offers several customizable settings to tailor the plugin to your needs:
+Here are the settings for the Featured Image plugin:
 
 1. **Show Notifications**
    - Default: `false`
