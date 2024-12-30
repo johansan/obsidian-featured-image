@@ -118,7 +118,7 @@ Here are the settings for the Featured Image plugin:
 2. **Excluded Folders**
    - Default: `[]`
    - Description: List of folders to exclude from processing.
-   - Usage: Add folder paths (e.g., `"templates"`, `"archive"`) to prevent the plugin from processing files in these locations.
+   - Usage: Add folder paths (e.g., `templates`, `archive`) to prevent the plugin from processing files in these locations. To add subfolders, use the full path (e.g., `templates/my-subfolder`).
 
 3. **Frontmatter Property**
    - Default: `feature`
@@ -155,7 +155,7 @@ Here are the settings for the Featured Image plugin:
 
 9. **Thumbnail Download Folder**
    - Default: `thumbnails`
-   - Description: The folder where external images, YouTube thumbnails, and Auto Card Link images will be downloaded and stored.
+   - Description: The folder where external images, YouTube thumbnails, and Auto Card Link images will be downloaded and stored. To set a subfolder, use the full path (e.g., `_resources/thumbnails`).
    - Usage: Set this to your preferred location for storing downloaded images. The plugin will automatically create subfolders:
      - `youtube/` for YouTube thumbnails
      - `external/` for external images
