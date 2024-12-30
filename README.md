@@ -125,23 +125,23 @@ Featured Image offers several customizable settings to tailor the plugin to your
    - Description: The name of the frontmatter property used to store the featured image path.
    - Usage: Change this if you want to use a different property name in your frontmatter.
 
-4. **Only Update if Frontmatter Property Exists**
-   - Default: `false`
-   - Description: When enabled, the plugin will only update notes that already have a featured image property.
-   - Usage: Enable this if you want to manually control which notes have featured images.
-
-5. **Keep Empty Property**
-   - Default: `false`
-   - Description: When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found.
-   - Usage: Enable this if you want to preserve the frontmatter property even when there's no featured image.
-
-6. **Media Link Format**
+4. **Media Link Format**
    - Default: `plain`
    - Description: Choose how to format the featured image property in frontmatter:
      - `Plain text`: Stores the path as-is (e.g., `path/to/image.png`)
      - `Wiki link`: Stores the path as a wiki link (e.g., `[[path/to/image.png]]`)
      - `Embedded link`: Stores the path as an embedded link (e.g., `![[path/to/image.png]]`)
    - Usage: Choose the format that best suits your needs and workflow. Plain text is the most portable, while wiki and embedded links integrate better with Obsidian's linking system.
+
+5. **Only Update if Frontmatter Property Exists**
+   - Default: `false`
+   - Description: When enabled, the plugin will only update notes that already have a featured image property.
+   - Usage: Enable this if you want to manually control which notes have featured images.
+
+6. **Keep Empty Property**
+   - Default: `false`
+   - Description: When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found.
+   - Usage: Enable this if you want to preserve the frontmatter property even when there's no featured image.
 
 7. **Require Exclamation Mark for YouTube Thumbnails**
    - Default: `true`
