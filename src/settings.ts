@@ -5,6 +5,7 @@ export interface FeaturedImageSettings {
   showNotificationsOnUpdate: boolean;
   excludedFolders: string[];
 	frontmatterProperty: string;
+  mediaLinkFormat: 'plain' | 'wiki' | 'embed';
   onlyUpdateExisting: boolean;
   keepEmptyProperty: boolean;
   useMediaLinks: boolean;
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   onlyUpdateExisting: false,
   keepEmptyProperty: false,
   useMediaLinks: false,
+  mediaLinkFormat: 'plain',
 
   // YouTube settings
   requireExclamationForYouTube: true,
@@ -99,6 +101,22 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
 
+    // Media link format
+    new Setting(containerEl)
+    .setName('Media link format')
+    .setDesc('Choose how to format the featured image property in frontmatter.')
+    .addDropdown(dropdown => dropdown
+      .addOption('plain', 'Plain text: image.png')
+      .addOption('wiki', 'Wiki link: [[image.png]]')
+      .addOption('embed', 'Embedded link: ![[image.png]]')
+      .setValue(this.plugin.settings.mediaLinkFormat)
+      .onChange(async value => {
+        this.plugin.settings.mediaLinkFormat = value as 'plain' | 'wiki' | 'embed';
+        // For backward compatibility
+        this.plugin.settings.useMediaLinks = value !== 'plain';
+        await this.plugin.saveSettings();
+      }))
+  
     // Only update existing fields toggle
     new Setting(containerEl)
       .setName('Only update if frontmatter property exists')
@@ -124,30 +142,19 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       })
 
     new Setting(containerEl)
-      .setName('Use media links')
-      .setDesc('Use Obsidian media links (e.g. ![[image.png]]) instead of plain text (e.g. image.png) for the featured image property.')
-      .addToggle(toggle => { toggle
-          .setValue(this.plugin.settings.useMediaLinks)
-          .onChange(async value => {
-            this.plugin.settings.useMediaLinks = value
-            await this.plugin.saveSettings()
-          })
-      })
-
-    new Setting(containerEl)
       .setName('YouTube')
       .setHeading()
 
-      // Require exclamation mark for YouTube thumbnails
-      new Setting(containerEl)
-      .setName('Require exclamation mark for YouTube thumbnails')
-      .setDesc('If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.requireExclamationForYouTube)
-        .onChange(async (value) => {
-          this.plugin.settings.requireExclamationForYouTube = value;
-          await this.plugin.saveSettings();
-        }));
+    // Require exclamation mark for YouTube thumbnails
+    new Setting(containerEl)
+    .setName('Require exclamation mark for YouTube thumbnails')
+    .setDesc('If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.')
+    .addToggle(toggle => toggle
+      .setValue(this.plugin.settings.requireExclamationForYouTube)
+      .onChange(async (value) => {
+        this.plugin.settings.requireExclamationForYouTube = value;
+        await this.plugin.saveSettings();
+      }));
 
     // Download webp
     new Setting(containerEl)

@@ -514,8 +514,17 @@ export default class FeaturedImage extends Plugin {
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
                     if (newFeature) {
-                        // Convert to wiki link format if useMediaLinks is enabled
-                        const featureValue = this.settings.useMediaLinks ? `![[${newFeature}]]` : newFeature;
+                        // Format the value based on the selected format
+                        let featureValue = newFeature;
+                        switch (this.settings.mediaLinkFormat) {
+                            case 'wiki':
+                                featureValue = `[[${newFeature}]]`;
+                                break;
+                            case 'embed':
+                                featureValue = `![[${newFeature}]]`;
+                                break;
+                            // 'plain' is default, no formatting needed
+                        }
                         frontmatter[this.settings.frontmatterProperty] = featureValue;
                     } else {
                         if (this.settings.keepEmptyProperty) {
