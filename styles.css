@@ -10,3 +10,16 @@
     color: var(--text-muted);
     font-size: 0.9em;
 }
+
+.featured-image-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.featured-image-status:hover {
+    color: var(--text-normal);
+}

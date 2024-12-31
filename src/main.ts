@@ -43,6 +43,8 @@ export default class FeaturedImage extends Plugin {
         0xAE, 0x42, 0x60, 0x82  // IEND CRC
     ]);
 
+    private statusBarEl: HTMLElement;
+
 	/**
 	 * Loads the plugin, initializes settings, and sets up event listeners.
 	 */
@@ -89,6 +91,22 @@ export default class FeaturedImage extends Plugin {
         );
 
 		this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
+
+        // Initialize status bar
+        this.statusBarEl = this.addStatusBarItem();
+        this.statusBarEl.addClass('featured-image-status');
+        if (this.settings.showInStatusBar) {
+            this.showStatusBar();
+        } else {
+            this.hideStatusBar();
+        }
+
+        // Add workspace event listener to update status bar
+        this.registerEvent(
+            this.app.workspace.on('file-open', (file) => {
+                this.updateStatusBar(file);
+            })
+        );
 	}
 
     /**
@@ -546,6 +564,10 @@ export default class FeaturedImage extends Plugin {
                     new Notice(newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed');
                 }
             }
+
+            // Update status bar after frontmatter change
+            this.updateStatusBar(file);
+
         } finally {
             if (!this.isRunningBulkUpdate) {
                 setTimeout(() => {
@@ -937,6 +959,46 @@ export default class FeaturedImage extends Plugin {
         } catch (error) {
             new Notice('Failed to import settings. Check console for details.');
             console.error('Settings import error:', error);
+        }
+    }
+
+    /**
+     * Shows the status bar element
+     */
+    public showStatusBar(): void {
+        this.statusBarEl.style.display = 'block';
+        this.updateStatusBar(this.app.workspace.getActiveFile());
+    }
+
+    /**
+     * Hides the status bar element
+     */
+    public hideStatusBar(): void {
+        this.statusBarEl.style.display = 'none';
+    }
+
+    /**
+     * Updates the status bar with the current file's featured image
+     * @param file - The current file
+     */
+    private updateStatusBar(file: TFile | null): void {
+        if (!this.settings.showInStatusBar) {
+            return;
+        }
+
+        if (!file || !(file instanceof TFile) || file.extension !== 'md') {
+            this.statusBarEl.setText('');
+            return;
+        }
+
+        const feature = this.getFeatureFromFrontmatter(file);
+        if (feature) {
+            const displayText = feature.length > 30 
+                ? feature.substring(0, 27) + '...' 
+                : feature;
+            this.statusBarEl.setText(`🖼️ ${displayText}`);
+        } else {
+            this.statusBarEl.setText('');
         }
     }
 
