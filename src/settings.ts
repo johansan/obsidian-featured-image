@@ -1,6 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian'
 import FeaturedImage from './main'
-import { SettingsExportModal } from './modals'
 
 export interface FeaturedImageSettings {
   showNotificationsOnUpdate: boolean;
@@ -238,44 +237,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           this.plugin.settings.dryRun = value;
           await this.plugin.saveSettings();
         }));
-
-    new Setting(containerEl)
-        .setName('Settings Import/Export')
-        .setHeading()
-
-    // Export settings
-    new Setting(containerEl)
-        .setName('Export settings')
-        .setDesc('Export your settings as text that you can save and import later.')
-        .addButton(button => button
-            .setButtonText('Export')
-            .onClick(() => {
-                new SettingsExportModal(
-                    this.app,
-                    this.plugin.settings,
-                    false,
-                    () => {}
-                ).open();
-            }));
-
-    // Import settings
-    new Setting(containerEl)
-        .setName('Import settings')
-        .setDesc('Import settings from exported text.')
-        .addButton(button => button
-            .setButtonText('Import')
-            .onClick(() => {
-                new SettingsExportModal(
-                    this.app,
-                    this.plugin.settings,
-                    true,
-                    (importedSettings) => {
-                        this.plugin.importSettings(importedSettings);
-                        // Refresh the settings tab
-                        this.display();
-                    }
-                ).open();
-            }));
 
   }
 
