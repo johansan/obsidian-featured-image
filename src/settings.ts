@@ -25,8 +25,6 @@ export interface FeaturedImageSettings {
   // Developer options
   debugMode: boolean;
   dryRun: boolean;
-
-  showInStatusBar: boolean;
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -52,8 +50,6 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Developer options
   debugMode: false,
   dryRun: false,
-
-  showInStatusBar: false,
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {
@@ -80,23 +76,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings()
           })
       })
-
-      // Show in status bar
-      new Setting(containerEl)
-      .setName('Show in status bar')
-      .setDesc('Show the current featured image in the status bar when a file is open.')
-      .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.showInStatusBar)
-          .onChange(async value => {
-              this.plugin.settings.showInStatusBar = value;
-              await this.plugin.saveSettings();
-              // Update status bar visibility
-              if (value) {
-                  this.plugin.showStatusBar();
-              } else {
-                  this.plugin.hideStatusBar();
-              }
-          }));
 
     // Excluded folders
     new Setting(containerEl)
