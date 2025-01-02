@@ -10,8 +10,7 @@ export interface FeaturedImageSettings {
   mediaLinkFormat: 'plain' | 'wiki' | 'embed';
   onlyUpdateExisting: boolean;
   keepEmptyProperty: boolean;
-  // TODO: Remove this setting March 1, 2025 (it has been replaced by mediaLinkFormat)
-  useMediaLinks: boolean;
+  useMediaLinks: boolean; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
 
   // YouTube settings
   requireExclamationForYouTube: boolean;
@@ -35,8 +34,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   mediaLinkFormat: 'plain',
   onlyUpdateExisting: false,
   keepEmptyProperty: false,
-  // TODO: Remove this setting March 1, 2025 (it has been replaced by mediaLinkFormat)
-  useMediaLinks: false,
+  useMediaLinks: false, // TODO: Remove in the future, it has been replaced by mediaLinkFormat
 
   // YouTube settings
   requireExclamationForYouTube: true,
@@ -115,9 +113,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .setValue(this.plugin.settings.mediaLinkFormat)
       .onChange(async value => {
         this.plugin.settings.mediaLinkFormat = value as 'plain' | 'wiki' | 'embed';
-        // For backward compatibility
-        // TODO: Remove this code March 1, 2025 when the setting is removed
-        this.plugin.settings.useMediaLinks = value !== 'plain';
+        this.plugin.settings.useMediaLinks = value !== 'plain'; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
         await this.plugin.saveSettings();
       }))
   
