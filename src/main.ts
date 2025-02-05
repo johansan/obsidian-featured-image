@@ -320,6 +320,12 @@ export default class FeaturedImage extends Plugin {
             }
         }
         
+        // After all the image searching logic, before returning undefined
+        if (this.settings.preserveTemplateImages && currentFeature) {
+            this.debugLog('No new image found, preserving existing featured image:', currentFeature);
+            return currentFeature;
+        }
+
         return undefined;
     }
 
@@ -867,6 +873,12 @@ export default class FeaturedImage extends Plugin {
     async removeFeaturedImage(file: TFile, currentFeature: string | undefined): Promise<boolean> {
         if (!currentFeature) {
             return false; // No featured image to remove
+        }
+
+        // If preserveTemplateImages is enabled, don't remove the featured image
+        if (this.settings.preserveTemplateImages) {
+            this.debugLog('Preserving existing featured image:', currentFeature);
+            return false;
         }
 
         this.debugLog('FEATURE REMOVED\n- File: ', file.path);

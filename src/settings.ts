@@ -23,6 +23,9 @@ export interface FeaturedImageSettings {
   // Developer options
   debugMode: boolean;
   dryRun: boolean;
+
+  // New setting
+  preserveTemplateImages: boolean;
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -47,6 +50,9 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Developer options
   debugMode: false,
   dryRun: false,
+
+  // New setting
+  preserveTemplateImages: true,
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {
@@ -138,6 +144,18 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           .onChange(async value => {
             this.plugin.settings.keepEmptyProperty = value
             await this.plugin.saveSettings()
+          })
+      })
+
+    // Preserve template images
+    new Setting(containerEl)
+      .setName('Preserve template images')
+      .setDesc('When enabled, existing featured images will be preserved if no new image is found in the document. This helps maintain banner images set via templates.')
+      .addToggle(toggle => { toggle
+          .setValue(this.plugin.settings.preserveTemplateImages)
+          .onChange(async value => {
+            this.plugin.settings.preserveTemplateImages = value;
+            await this.plugin.saveSettings();
           })
       })
 
