@@ -220,8 +220,9 @@ export default class FeaturedImage extends Plugin {
     private compileRegexPatterns() {
         const imageExtensionsPattern = this.settings.imageExtensions.join('|');
 
-        // Wiki image pattern, e.g. ![[image.jpg]]  
-        const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]]+\\.(${imageExtensionsPattern}))(?:\\|[^\\]]*)?\\]\\]`;
+        // Wiki image pattern, updated to handle additional selectors and parameters after the image name
+        // e.g. ![[image.jpg]], ![[image.jpg|caption]], ![[image.jpg#right|caption|300]]
+        const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]|#]+\\.(${imageExtensionsPattern}))(?:[#|][^\\]]*)?\\]\\]`;
 
         // Markdown image pattern, e.g. external ![](https://example.com/imagelink) or local ![](resources/image.jpg)
         const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>(?:https?:\\/\\/(?:[^)(]|\\([^)(]*\\))+|[^)(]+\\.(${imageExtensionsPattern})))\\)`;
