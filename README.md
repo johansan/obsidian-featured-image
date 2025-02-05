@@ -27,6 +27,7 @@ https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 
 - Automatically updates the Frontmatter section in your notes with a featured image property
 - Support for local images, external images, YouTube thumbnails, and Auto Card Link images
+- Full support for Wiki image links with theme selectors and parameters (e.g., `![[image.jpg#right|caption|300]]`)
 - Downloads and caches external images locally for offline access
 - Bulk update commands for processing all files or all documents in the current folder
 - Cross-platform support for desktop and mobile
@@ -143,25 +144,30 @@ Here are the settings for the Featured Image plugin:
    - Description: When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found.
    - Usage: Enable this if you want to preserve the frontmatter property even when there's no featured image.
 
-7. **Require Exclamation Mark for YouTube Thumbnails**
+7. **Preserve Template Images**
+   - Default: `false`
+   - Description: When enabled, banner images set via templates will be retained even when the featured image is removed from the document.
+   - Usage: Enable this if you use templates to set banner images and want to ensure they aren't affected by featured image updates.
+
+8. **Require Exclamation Mark for YouTube Thumbnails**
    - Default: `true`
    - Description: When enabled, YouTube links must be prefixed with `!` to be considered for featured images.
    - Usage: Keep this enabled if you want more control over which YouTube links become featured images.
 
-8. **Download WebP**
+9. **Download WebP**
    - Default: `true`
    - Description: When enabled, the plugin will attempt to download WebP format thumbnails for YouTube videos.
    - Usage: Disable this if you prefer JPG thumbnails or if you're experiencing issues with WebP images.
 
-9. **Thumbnail Download Folder**
-   - Default: `thumbnails`
-   - Description: The folder where external images, YouTube thumbnails, and Auto Card Link images will be downloaded and stored. To set a subfolder, use the full path (e.g., `_resources/thumbnails`).
-   - Usage: Set this to your preferred location for storing downloaded images. The plugin will automatically create subfolders:
-     - `youtube/` for YouTube thumbnails
-     - `external/` for external images
-     - `autocardlink/` for Auto Card Link external images
+10. **Thumbnail Download Folder**
+    - Default: `thumbnails`
+    - Description: The folder where external images, YouTube thumbnails, and Auto Card Link images will be downloaded and stored. To set a subfolder, use the full path (e.g., `_resources/thumbnails`).
+    - Usage: Set this to your preferred location for storing downloaded images. The plugin will automatically create subfolders:
+      - `youtube/` for YouTube thumbnails
+      - `external/` for external images
+      - `autocardlink/` for Auto Card Link external images
 
-10. **Image Extensions**
+11. **Image Extensions**
     - Default: `["png", "jpg", "jpeg", "gif", "webp"]`
     - Description: List of image file extensions to consider when searching for featured images.
     - Usage: Add or remove extensions based on the image types you use in your vault.
