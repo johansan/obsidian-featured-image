@@ -8,9 +8,10 @@ export interface FeaturedImageSettings {
   // Frontmatter settings
 	frontmatterProperty: string;
   mediaLinkFormat: 'plain' | 'wiki' | 'embed';
+  useMediaLinks: boolean; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
   onlyUpdateExisting: boolean;
   keepEmptyProperty: boolean;
-  useMediaLinks: boolean; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
+  preserveTemplateImages: boolean;
 
   // YouTube settings
   requireExclamationForYouTube: boolean;
@@ -23,9 +24,6 @@ export interface FeaturedImageSettings {
   // Developer options
   debugMode: boolean;
   dryRun: boolean;
-
-  // New setting
-  preserveTemplateImages: boolean;
 }
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
@@ -35,9 +33,10 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Frontmatter settings
 	frontmatterProperty: 'feature',
   mediaLinkFormat: 'plain',
+  useMediaLinks: false, // TODO: Remove in the future, it has been replaced by mediaLinkFormat
   onlyUpdateExisting: false,
   keepEmptyProperty: false,
-  useMediaLinks: false, // TODO: Remove in the future, it has been replaced by mediaLinkFormat
+  preserveTemplateImages: false,
 
   // YouTube settings
   requireExclamationForYouTube: true,
@@ -50,9 +49,6 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Developer options
   debugMode: false,
   dryRun: false,
-
-  // New setting
-  preserveTemplateImages: true,
 }
 
 export class FeaturedImageSettingsTab extends PluginSettingTab {

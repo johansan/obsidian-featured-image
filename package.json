@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-featured-image",
-	"version": "1.1.11",
+	"version": "1.1.12",
 	"description": "Automatically sets a featured image property in your notes based on the first image, YouTube link, or Auto Card Link image found in your document.",
 	"main": "main.js",
 	"scripts": {
