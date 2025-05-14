@@ -29,7 +29,6 @@ https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 - Support for local images, external images, YouTube thumbnails, and Auto Card Link images
 - Full support for Wiki image links with theme selectors and parameters (e.g., `![[image.jpg#right|caption|300]]`)
 - Downloads and caches external images locally for offline access
-- Image processing with optional cropping to specific aspect ratios and resizing
 - Bulk update commands for processing all files or all documents in the current folder
 - Cross-platform support for desktop and mobile
 - Highly customizible (see [Settings](#settings))
@@ -160,32 +159,15 @@ Here are the settings for the Featured Image plugin:
    - Description: When enabled, the plugin will attempt to download WebP format thumbnails for YouTube videos.
    - Usage: Disable this if you prefer JPG thumbnails or if you're experiencing issues with WebP images.
 
-10. **Thumbnail Folder**
+10. **Thumbnail Download Folder**
     - Default: `thumbnails`
     - Description: The folder where external images, YouTube thumbnails, and Auto Card Link images will be downloaded and stored. To set a subfolder, use the full path (e.g., `_resources/thumbnails`).
     - Usage: Set this to your preferred location for storing downloaded images. The plugin will automatically create subfolders:
       - `youtube/` for YouTube thumbnails
       - `external/` for external images
       - `autocardlink/` for Auto Card Link external images
-      - `processed/` for cropped and resized images
 
-11. **Crop Featured Image To**
-    - Default: `No cropping`
-    - Description: Crop featured images to a specific aspect ratio.
-    - Options: 
-      - `1:1 (Square)`
-      - `16:9 (Landscape)`
-      - `9:16 (Portrait)`
-      - `4:3 (Standard)`
-      - `3:4 (Standard Portrait)`
-    - Usage: Select an aspect ratio to ensure consistent image appearance across your notes.
-
-12. **Maximum Dimension**
-    - Default: (empty - no resizing)
-    - Description: Limit the maximum dimension (width or height) of featured images in pixels.
-    - Usage: Enter a value (e.g., 300) to ensure images are never larger than that dimension. The plugin will maintain the aspect ratio while reducing the image to the specified maximum size. This is especially useful for Dataview tables where large images can make tables unwieldy.
-
-13. **Image Extensions**
+11. **Image Extensions**
     - Default: `["png", "jpg", "jpeg", "gif", "webp"]`
     - Description: List of image file extensions to consider when searching for featured images.
     - Usage: Add or remove extensions based on the image types you use in your vault.
@@ -203,8 +185,7 @@ Featured Image is designed with efficiency and performance in mind:
 3. **Intelligent Image Handling**: 
    - For external images: Downloads and caches them locally for offline access
    - For YouTube links: Attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats
-   - For all images: Optional cropping to specific aspect ratios and resizing to maintain consistent appearance
-   This ensures optimal image display in Dataview tables and other contexts where image consistency matters, especially since Dataview cannot crop images itself.
+   This ensures the best quality images while minimizing bandwidth usage.
 
 4. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
 
