@@ -10,3 +10,9 @@
     color: var(--text-muted);
     font-size: 0.9em;
 }
+
+.thumbnail-settings {
+    padding-left: 1em;
+    border-left: 2px solid var(--background-modifier-border);
+    margin-left: 1em;
+}

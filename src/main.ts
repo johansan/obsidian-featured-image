@@ -42,6 +42,9 @@ export default class FeaturedImage extends Plugin {
         0x49, 0x45, 0x4E, 0x44, // "IEND"
         0xAE, 0x42, 0x60, 0x82  // IEND CRC
     ]);
+    
+    // Canvas element for image resizing
+    private canvas: HTMLCanvasElement | null = null;
 
 	/**
 	 * Loads the plugin, initializes settings, and sets up event listeners.
@@ -52,6 +55,11 @@ export default class FeaturedImage extends Plugin {
 
         // Pre-compile regex patterns
         this.compileRegexPatterns();
+        
+        // Initialize canvas for image resizing if needed
+        if (this.settings.createResizedThumbnail) {
+            this.canvas = document.createElement('canvas');
+        }
 
 		// Add command for updating all featured images
         this.addCommand({
@@ -72,6 +80,13 @@ export default class FeaturedImage extends Plugin {
             id: 'featured-image-remove-all',
             name: 'Remove featured images in all files',
             callback: () => this.removeAllFeaturedImages(),
+        });
+        
+        // Add command for cleaning up unused images
+        this.addCommand({
+            id: 'featured-image-cleanup-unused',
+            name: 'Remove unused downloaded images and thumbnails',
+            callback: () => this.cleanupUnusedImages(),
         });
 
 		// Watch for metadata changes and update the featured image if the file is a markdown file
@@ -148,6 +163,7 @@ export default class FeaturedImage extends Plugin {
      */
     async setFeaturedImage(file: TFile): Promise<boolean> {
         const currentFeature = this.getFeatureFromFrontmatter(file);
+        const currentThumbnail = this.getThumbnailFromFrontmatter(file);
 
         if (this.shouldSkipProcessing(file, currentFeature)) {
             return false;
@@ -155,10 +171,20 @@ export default class FeaturedImage extends Plugin {
 
         const fileContent = await this.app.vault.cachedRead(file);
         const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
+        
+        // Generate thumbnail if feature image has changed and thumbnails are enabled
+        let newThumbnail = currentThumbnail;
+        if (newFeature && newFeature !== currentFeature && this.settings.createResizedThumbnail) {
+            newThumbnail = await this.createThumbnail(newFeature);
+            this.debugLog(`THUMBNAIL GENERATED\n- File: ${file.path}\n- Original: ${newFeature}\n- Thumbnail: ${newThumbnail}`);
+        } else if (!newFeature) {
+            // Clear thumbnail if no feature image
+            newThumbnail = undefined;
+        }
 
-        if (currentFeature !== newFeature) {
-            await this.updateFrontmatter(file, newFeature);
-            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
+        if (currentFeature !== newFeature || currentThumbnail !== newThumbnail) {
+            await this.updateFrontmatter(file, newFeature, newThumbnail);
+            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}\n- Thumbnail: ${newThumbnail}`);
             return true;
         } else {
             return false;
@@ -182,6 +208,33 @@ export default class FeaturedImage extends Plugin {
             } else {
                 // Return the feature as-is if it's not a wiki-style or embedded link
                 return feature;
+            }
+        }
+        
+        return undefined;
+    }
+    
+    /**
+     * Get the current thumbnail from the file's frontmatter.
+     * @param {TFile} file - The file to check.
+     * @returns {string | undefined} The current thumbnail, if any.
+     */
+    private getThumbnailFromFrontmatter(file: TFile): string | undefined {
+        if (!this.settings.createResizedThumbnail) {
+            return undefined;
+        }
+        
+        const cache = this.app.metadataCache.getFileCache(file);
+        const thumbnail = cache?.frontmatter?.[this.settings.thumbnailFrontmatterProperty];
+        
+        if (thumbnail) {
+            // Attempt to extract the image path from wiki-style and embedded links
+            const match = thumbnail.match(/!?\[\[(.*?)\]\]/);
+            if (match) {
+                return match[1];
+            } else {
+                // Return the thumbnail as-is if it's not a wiki-style or embedded link
+                return thumbnail;
             }
         }
         
@@ -466,6 +519,225 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
+     * Creates a resized thumbnail of an image
+     * @param {string} imagePath - Path to the original image
+     * @returns {Promise<string | undefined>} - Path to the resized image or undefined if failed
+     */
+    private async createThumbnail(imagePath: string): Promise<string | undefined> {
+        // Skip if resizing is not enabled or both dimensions are 0
+        if (!this.settings.createResizedThumbnail || 
+            (this.settings.maxThumbnailWidth === 0 && this.settings.maxThumbnailHeight === 0)) {
+            return undefined;
+        }
+
+        try {
+            // Check if the source image exists
+            if (!(await this.app.vault.adapter.exists(imagePath))) {
+                this.errorLog('Source image not found:', imagePath);
+                return undefined;
+            }
+
+            // Generate a hashed name based on the source path and resize settings
+            const settingsHash = createHash('md5')
+                .update(`${this.settings.maxThumbnailWidth}_${this.settings.maxThumbnailHeight}_${this.settings.fillMaxDimensions}`)
+                .digest('hex')
+                .substring(0, 8);
+            
+            const sourceHash = createHash('md5')
+                .update(imagePath)
+                .digest('hex');
+                
+            const hashedName = `${sourceHash}_${settingsHash}`;
+            
+            // Define paths
+            const resizedFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/resized`);
+            const thumbnailPath = `${resizedFolder}/${hashedName}.jpg`;  // We'll always output JPG for consistency
+            
+            // Check if resized thumbnail already exists
+            if (await this.app.vault.adapter.exists(thumbnailPath)) {
+                this.debugLog('Resized thumbnail already exists:', thumbnailPath);
+                return thumbnailPath;
+            }
+            
+            // Skip actual processing in dry run mode
+            if (this.settings.dryRun) {
+                this.debugLog('Dry run: Skipping thumbnail creation, using mock path');
+                return thumbnailPath;
+            }
+
+            // Create the resize directory if it doesn't exist
+            if (!(await this.app.vault.adapter.exists(resizedFolder))) {
+                await this.app.vault.adapter.mkdir(resizedFolder);
+            }
+
+            // Read the image file
+            const imageBuffer = await this.app.vault.adapter.readBinary(imagePath);
+            
+            // Create blob URL from the image buffer
+            const blob = new Blob([imageBuffer]);
+            const imageUrl = URL.createObjectURL(blob);
+            
+            // Load the image
+            const image = await this.loadImage(imageUrl);
+            
+            // Initialize canvas if needed
+            if (!this.canvas) {
+                this.canvas = document.createElement('canvas');
+            }
+            
+            // Calculate new dimensions
+            const { width, height } = this.calculateThumbnailDimensions(
+                image.width, 
+                image.height, 
+                this.settings.maxThumbnailWidth, 
+                this.settings.maxThumbnailHeight,
+                this.settings.fillMaxDimensions
+            );
+            
+            // Resize the image
+            const resizedImageData = await this.resizeImage(image, width, height);
+            
+            // Write the resized image to disk
+            await this.app.vault.adapter.writeBinary(thumbnailPath, resizedImageData);
+            
+            // Clean up
+            URL.revokeObjectURL(imageUrl);
+            
+            return thumbnailPath;
+            
+        } catch (error) {
+            this.errorLog('Error creating thumbnail:', error);
+            return undefined;
+        }
+    }
+    
+    /**
+     * Loads an image from a URL
+     * @param {string} url - URL of the image to load
+     * @returns {Promise<HTMLImageElement>} - Loaded image element
+     */
+    private loadImage(url: string): Promise<HTMLImageElement> {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = (e) => reject(e);
+            img.src = url;
+        });
+    }
+    
+    /**
+     * Calculates the dimensions for the thumbnail
+     * @param {number} srcWidth - Original image width
+     * @param {number} srcHeight - Original image height
+     * @param {number} maxWidth - Maximum thumbnail width
+     * @param {number} maxHeight - Maximum thumbnail height
+     * @param {boolean} fillMax - Whether to fill the max dimensions
+     * @returns {Object} - The calculated width and height
+     */
+    private calculateThumbnailDimensions(
+        srcWidth: number, 
+        srcHeight: number, 
+        maxWidth: number, 
+        maxHeight: number,
+        fillMax: boolean
+    ): {width: number, height: number} {
+        let width = srcWidth;
+        let height = srcHeight;
+        
+        if (maxWidth === 0 && maxHeight === 0) {
+            // No resizing if both dimensions are 0
+            return { width, height };
+        }
+        
+        if (fillMax && maxWidth > 0 && maxHeight > 0) {
+            // Fill mode: set to exact dimensions
+            return { width: maxWidth, height: maxHeight };
+        }
+        
+        // Calculate aspect ratio
+        const aspectRatio = srcWidth / srcHeight;
+        
+        if (maxWidth > 0 && maxHeight > 0) {
+            // Both dimensions specified, fit within the box
+            if ((srcWidth > maxWidth) || (srcHeight > maxHeight)) {
+                if (maxWidth / maxHeight > aspectRatio) {
+                    // Height is the limiting factor
+                    height = maxHeight;
+                    width = Math.round(height * aspectRatio);
+                } else {
+                    // Width is the limiting factor
+                    width = maxWidth;
+                    height = Math.round(width / aspectRatio);
+                }
+            }
+        } else if (maxWidth > 0) {
+            // Only width specified
+            if (srcWidth > maxWidth) {
+                width = maxWidth;
+                height = Math.round(width / aspectRatio);
+            }
+        } else if (maxHeight > 0) {
+            // Only height specified
+            if (srcHeight > maxHeight) {
+                height = maxHeight;
+                width = Math.round(height * aspectRatio);
+            }
+        }
+        
+        return { width, height };
+    }
+    
+    /**
+     * Resizes an image using canvas
+     * @param {HTMLImageElement} img - Image element to resize
+     * @param {number} width - Target width
+     * @param {number} height - Target height
+     * @returns {Promise<ArrayBuffer>} - Resized image as array buffer
+     */
+    private resizeImage(img: HTMLImageElement, width: number, height: number): Promise<ArrayBuffer> {
+        return new Promise((resolve, reject) => {
+            try {
+                const canvas = this.canvas!;
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Failed to get canvas context'));
+                    return;
+                }
+                
+                // Draw image with smooth scaling
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to blob
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject(new Error('Failed to create blob from canvas'));
+                        return;
+                    }
+                    
+                    // Convert blob to array buffer
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        if (reader.result instanceof ArrayBuffer) {
+                            resolve(reader.result);
+                        } else {
+                            reject(new Error('Failed to convert blob to array buffer'));
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(blob);
+                }, 'image/jpeg', 0.85); // Use JPEG with 85% quality
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    /**
      * Maps the Content-Type to a file extension.
      * @param {string} contentType - The Content-Type header value.
      * @returns {string | undefined} The file extension without the dot.
@@ -510,11 +782,12 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Updates the frontmatter of a file with the new featured image.
+     * Updates the frontmatter of a file with the new featured image and thumbnail.
      * @param {TFile} file - The file to update.
      * @param {string | undefined} newFeature - The new featured image.
+     * @param {string | undefined} newThumbnail - The new thumbnail image.
      */
-    private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
+    private async updateFrontmatter(file: TFile, newFeature: string | undefined, newThumbnail: string | undefined = undefined) {
         if (!this.isRunningBulkUpdate) {
             this.updatingFiles.add(file.path);
         }
@@ -523,10 +796,15 @@ export default class FeaturedImage extends Plugin {
             if (this.settings.dryRun) {
                 this.debugLog('Dry run: Skipping frontmatter update');
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                    new Notice(newFeature ? `Dry run: Would change featured image to: ${newFeature}` : `Dry run: Would remove featured image`);
+                    let message = newFeature ? `Dry run: Would change featured image to: ${newFeature}` : `Dry run: Would remove featured image`;
+                    if (newThumbnail) {
+                        message += `, thumbnail to: ${newThumbnail}`;
+                    }
+                    new Notice(message);
                 }
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                    // Handle featured image
                     if (newFeature) {
                         // Format the value based on the selected format
                         let featureValue = newFeature;
@@ -547,10 +825,38 @@ export default class FeaturedImage extends Plugin {
                             delete frontmatter[this.settings.frontmatterProperty];
                         }
                     }
+                    
+                    // Handle thumbnail if enabled
+                    if (this.settings.createResizedThumbnail) {
+                        if (newThumbnail) {
+                            // Format the value based on the selected format
+                            let thumbnailValue = newThumbnail;
+                            switch (this.settings.mediaLinkFormat) {
+                                case 'wiki':
+                                    thumbnailValue = `[[${newThumbnail}]]`;
+                                    break;
+                                case 'embed':
+                                    thumbnailValue = `![[${newThumbnail}]]`;
+                                    break;
+                                // 'plain' is default, no formatting needed
+                            }
+                            frontmatter[this.settings.thumbnailFrontmatterProperty] = thumbnailValue;
+                        } else {
+                            if (this.settings.keepEmptyProperty) {
+                                frontmatter[this.settings.thumbnailFrontmatterProperty] = '';
+                            } else {
+                                delete frontmatter[this.settings.thumbnailFrontmatterProperty];
+                            }
+                        }
+                    }
                 });
 
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
-                    new Notice(newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed');
+                    let message = newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed';
+                    if (this.settings.createResizedThumbnail && newThumbnail) {
+                        message += `, thumbnail created`;
+                    }
+                    new Notice(message);
                 }
             }
         } finally {
@@ -774,9 +1080,11 @@ export default class FeaturedImage extends Plugin {
     ) {
         this.isRunningBulkUpdate = true;
         const batchSize = 5;
-        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}...`);
+        let thumbnailsMessage = this.settings.createResizedThumbnail ? ' and thumbnails' : '';
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}${thumbnailsMessage}...`);
 
         let updatedCount = 0;
+        let thumbnailCount = 0;
         let errorCount = 0;
         let totalFiles = files.length;
         let lastNotificationTime = Date.now();
@@ -788,7 +1096,17 @@ export default class FeaturedImage extends Plugin {
                     try {
                         // Store original mtime before modification
                         const originalMtime = file.stat.mtime;
+                        
+                        // Get current feature and thumbnail
+                        const currentFeature = this.getFeatureFromFrontmatter(file);
+                        const currentThumbnail = this.getThumbnailFromFrontmatter(file);
+                        
+                        // Process the file
                         const wasUpdated = await this.setFeaturedImage(file);
+                        
+                        // Check if thumbnail was created
+                        const newThumbnail = this.getThumbnailFromFrontmatter(file);
+                        const thumbnailCreated = (currentThumbnail !== newThumbnail) && newThumbnail !== undefined;
                         
                         // If file was updated and not in dry run mode, restore the original mtime
                         if (wasUpdated && !this.settings.dryRun) {
@@ -796,20 +1114,36 @@ export default class FeaturedImage extends Plugin {
                                 mtime: originalMtime
                             });
                         }
-                        return { success: true, updated: wasUpdated };
+                        
+                        return { 
+                            success: true, 
+                            updated: wasUpdated,
+                            thumbnailCreated: thumbnailCreated
+                        };
                     } catch (error) {
                         this.errorLog(`Error processing file ${file.path}:`, error);
-                        return { success: false, updated: false };
+                        return { 
+                            success: false, 
+                            updated: false,
+                            thumbnailCreated: false
+                        };
                     }
                 }));
 
                 updatedCount += results.filter(result => result.success && result.updated).length;
+                thumbnailCount += results.filter(result => result.success && result.thumbnailCreated).length;
                 errorCount += results.filter(result => !result.success).length;
 
                 // Show notification every 5 seconds
                 const currentTime = Date.now();
                 if (currentTime - lastNotificationTime >= 5000) {
-                    const progressMessage = `Processed ${i + 1} of ${totalFiles} files. Updated ${updatedCount} featured images${errorCount > 0 ? `. Errors: ${errorCount}` : ''}`;
+                    let progressMessage = `Processed ${i + batch.length} of ${totalFiles} files. Updated ${updatedCount} featured images`;
+                    if (this.settings.createResizedThumbnail) {
+                        progressMessage += `, created ${thumbnailCount} thumbnails`;
+                    }
+                    if (errorCount > 0) {
+                        progressMessage += `. Errors: ${errorCount}`;
+                    }
                     new Notice(progressMessage);
                     lastNotificationTime = currentTime;
                 }
@@ -817,7 +1151,13 @@ export default class FeaturedImage extends Plugin {
         } finally {
             setTimeout(() => {
                 this.isRunningBulkUpdate = false;
-                const completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files${errorCount > 0 ? `. Errors: ${errorCount}` : ''}`;
+                let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files`;
+                if (this.settings.createResizedThumbnail) {
+                    completionMessage += `, created ${thumbnailCount} thumbnails`;
+                }
+                if (errorCount > 0) {
+                    completionMessage += `. Errors: ${errorCount}`;
+                }
                 new Notice(completionMessage);
             }, 100);
         }
@@ -827,20 +1167,29 @@ export default class FeaturedImage extends Plugin {
      * Removes featured images from all markdown files in the vault.
      */
     async removeAllFeaturedImages() {
+        let modalMessage = `This will remove the "${this.settings.frontmatterProperty}" property from the frontmatter of all markdown files in your vault`;
+        if (this.settings.createResizedThumbnail) {
+            modalMessage += ` and the "${this.settings.thumbnailFrontmatterProperty}" property if present`;
+        }
+        modalMessage += `. Proceed?`;
+        
         const confirmation = await this.showConfirmationModal(
             'Remove all featured images',
-            `This will remove the "${this.settings.frontmatterProperty}" property from the frontmatter of all markdown files in your vault. Proceed?`
+            modalMessage
         );
         if (!confirmation) return;
 
         this.isRunningBulkUpdate = true;
-        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}removal of featured images from all files...`);
+        let thumbnailsMessage = this.settings.createResizedThumbnail ? ' and thumbnails' : '';
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}removal of featured images${thumbnailsMessage} from all files...`);
 
         const files = this.app.vault.getMarkdownFiles();
         let removedCount = 0;
+        let thumbnailRemovedCount = 0;
 
         for (const file of files) {
             const currentFeature = this.getFeatureFromFrontmatter(file);
+            const currentThumbnail = this.getThumbnailFromFrontmatter(file);
 
             // Store original mtime before modification
             const originalMtime = file.stat.mtime;
@@ -855,12 +1204,20 @@ export default class FeaturedImage extends Plugin {
             
             if (wasRemoved) {
                 removedCount++;
+                if (currentThumbnail) {
+                    thumbnailRemovedCount++;
+                }
             }
         }
 
         setTimeout(() => {
             this.isRunningBulkUpdate = false;
-            new Notice(`Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`);
+            let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files`;
+            if (this.settings.createResizedThumbnail && thumbnailRemovedCount > 0) {
+                completionMessage += `, including ${thumbnailRemovedCount} thumbnails`;
+            }
+            completionMessage += '.';
+            new Notice(completionMessage);
         }, 100);
     }
 
@@ -881,8 +1238,11 @@ export default class FeaturedImage extends Plugin {
             return false;
         }
 
+        // Get current thumbnail for removal
+        const currentThumbnail = this.getThumbnailFromFrontmatter(file);
+
         this.debugLog('FEATURE REMOVED\n- File: ', file.path);
-        await this.updateFrontmatter(file, undefined);
+        await this.updateFrontmatter(file, undefined, undefined);
         return true;
     }
 
@@ -899,5 +1259,420 @@ export default class FeaturedImage extends Plugin {
             }).open();
         });
     }
-
+    
+    /**
+     * Cleans up unused downloaded images and thumbnails.
+     */
+    async cleanupUnusedImages() {
+        this.debugLog('Starting cleanup of unused images');
+        new Notice('Scanning for unused images...');
+        
+        // Initialize counters
+        let externalImagesCount = 0;
+        let youtubeImagesCount = 0;
+        let autoCardImagesCount = 0;
+        let resizedThumbnailsCount = 0;
+        let totalBytes = 0;
+        
+        // Initialize file path sets
+        const externalImages = new Set<string>();
+        const youtubeImages = new Set<string>();
+        const autoCardImages = new Set<string>();
+        const resizedThumbnails = new Set<string>();
+        const usedFiles = new Set<string>();
+        
+        try {
+            // Step 1: Collect all target files
+            await this.collectImageFiles(
+                externalImages, 
+                youtubeImages, 
+                autoCardImages, 
+                resizedThumbnails
+            );
+            
+            this.debugLog(`Collected image files:
+                - External: ${externalImages.size}
+                - YouTube: ${youtubeImages.size}
+                - Auto Card: ${autoCardImages.size}
+                - Resized Thumbnails: ${resizedThumbnails.size}`
+            );
+            
+            // Step 2: Build reference map from all markdown files
+            await this.buildReferenceMap(usedFiles);
+            
+            this.debugLog(`Found ${usedFiles.size} unique file references in notes`);
+            
+            // Step 3: Find unused files
+            const unusedExternal = this.findUnusedFiles(externalImages, usedFiles);
+            const unusedYoutube = this.findUnusedFiles(youtubeImages, usedFiles);
+            const unusedAutoCard = this.findUnusedFiles(autoCardImages, usedFiles);
+            const unusedResized = this.findUnusedFiles(resizedThumbnails, usedFiles);
+            
+            externalImagesCount = unusedExternal.size;
+            youtubeImagesCount = unusedYoutube.size;
+            autoCardImagesCount = unusedAutoCard.size;
+            resizedThumbnailsCount = unusedResized.size;
+            
+            const totalUnused = externalImagesCount + youtubeImagesCount + 
+                autoCardImagesCount + resizedThumbnailsCount;
+                
+            if (totalUnused === 0) {
+                new Notice('No unused images found.');
+                return;
+            }
+            
+            // Confirm deletion
+            const confirmation = await this.showConfirmationModal(
+                'Remove unused images',
+                `Found ${totalUnused} unused images:
+                - ${externalImagesCount} external images
+                - ${youtubeImagesCount} YouTube thumbnails
+                - ${autoCardImagesCount} Auto Card Link images
+                - ${resizedThumbnailsCount} resized thumbnails
+                
+                Do you want to delete these files?`
+            );
+            
+            if (!confirmation) {
+                new Notice('Cleanup cancelled.');
+                return;
+            }
+            
+            // Step 4: Delete unused files
+            if (this.settings.dryRun) {
+                this.debugLog('Dry run: Would delete unused files');
+                new Notice(`Dry run: Would delete ${totalUnused} unused files.`);
+                return;
+            }
+            
+            // Delete files in batches
+            new Notice(`Deleting ${totalUnused} unused files...`);
+            
+            // Calculate size before deletion
+            totalBytes = await this.calculateFileSizes([
+                ...unusedExternal, ...unusedYoutube, 
+                ...unusedAutoCard, ...unusedResized
+            ]);
+            
+            // Delete files
+            await this.deleteUnusedFiles(unusedExternal, 'external images');
+            await this.deleteUnusedFiles(unusedYoutube, 'YouTube thumbnails');
+            await this.deleteUnusedFiles(unusedAutoCard, 'Auto Card Link images');
+            await this.deleteUnusedFiles(unusedResized, 'resized thumbnails');
+            
+            // Final report
+            const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+            new Notice(
+                `Cleanup complete. Deleted ${totalUnused} unused files (${totalMB} MB):
+                - ${externalImagesCount} external images
+                - ${youtubeImagesCount} YouTube thumbnails
+                - ${autoCardImagesCount} Auto Card Link images
+                - ${resizedThumbnailsCount} resized thumbnails`
+            );
+            
+        } catch (error) {
+            this.errorLog('Error during image cleanup:', error);
+            new Notice('Error during image cleanup. Check console for details.');
+        }
+    }
+    
+    /**
+     * Collects all image files in the thumbnail folder.
+     * @param {Set<string>} externalImages - Set to store external image paths
+     * @param {Set<string>} youtubeImages - Set to store YouTube thumbnail paths
+     * @param {Set<string>} autoCardImages - Set to store Auto Card Link image paths
+     * @param {Set<string>} resizedThumbnails - Set to store resized thumbnail paths
+     */
+    private async collectImageFiles(
+        externalImages: Set<string>,
+        youtubeImages: Set<string>,
+        autoCardImages: Set<string>,
+        resizedThumbnails: Set<string>
+    ): Promise<void> {
+        const thumbnailFolder = normalizePath(this.settings.thumbnailDownloadFolder);
+        
+        // Ensure thumbnail directory exists
+        if (!(await this.app.vault.adapter.exists(thumbnailFolder))) {
+            this.debugLog(`Thumbnail folder ${thumbnailFolder} does not exist`);
+            return;
+        }
+        
+        // Check each subfolder
+        const externalFolder = `${thumbnailFolder}/external`;
+        const youtubeFolder = `${thumbnailFolder}/youtube`;
+        const autoCardFolder = `${thumbnailFolder}/autocardlink`;
+        const resizedFolder = `${thumbnailFolder}/resized`;
+        
+        // Collect external images
+        if (await this.app.vault.adapter.exists(externalFolder)) {
+            await this.collectFilesInFolder(externalFolder, externalImages, '.failed.png');
+        }
+        
+        // Collect YouTube thumbnails
+        if (await this.app.vault.adapter.exists(youtubeFolder)) {
+            await this.collectFilesInFolder(youtubeFolder, youtubeImages, '.failed.png');
+        }
+        
+        // Collect Auto Card Link images
+        if (await this.app.vault.adapter.exists(autoCardFolder)) {
+            await this.collectFilesInFolder(autoCardFolder, autoCardImages, '.failed.png');
+        }
+        
+        // Collect resized thumbnails
+        if (await this.app.vault.adapter.exists(resizedFolder)) {
+            await this.collectFilesInFolder(resizedFolder, resizedThumbnails, '.failed.png');
+        }
+    }
+    
+    /**
+     * Collects all files in a folder.
+     * @param {string} folderPath - Path to the folder
+     * @param {Set<string>} fileSet - Set to store file paths
+     * @param {string} excludeExtension - Extension to exclude (e.g., '.failed.png')
+     */
+    private async collectFilesInFolder(
+        folderPath: string, 
+        fileSet: Set<string>, 
+        excludeExtension: string
+    ): Promise<void> {
+        try {
+            const files = await this.app.vault.adapter.list(folderPath);
+            
+            // Process regular files (not directories)
+            for (const file of files.files) {
+                // Skip files with excluded extension
+                if (file.endsWith(excludeExtension)) {
+                    continue;
+                }
+                
+                fileSet.add(file);
+            }
+            
+            // Process nested directories if any
+            for (const dir of files.folders) {
+                await this.collectFilesInFolder(dir, fileSet, excludeExtension);
+            }
+        } catch (error) {
+            this.errorLog(`Error collecting files in ${folderPath}:`, error);
+        }
+    }
+    
+    /**
+     * Builds a map of all file references in markdown files.
+     * @param {Set<string>} usedFiles - Set to store all referenced file paths
+     */
+    private async buildReferenceMap(usedFiles: Set<string>): Promise<void> {
+        const markdownFiles = this.app.vault.getMarkdownFiles();
+        
+        // Process all markdown files
+        for (const file of markdownFiles) {
+            await this.processFileReferences(file, usedFiles);
+        }
+    }
+    
+    /**
+     * Processes a file to extract all image references.
+     * @param {TFile} file - The file to process
+     * @param {Set<string>} usedFiles - Set to store referenced file paths
+     */
+    private async processFileReferences(file: TFile, usedFiles: Set<string>): Promise<void> {
+        try {
+            // Get frontmatter references
+            const cache = this.app.metadataCache.getFileCache(file);
+            if (cache?.frontmatter) {
+                // Check feature property
+                const feature = cache.frontmatter[this.settings.frontmatterProperty];
+                if (feature) {
+                    this.addNormalizedPath(feature, usedFiles);
+                }
+                
+                // Check thumbnail property if enabled
+                if (this.settings.createResizedThumbnail) {
+                    const thumbnail = cache.frontmatter[this.settings.thumbnailFrontmatterProperty];
+                    if (thumbnail) {
+                        this.addNormalizedPath(thumbnail, usedFiles);
+                    }
+                }
+            }
+            
+            // Process document body for embedded images
+            const content = await this.app.vault.cachedRead(file);
+            const lines = content.split('\n');
+            
+            for (const line of lines) {
+                // Use existing regex patterns to find images
+                const match = this.combinedLineRegex.exec(line);
+                if (match) {
+                    // WikiImage links (![[image.jpg]])
+                    if (match.groups?.wikiImage) {
+                        this.addNormalizedPath(match.groups.wikiImage, usedFiles);
+                    }
+                    
+                    // Markdown image links (![alt](path/to/image.jpg))
+                    if (match.groups?.mdImage) {
+                        const mdImage = decodeURIComponent(match.groups.mdImage);
+                        // Only add if it's a local path (not a URL)
+                        if (!this.isValidUrl(mdImage)) {
+                            this.addNormalizedPath(mdImage, usedFiles);
+                        }
+                    }
+                    
+                    // YouTube links can be skipped as they're processed separately
+                }
+            }
+            
+            // Process Auto Card Link codeblocks
+            let inCodeBlock = false;
+            let codeBlockLanguage = '';
+            let codeBlockBuffer = '';
+            
+            for (const line of lines) {
+                const codeBlockMatch = this.codeBlockStartRegex.exec(line);
+                if (codeBlockMatch) {
+                    if (!inCodeBlock) {
+                        inCodeBlock = true;
+                        codeBlockLanguage = (codeBlockMatch[1] || '').toLowerCase();
+                        codeBlockBuffer = '';
+                        continue;
+                    } else {
+                        if (codeBlockLanguage === 'cardlink') {
+                            const imageMatch = this.autoCardImageRegex.exec(codeBlockBuffer);
+                            if (imageMatch?.groups?.autoCardImage) {
+                                const imagePath = imageMatch.groups.autoCardImage.trim();
+                                // Local images in Auto Card Link are quoted
+                                if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
+                                    const localPath = imagePath.slice(1, -1).trim();
+                                    this.addNormalizedPath(localPath, usedFiles);
+                                }
+                            }
+                        }
+                        inCodeBlock = false;
+                        codeBlockLanguage = '';
+                        continue;
+                    }
+                }
+                
+                if (inCodeBlock && codeBlockLanguage === 'cardlink') {
+                    codeBlockBuffer += line + '\n';
+                }
+            }
+            
+        } catch (error) {
+            this.errorLog(`Error processing references in ${file.path}:`, error);
+        }
+    }
+    
+    /**
+     * Adds a normalized path to the used files set.
+     * @param {string} path - The path to add
+     * @param {Set<string>} usedFiles - Set to store referenced file paths
+     */
+    private addNormalizedPath(path: string, usedFiles: Set<string>): void {
+        // Remove wiki-link or embedded link formatting
+        let normalizedPath = path;
+        const match = path.match(/!?\[\[(.*?)\]\]/);
+        if (match) {
+            normalizedPath = match[1];
+        }
+        
+        // Remove any parameters after pipe or hash
+        normalizedPath = normalizedPath.split('|')[0].split('#')[0];
+        
+        // Normalize path
+        normalizedPath = normalizePath(normalizedPath);
+        
+        // Add to the set
+        usedFiles.add(normalizedPath);
+    }
+    
+    /**
+     * Finds unused files by comparing the file set with the used files set.
+     * @param {Set<string>} fileSet - Set of all files in a category
+     * @param {Set<string>} usedFiles - Set of all referenced files
+     * @returns {Set<string>} Set of unused files
+     */
+    private findUnusedFiles(fileSet: Set<string>, usedFiles: Set<string>): Set<string> {
+        const unusedFiles = new Set<string>();
+        
+        for (const file of fileSet) {
+            // Check if the file is used
+            if (!this.isFileReferenced(file, usedFiles)) {
+                unusedFiles.add(file);
+            }
+        }
+        
+        return unusedFiles;
+    }
+    
+    /**
+     * Checks if a file is referenced in the used files set.
+     * @param {string} filePath - The file path to check
+     * @param {Set<string>} usedFiles - Set of all referenced files
+     * @returns {boolean} True if the file is referenced, false otherwise
+     */
+    private isFileReferenced(filePath: string, usedFiles: Set<string>): boolean {
+        // Direct match
+        if (usedFiles.has(filePath)) {
+            return true;
+        }
+        
+        // Basename match (in case the path differs but filename matches)
+        const fileName = filePath.split('/').pop() || '';
+        
+        for (const usedFile of usedFiles) {
+            const usedFileName = usedFile.split('/').pop() || '';
+            if (fileName === usedFileName) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Calculates the total size of a list of files.
+     * @param {string[]} filePaths - List of file paths
+     * @returns {Promise<number>} Total size in bytes
+     */
+    private async calculateFileSizes(filePaths: string[]): Promise<number> {
+        let totalBytes = 0;
+        
+        for (const filePath of filePaths) {
+            try {
+                const stat = await this.app.vault.adapter.stat(filePath);
+                if (stat) {
+                    totalBytes += stat.size;
+                }
+            } catch (error) {
+                this.errorLog(`Error getting file size for ${filePath}:`, error);
+            }
+        }
+        
+        return totalBytes;
+    }
+    
+    /**
+     * Deletes unused files.
+     * @param {Set<string>} unusedFiles - Set of unused file paths
+     * @param {string} category - Category name for logging
+     */
+    private async deleteUnusedFiles(unusedFiles: Set<string>, category: string): Promise<void> {
+        let deletedCount = 0;
+        
+        for (const filePath of unusedFiles) {
+            try {
+                await this.app.vault.adapter.remove(filePath);
+                deletedCount++;
+                
+                // Show progress every 20 files
+                if (deletedCount % 20 === 0) {
+                    new Notice(`Deleted ${deletedCount} unused ${category} so far...`);
+                }
+            } catch (error) {
+                this.errorLog(`Error deleting file ${filePath}:`, error);
+            }
+        }
+        
+        this.debugLog(`Deleted ${deletedCount} unused ${category}`);
+    }
 }

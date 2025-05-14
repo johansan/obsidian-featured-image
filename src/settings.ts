@@ -20,6 +20,13 @@ export interface FeaturedImageSettings {
   // Local media settings
   thumbnailDownloadFolder: string;
   imageExtensions: string[];
+  
+  // Thumbnail settings
+  createResizedThumbnail: boolean;
+  thumbnailFrontmatterProperty: string;
+  maxThumbnailWidth: number;
+  maxThumbnailHeight: number;
+  fillMaxDimensions: boolean;
 
   // Developer options
   debugMode: boolean;
@@ -45,6 +52,13 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Local media settings
   thumbnailDownloadFolder: 'thumbnails',
   imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
+  
+  // Thumbnail settings
+  createResizedThumbnail: false,
+  thumbnailFrontmatterProperty: 'feature-resized',
+  maxThumbnailWidth: 0,
+  maxThumbnailHeight: 0,
+  fillMaxDimensions: false,
 
   // Developer options
   debugMode: false,
@@ -221,6 +235,96 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           }
           await this.plugin.saveSettings();
         }))
+    
+    new Setting(containerEl)
+      .setName('Thumbnails')
+      .setHeading()
+    
+    // Create resized thumbnail
+    const createResizedThumbnailSetting = new Setting(containerEl)
+      .setName('Create resized thumbnail')
+      .setDesc('Create a resized thumbnail of the featured image and add it to the frontmatter.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.createResizedThumbnail)
+        .onChange(async (value) => {
+          this.plugin.settings.createResizedThumbnail = value;
+          
+          // When enabling, set the thumbnail property to frontmatterProperty-resized
+          if (value) {
+              this.plugin.settings.thumbnailFrontmatterProperty = `${this.plugin.settings.frontmatterProperty}-resized`;
+              
+              // Update the text field value
+              const textComponent = thumbnailPropertySetting.components[0] as any;
+              if (textComponent && textComponent.setValue) {
+                  textComponent.setValue(this.plugin.settings.thumbnailFrontmatterProperty);
+              }
+          }
+          
+          await this.plugin.saveSettings();
+          
+          // Update visibility of dependent settings
+          updateThumbnailSettingsVisibility(value);
+        }));
+        
+    // Create thumbnail settings container
+    const thumbnailSettingsEl = containerEl.createDiv('thumbnail-settings');
+    
+    // Thumbnail frontmatter property
+    const thumbnailPropertySetting = new Setting(thumbnailSettingsEl)
+      .setName('Thumbnail frontmatter property')
+      .setDesc('The name of the frontmatter property to store the resized thumbnail path.')
+      .addText(text => text
+        .setPlaceholder(`${this.plugin.settings.frontmatterProperty}-resized`)
+        .setValue(this.plugin.settings.thumbnailFrontmatterProperty)
+        .onChange(async (value) => {
+          this.plugin.settings.thumbnailFrontmatterProperty = value || `${this.plugin.settings.frontmatterProperty}-resized`;
+          await this.plugin.saveSettings();
+        }));
+    
+    // Max thumbnail width
+    const maxWidthSetting = new Setting(thumbnailSettingsEl)
+      .setName('Max thumbnail width')
+      .setDesc('Maximum width of the thumbnail in pixels. Use 0 for no width restriction.')
+      .addText(text => text
+        .setPlaceholder('0')
+        .setValue(String(this.plugin.settings.maxThumbnailWidth))
+        .onChange(async (value) => {
+          const width = parseInt(value);
+          this.plugin.settings.maxThumbnailWidth = isNaN(width) ? 0 : width;
+          await this.plugin.saveSettings();
+        }));
+    
+    // Max thumbnail height
+    const maxHeightSetting = new Setting(thumbnailSettingsEl)
+      .setName('Max thumbnail height')
+      .setDesc('Maximum height of the thumbnail in pixels. Use 0 for no height restriction.')
+      .addText(text => text
+        .setPlaceholder('0')
+        .setValue(String(this.plugin.settings.maxThumbnailHeight))
+        .onChange(async (value) => {
+          const height = parseInt(value);
+          this.plugin.settings.maxThumbnailHeight = isNaN(height) ? 0 : height;
+          await this.plugin.saveSettings();
+        }));
+    
+    // Fill max dimensions
+    const fillDimensionsSetting = new Setting(thumbnailSettingsEl)
+      .setName('Fill max dimensions')
+      .setDesc('When enabled, thumbnails will be exactly the size specified by max width and height, which may change the aspect ratio.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.fillMaxDimensions)
+        .onChange(async (value) => {
+          this.plugin.settings.fillMaxDimensions = value;
+          await this.plugin.saveSettings();
+        }));
+    
+    // Function to update thumbnail settings visibility
+    const updateThumbnailSettingsVisibility = (show: boolean) => {
+      thumbnailSettingsEl.style.display = show ? 'block' : 'none';
+    };
+    
+    // Initial visibility based on current setting
+    updateThumbnailSettingsVisibility(this.plugin.settings.createResizedThumbnail);
 
     new Setting(containerEl)
       .setName('Developer')
