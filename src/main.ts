@@ -10,7 +10,6 @@ import { ConfirmationModal } from './modals';
 
 // External imports
 import { createHash } from 'crypto';
-import sharp from 'sharp';
 
 /**
  * FeaturedImage plugin for Obsidian.
@@ -149,23 +148,17 @@ export default class FeaturedImage extends Plugin {
      */
     async setFeaturedImage(file: TFile): Promise<boolean> {
         const currentFeature = this.getFeatureFromFrontmatter(file);
-        const currentSource = this.getFeatureSourceFromFrontmatter(file);
 
         if (this.shouldSkipProcessing(file, currentFeature)) {
             return false;
         }
 
         const fileContent = await this.app.vault.cachedRead(file);
-        const result = await this.getFeatureFromDocument(fileContent, currentFeature, currentSource);
-        const newFeature = result.feature;
-        const newSource = result.source;
+        const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
 
-        const featureChanged = currentFeature !== newFeature;
-        const sourceChanged = currentSource !== newSource;
-        
-        if (featureChanged || sourceChanged) {
-            await this.updateFrontmatter(file, newFeature, newSource);
-            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}\n- Current source: ${currentSource}\n- New source: ${newSource}`);
+        if (currentFeature !== newFeature) {
+            await this.updateFrontmatter(file, newFeature);
+            this.debugLog(`FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}`);
             return true;
         } else {
             return false;
@@ -250,34 +243,12 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Get the current featured image source from the file's frontmatter.
-     * @param {TFile} file - The file to check.
-     * @returns {string | undefined} The current featured image source, if any.
-     */
-    private getFeatureSourceFromFrontmatter(file: TFile): string | undefined {
-        const cache = this.app.metadataCache.getFileCache(file);
-        const sourceProperty = `${this.settings.frontmatterProperty}-source`;
-        const source = cache?.frontmatter?.[sourceProperty];
-        
-        if (source) {
-            return source;
-        }
-        
-        return undefined;
-    }
-
-    /**
      * Finds the featured image in the document content.
      * @param {string} content - The document content to search.
      * @param {string | undefined} currentFeature - The current featured image.
-     * @param {string | undefined} currentSource - The current source image path.
-     * @returns {Promise<{feature: string | undefined, source: string | undefined}>} The found featured image and source, if any.
+     * @returns {Promise<string | undefined>} The found featured image, if any.
      */
-    private async getFeatureFromDocument(
-        content: string, 
-        currentFeature: string | undefined,
-        currentSource: string | undefined
-    ): Promise<{feature: string | undefined, source: string | undefined}> {
+    private async getFeatureFromDocument(content: string, currentFeature: string | undefined): Promise<string | undefined> {
         // Remove frontmatter section from processing
         let contentWithoutFrontmatter = content;
         if (content.startsWith('---\n')) {
@@ -305,8 +276,7 @@ export default class FeaturedImage extends Plugin {
                     if (codeBlockLanguage === 'cardlink') {
                         const imageMatch = this.autoCardImageRegex.exec(codeBlockBuffer);
                         if (imageMatch?.groups?.autoCardImage) {
-                            const result = await this.processAutoCardLinkImage(imageMatch.groups.autoCardImage, currentFeature);
-                            return { feature: result.path, source: result.sourcePath };
+                            return await this.processAutoCardLinkImage(imageMatch.groups.autoCardImage, currentFeature);
                         }
                     }
                     inCodeBlock = false;
@@ -328,62 +298,24 @@ export default class FeaturedImage extends Plugin {
                 if (match.groups?.youtube) {
                     const videoId = this.getVideoId(match.groups.youtube);
                     if (videoId) {
-                        // If this is the same video we already have as the source, keep using the current feature
-                        if (currentSource && currentSource.includes(videoId)) {
-                            return { feature: currentFeature, source: currentSource };
-                        }
-                        const result = await this.downloadThumbnail(videoId, currentFeature);
-                        return { feature: result.path, source: result.sourcePath };
+                        return await this.downloadThumbnail(videoId, currentFeature);
                     }
                     continue;
                 }
 
                 // Check for local wiki image links, e.g. ![[image.jpg]]
                 if (match.groups?.wikiImage) {
-                    const localImagePath = decodeURIComponent(match.groups.wikiImage);
-                    
-                    // If this is the same image we already have as the source, keep using the current feature
-                    if (currentSource === localImagePath) {
-                        return { feature: currentFeature, source: currentSource };
-                    }
-                    
-                    // Process the local image if needed
-                    if (this.settings.cropAspectRatio || this.settings.maxDimension) {
-                        const processedPath = await this.processLocalImage(localImagePath, currentFeature);
-                        return { feature: processedPath, source: localImagePath };
-                    }
-                    
-                    return { feature: localImagePath, source: localImagePath };
+                    return decodeURIComponent(match.groups.wikiImage);
                 }
 
                 // Check for markdown image links, e.g. ![image.jpg](https://example.com/image.jpg)
                 if (match.groups?.mdImage) {
                     const mdImage = decodeURIComponent(match.groups.mdImage);
-                    
                     // Check if it's an external URL
                     if (this.isValidUrl(mdImage)) {
-                        // If this is the same URL we already have as the source, keep using the current feature
-                        if (currentSource === mdImage) {
-                            return { feature: currentFeature, source: currentSource };
-                        }
-                        
-                        const result = await this.downloadExternalImage(mdImage, currentFeature);
-                        return { feature: result.path, source: result.sourcePath };
+                        return await this.downloadExternalImage(mdImage, currentFeature);
                     }
-                    
-                    // It's a local image path
-                    // If this is the same image we already have as the source, keep using the current feature
-                    if (currentSource === mdImage) {
-                        return { feature: currentFeature, source: currentSource };
-                    }
-                    
-                    // Process the local image if needed
-                    if (this.settings.cropAspectRatio || this.settings.maxDimension) {
-                        const processedPath = await this.processLocalImage(mdImage, currentFeature);
-                        return { feature: processedPath, source: mdImage };
-                    }
-                    
-                    return { feature: mdImage, source: mdImage };
+                    return mdImage;
                 }
             }
         }
@@ -391,19 +323,19 @@ export default class FeaturedImage extends Plugin {
         // After all the image searching logic, before returning undefined
         if (this.settings.preserveTemplateImages && currentFeature) {
             this.debugLog('No new image found, preserving existing featured image:', currentFeature);
-            return { feature: currentFeature, source: currentSource };
+            return currentFeature;
         }
 
-        return { feature: undefined, source: undefined };
+        return undefined;
     }
 
     /**
      * Processes an Auto Card Link image.
      * @param {string} imagePath - The image path from the Auto Card Link.
      * @param {string | undefined} currentFeature - The current featured image.
-     * @returns {Promise<{path: string | undefined, sourcePath: string}>} The processed image path and source.
+     * @returns {Promise<string | undefined>} The processed image path.
      */
-    private async processAutoCardLinkImage(imagePath: string, currentFeature: string | undefined): Promise<{path: string | undefined, sourcePath: string}> {
+    private async processAutoCardLinkImage(imagePath: string, currentFeature: string | undefined): Promise<string | undefined> {
         imagePath = imagePath.trim();
     
         // Handle local images (Auto Card Link always embeds local images within quotes)
@@ -413,22 +345,15 @@ export default class FeaturedImage extends Plugin {
             const fileExists = await this.app.vault.adapter.exists(localPath);
             if (!fileExists) {
                 this.errorLog('Local image not found:', localPath);
-                return {path: undefined, sourcePath: localPath};
+                return undefined;
             }
-            
-            // Process the local image if needed
-            if (this.settings.cropAspectRatio || this.settings.maxDimension) {
-                const processedPath = await this.processLocalImage(localPath, currentFeature);
-                return {path: processedPath, sourcePath: localPath};
-            }
-            
-            return {path: localPath, sourcePath: localPath};
+            return localPath;
         }
     
         // Handle external images
         if (!this.isValidUrl(imagePath)) {
             this.errorLog('Invalid Auto Card Link URL:', imagePath);
-            return {path: undefined, sourcePath: imagePath};
+            return undefined;
         }
     
         return await this.downloadExternalImage(imagePath, currentFeature, 'autocardlink');
@@ -438,9 +363,9 @@ export default class FeaturedImage extends Plugin {
      * Downloads an external image and saves it locally.
      * @param {string} imageUrl - The URL of the image to download.
      * @param {string | undefined} currentFeature - The current featured image.
-     * @returns {Promise<{path: string | undefined, sourcePath: string}>} The path to the downloaded/processed image and the original URL.
+     * @returns {Promise<string | undefined>} The path to the downloaded image.
      */
-    private async downloadExternalImage(imageUrl: string, currentFeature: string | undefined, subfolder: string = 'external'): Promise<{path: string | undefined, sourcePath: string}> {
+    private async downloadExternalImage(imageUrl: string, currentFeature: string | undefined, subfolder: string = 'external'): Promise<string | undefined> {
         // Normalize folder path
         const downloadFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/${subfolder}`);
         
@@ -448,28 +373,22 @@ export default class FeaturedImage extends Plugin {
         const hashedFilename = this.generateHashedFilenameFromUrl(imageUrl);
         if (!hashedFilename) {
             this.errorLog('Failed to generate hashed filename for:', imageUrl);
-            return {path: undefined, sourcePath: imageUrl};
+            return undefined;
         }
-
-        // Store the source image URL for frontmatter
-        const sourcePath = imageUrl;
-
-        // Check if we need to do any processing
-        const needsProcessing = this.settings.cropAspectRatio || this.settings.maxDimension;
 
         // Check if we already have a failed download marker for this URL
         const failedMarkerPath = `${downloadFolder}/${hashedFilename}.failed.png`;
         if (await this.app.vault.adapter.exists(failedMarkerPath)) {
             // Check if the failed marker is less than 12 hours old
             const stats = await this.app.vault.adapter.stat(failedMarkerPath);
-            if (!stats) return {path: undefined, sourcePath};
+            if (!stats) return undefined;
             const markerAge = Date.now() - stats.mtime;
             const twelveHours = 12 * 60 * 60 * 1000;
 
             // If the marker is more than 12 hours old, remove it and try again
             if (markerAge < twelveHours) {
                 this.debugLog('Skipping recently failed download:', imageUrl);
-                return {path: failedMarkerPath, sourcePath};
+                return failedMarkerPath;
             } else {
                 this.debugLog('Retrying old failed download:', imageUrl);
                 try {
@@ -482,7 +401,7 @@ export default class FeaturedImage extends Plugin {
 
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping image download, using mock path');
-            return {path: `${downloadFolder}/${hashedFilename}.jpg`, sourcePath};
+            return `${downloadFolder}/${hashedFilename}.jpg`;
         }
 
         try {
@@ -493,51 +412,37 @@ export default class FeaturedImage extends Plugin {
 
             // Check if the image already exists with any known extension
             const existingFilePath = await this.findExistingImageFile(downloadFolder, hashedFilename);
-            
-            // If we found an existing download and no processing is needed, return it
-            if (existingFilePath && !needsProcessing) {
-                return {path: existingFilePath, sourcePath};
+            if (existingFilePath) {
+                return existingFilePath;
             }
 
-            // If we haven't downloaded yet, download the image
-            let downloadPath = existingFilePath;
-            if (!downloadPath) {
-                // Download the image
-                const response = await requestUrl({
-                    url: imageUrl,
-                    method: 'GET',
-                });
+            // Download the image
+            const response = await requestUrl({
+                url: imageUrl,
+                method: 'GET',
+            });
 
-                // Determine the file extension from Content-Type
-                const contentType = response.headers['content-type'];
-                const extension = this.getExtensionFromContentType(contentType);
-                if (!extension) {
-                    throw new Error('Unknown Content-Type for image: ' + contentType);
-                }
-
-                downloadPath = `${downloadFolder}/${hashedFilename}.${extension}`;
-
-                // Save the image
-                await this.app.vault.adapter.writeBinary(downloadPath, response.arrayBuffer);
+            // Determine the file extension from Content-Type
+            const contentType = response.headers['content-type'];
+            const extension = this.getExtensionFromContentType(contentType);
+            if (!extension) {
+                throw new Error('Unknown Content-Type for image: ' + contentType);
             }
 
-            // Process the image if needed
-            if (needsProcessing && downloadPath) {
-                const processedFolder = `${this.settings.thumbnailDownloadFolder}/processed`;
-                const processedPath = await this.processImage(downloadPath, processedFolder, hashedFilename);
-                return {path: processedPath, sourcePath};
-            }
-            
-            return {path: downloadPath, sourcePath};
+            const downloadPath = `${downloadFolder}/${hashedFilename}.${extension}`;
+
+            // Save the image
+            await this.app.vault.adapter.writeBinary(downloadPath, response.arrayBuffer);
+            return downloadPath;
         } catch (error) {
             this.errorLog('Failed to download image, error:', error);
             
             try {
                 await this.app.vault.adapter.writeBinary(failedMarkerPath, FeaturedImage.FAILED_IMAGE_DATA.buffer);
-                return {path: failedMarkerPath, sourcePath};
+                return failedMarkerPath;
             } catch (writeError) {
                 this.errorLog('Failed to write placeholder image:', writeError);
-                return {path: undefined, sourcePath};
+                return undefined;
             }
         }
     }
@@ -558,129 +463,6 @@ export default class FeaturedImage extends Plugin {
             }
         }
         return undefined;
-    }
-
-    /**
-     * Process an image (crop and/or resize) according to settings
-     * @param {string} inputPath - Path to the source image
-     * @param {string} outputFolder - Folder to save the processed image
-     * @param {string} outputFilename - Base filename for the processed image (without extension)
-     * @returns {Promise<string>} Path to the processed image
-     */
-    private async processImage(inputPath: string, outputFolder: string, outputFilename: string): Promise<string> {
-        if (this.settings.dryRun) {
-            this.debugLog('Dry run: Skipping image processing');
-            return `${outputFolder}/${outputFilename}.jpg`;
-        }
-
-        try {
-            // Create output folder if it doesn't exist
-            if (!(await this.app.vault.adapter.exists(outputFolder))) {
-                await this.app.vault.adapter.mkdir(outputFolder);
-            }
-
-            // Read the input image as a buffer
-            const imageData = await this.app.vault.adapter.readBinary(inputPath);
-            let imageProcessor = sharp(imageData);
-            
-            // Get metadata to determine original dimensions
-            const metadata = await imageProcessor.metadata();
-            const originalWidth = metadata.width || 0;
-            const originalHeight = metadata.height || 0;
-            
-            if (!originalWidth || !originalHeight) {
-                throw new Error('Could not determine image dimensions');
-            }
-
-            // Apply cropping if specified
-            if (this.settings.cropAspectRatio) {
-                const [widthRatio, heightRatio] = this.settings.cropAspectRatio.split(':').map(Number);
-                
-                if (widthRatio && heightRatio) {
-                    const targetRatio = widthRatio / heightRatio;
-                    const originalRatio = originalWidth / originalHeight;
-                    
-                    let width, height, left, top;
-                    
-                    if (originalRatio > targetRatio) {
-                        // Image is wider than target ratio - crop sides
-                        height = originalHeight;
-                        width = Math.round(height * targetRatio);
-                        top = 0;
-                        left = Math.round((originalWidth - width) / 2);
-                    } else {
-                        // Image is taller than target ratio - crop top/bottom
-                        width = originalWidth;
-                        height = Math.round(width / targetRatio);
-                        left = 0;
-                        top = Math.round((originalHeight - height) / 2);
-                    }
-                    
-                    imageProcessor = imageProcessor.extract({ left, top, width, height });
-                }
-            }
-
-            // Apply resize if specified
-            if (this.settings.maxDimension && this.settings.maxDimension > 0) {
-                imageProcessor = imageProcessor.resize({
-                    width: this.settings.maxDimension,
-                    height: this.settings.maxDimension,
-                    fit: 'inside',
-                    withoutEnlargement: true
-                });
-            }
-
-            // Get updated metadata after processing
-            const processedMetadata = await imageProcessor.metadata();
-            const processedWidth = processedMetadata.width || 0;
-            const processedHeight = processedMetadata.height || 0;
-            
-            // Create filename with dimensions
-            const fileExtension = metadata.format || 'jpg';
-            const processedFilename = `${outputFilename}_${processedWidth}x${processedHeight}.${fileExtension}`;
-            const outputPath = `${outputFolder}/${processedFilename}`;
-            
-            // Save the processed image
-            const processedImageData = await imageProcessor.toBuffer();
-            await this.app.vault.adapter.writeBinary(outputPath, processedImageData);
-            
-            return outputPath;
-        } catch (error) {
-            this.errorLog('Error processing image:', error);
-            // Return original path if processing fails
-            return inputPath;
-        }
-    }
-
-    /**
-     * Process a local image from the vault
-     * @param {string} imagePath - Path to the original image in the vault
-     * @param {string | undefined} currentFeature - Current featured image path
-     * @returns {Promise<string>} Path to the processed image
-     */
-    private async processLocalImage(imagePath: string, currentFeature: string | undefined): Promise<string> {
-        // Skip processing if no resize or crop is needed
-        if (!this.settings.cropAspectRatio && !this.settings.maxDimension) {
-            return imagePath;
-        }
-        
-        try {
-            // Check if the file exists
-            const fileExists = await this.app.vault.adapter.exists(imagePath);
-            if (!fileExists) {
-                this.errorLog('Local image not found:', imagePath);
-                return imagePath;
-            }
-            
-            // Create a hashed name for the processed image
-            const hashedName = createHash('md5').update(imagePath).digest('hex');
-            const processedFolder = `${this.settings.thumbnailDownloadFolder}/processed`;
-            
-            return await this.processImage(imagePath, processedFolder, hashedName);
-        } catch (error) {
-            this.errorLog('Error processing local image:', error);
-            return imagePath;
-        }
     }
 
     /**
@@ -728,12 +510,11 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Updates the frontmatter of a file with the new featured image and source.
+     * Updates the frontmatter of a file with the new featured image.
      * @param {TFile} file - The file to update.
      * @param {string | undefined} newFeature - The new featured image.
-     * @param {string | undefined} newSource - The source of the new featured image.
      */
-    private async updateFrontmatter(file: TFile, newFeature: string | undefined, newSource: string | undefined) {
+    private async updateFrontmatter(file: TFile, newFeature: string | undefined) {
         if (!this.isRunningBulkUpdate) {
             this.updatingFiles.add(file.path);
         }
@@ -746,8 +527,6 @@ export default class FeaturedImage extends Plugin {
                 }
             } else {
                 await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                    const sourceProperty = `${this.settings.frontmatterProperty}-source`;
-                    
                     if (newFeature) {
                         // Format the value based on the selected format
                         let featureValue = newFeature;
@@ -761,18 +540,11 @@ export default class FeaturedImage extends Plugin {
                             // 'plain' is default, no formatting needed
                         }
                         frontmatter[this.settings.frontmatterProperty] = featureValue;
-                        
-                        // Store the source path
-                        if (newSource) {
-                            frontmatter[sourceProperty] = newSource;
-                        }
                     } else {
                         if (this.settings.keepEmptyProperty) {
                             frontmatter[this.settings.frontmatterProperty] = '';
-                            frontmatter[sourceProperty] = '';
                         } else {
                             delete frontmatter[this.settings.frontmatterProperty];
-                            delete frontmatter[sourceProperty];
                         }
                     }
                 });
@@ -794,22 +566,16 @@ export default class FeaturedImage extends Plugin {
      * Downloads a YouTube video thumbnail.
      * @param {string} videoId - The YouTube video ID.
      * @param {string | undefined} currentFeature - The current featured image.
-     * @returns {Promise<{path: string | undefined, sourcePath: string}>} The path to the downloaded/processed thumbnail and the source video ID.
+     * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
      */
-    async downloadThumbnail(videoId: string, currentFeature: string | undefined): Promise<{path: string | undefined, sourcePath: string}> {
-        // Create video URL for source tracking
-        const sourceUrl = `https://www.youtube.com/watch?v=${videoId}`;
-        
+    async downloadThumbnail(videoId: string, currentFeature: string | undefined): Promise<string | undefined> {
         // Normalize YouTube folder path
         const youtubeFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/youtube`);
         const expectedPath = `${youtubeFolder}/${videoId}`;
         
-        // Check if we need to do any processing
-        const needsProcessing = this.settings.cropAspectRatio || this.settings.maxDimension;
-        
-        // If we already have a feature set to the expected path and no processing is needed, return it
-        if (currentFeature && currentFeature.startsWith(expectedPath) && !needsProcessing) {
-            return {path: currentFeature, sourcePath: sourceUrl};
+        // If we already have a feature set to the expected path, return it
+        if (currentFeature && currentFeature.startsWith(expectedPath)) {
+            return currentFeature;
         }
         
         // Create the YouTube thumbnail directory if it doesn't exist
@@ -820,81 +586,58 @@ export default class FeaturedImage extends Plugin {
         // Check if WebP thumbnail already exists
         const webpFilename = `${videoId}.webp`;
         const webpFilePath = `${youtubeFolder}/${webpFilename}`;
-        let downloadPath: string | undefined;
-        
         if (await this.app.vault.adapter.exists(webpFilePath)) {
-            downloadPath = webpFilePath;
-        } else {
-            // Check if JPG thumbnail already exists
-            const jpgFilename = `${videoId}.jpg`;
-            const jpgFilePath = `${youtubeFolder}/${jpgFilename}`;
-            if (await this.app.vault.adapter.exists(jpgFilePath)) {
-                downloadPath = jpgFilePath;
-            }
+            return webpFilePath;
+        }
+
+        // Check if JPG thumbnail already exists
+        const jpgFilename = `${videoId}.jpg`;
+        const jpgFilePath = `${youtubeFolder}/${jpgFilename}`;
+        if (await this.app.vault.adapter.exists(jpgFilePath)) {
+            return jpgFilePath;
         }
 
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping thumbnail download, using mock path');
-            return {path: `${youtubeFolder}/${videoId}.webp`, sourcePath: sourceUrl}; // Return a mock path
+            return `${youtubeFolder}/${videoId}.webp`; // Return a mock path
         }
 
-        // If we don't have the thumbnail yet, download it
-        if (!downloadPath) {
-            // Try to download the thumbnail in WebP format if enabled
-            if (this.settings.downloadWebP) {
-                try {
-                    const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
-                    if (webpResponse?.status === 200) {
-                        await this.app.vault.adapter.writeBinary(webpFilePath, webpResponse.arrayBuffer);
-                        downloadPath = webpFilePath;
-                    }
-                } catch (error) {
-                    this.debugLog('Failed to download WebP thumbnail');
+        // Try to download the thumbnail in WebP format if enabled
+        if (this.settings.downloadWebP) {
+            try {
+                const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
+                if (webpResponse?.status === 200) {
+                    await this.app.vault.adapter.writeBinary(webpFilePath, webpResponse.arrayBuffer);
+                    return webpFilePath;
                 }
-            }
-
-            // Fall back to JPG versions if WebP failed
-            if (!downloadPath) {
-                const jpgFilename = `${videoId}.jpg`;
-                const jpgFilePath = `${youtubeFolder}/${jpgFilename}`;
-                
-                try {
-                    const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
-                    if (maxResResponse?.status === 200) {
-                        await this.app.vault.adapter.writeBinary(jpgFilePath, maxResResponse.arrayBuffer);
-                        downloadPath = jpgFilePath;
-                    }
-                } catch (error) {
-                    this.debugLog('Failed to download maxresdefault.jpg');
-                }
-
-                if (!downloadPath) {
-                    try {
-                        const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
-                        if (hqDefaultResponse?.status === 200) {
-                            await this.app.vault.adapter.writeBinary(jpgFilePath, hqDefaultResponse.arrayBuffer);
-                            downloadPath = jpgFilePath;
-                        }
-                    } catch (error) {
-                        this.debugLog('Failed to download hqdefault.jpg:');
-                    }
-                }
+            } catch (error) {
+                this.debugLog('Failed to download WebP thumbnail');
             }
         }
 
-        if (!downloadPath) {
-            this.errorLog(`Thumbnail for video ${videoId} could not be downloaded`);
-            return {path: undefined, sourcePath: sourceUrl};
+        // Fall back to JPG versions
+        try {
+            const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
+            if (maxResResponse?.status === 200) {
+                await this.app.vault.adapter.writeBinary(jpgFilePath, maxResResponse.arrayBuffer);
+                return jpgFilePath;
+            }
+        } catch (error) {
+            this.debugLog('Failed to download maxresdefault.jpg');
         }
 
-        // Process the thumbnail if needed
-        if (needsProcessing) {
-            const processedFolder = `${this.settings.thumbnailDownloadFolder}/processed`;
-            const processedPath = await this.processImage(downloadPath, processedFolder, videoId);
-            return {path: processedPath, sourcePath: sourceUrl};
+        try {
+            const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
+            if (hqDefaultResponse?.status === 200) {
+                await this.app.vault.adapter.writeBinary(jpgFilePath, hqDefaultResponse.arrayBuffer);
+                return jpgFilePath;
+            }
+        } catch (error) {
+            this.debugLog('Failed to download hqdefault.jpg:');
         }
-        
-        return {path: downloadPath, sourcePath: sourceUrl};
+
+        this.errorLog(`Thumbnail for video ${videoId} could not be downloaded`);
+        return undefined;
     }
 
     /**
@@ -1139,7 +882,7 @@ export default class FeaturedImage extends Plugin {
         }
 
         this.debugLog('FEATURE REMOVED\n- File: ', file.path);
-        await this.updateFrontmatter(file, undefined, undefined);
+        await this.updateFrontmatter(file, undefined);
         return true;
     }
 

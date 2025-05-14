@@ -20,8 +20,6 @@ export interface FeaturedImageSettings {
   // Local media settings
   thumbnailDownloadFolder: string;
   imageExtensions: string[];
-  cropAspectRatio: string | null;
-  maxDimension: number | null;
 
   // Developer options
   debugMode: boolean;
@@ -47,8 +45,6 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   // Local media settings
   thumbnailDownloadFolder: 'thumbnails',
   imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
-  cropAspectRatio: null,
-  maxDimension: null,
 
   // Developer options
   debugMode: false,
@@ -190,9 +186,9 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .setName('Local media')
       .setHeading()
 
-    // Thumbnail folder
+    // Thumbnail download folder
     new Setting(containerEl)
-      .setName('Thumbnail folder')
+      .setName('Thumbnail download folder')
       .setDesc('External images, YouTube thumbnails, and Auto Card Link images will be downloaded to this folder. The plugin will create separate subfolders for each type.')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.thumbnailDownloadFolder)
@@ -205,36 +201,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
           } else {
             this.plugin.settings.thumbnailDownloadFolder = sanitizedValue.replace(/\/$/, '');
           }
-          await this.plugin.saveSettings();
-        }))
-
-    // Crop aspect ratio
-    new Setting(containerEl)
-      .setName('Crop featured image to')
-      .setDesc('Crop featured images to a specific aspect ratio.')
-      .addDropdown(dropdown => dropdown
-        .addOption('', 'No cropping')
-        .addOption('1:1', '1:1 (Square)')
-        .addOption('16:9', '16:9 (Landscape)')
-        .addOption('9:16', '9:16 (Portrait)')
-        .addOption('4:3', '4:3 (Standard)')
-        .addOption('3:4', '3:4 (Standard Portrait)')
-        .setValue(this.plugin.settings.cropAspectRatio || '')
-        .onChange(async (value) => {
-          this.plugin.settings.cropAspectRatio = value || null;
-          await this.plugin.saveSettings();
-        }))
-
-    // Maximum dimension
-    new Setting(containerEl)
-      .setName('Maximum dimension')
-      .setDesc('Limit the maximum dimension (width or height) of featured images in pixels. Leave empty for no resizing.')
-      .addText(text => text
-        .setPlaceholder('e.g., 100')
-        .setValue(this.plugin.settings.maxDimension ? String(this.plugin.settings.maxDimension) : '')
-        .onChange(async (value) => {
-          const maxDim = parseInt(value);
-          this.plugin.settings.maxDimension = (!isNaN(maxDim) && maxDim > 0) ? maxDim : null;
           await this.plugin.saveSettings();
         }))
 
