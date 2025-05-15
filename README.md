@@ -29,6 +29,7 @@ https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 - Support for local images, external images, YouTube thumbnails, and Auto Card Link images
 - Full support for Wiki image links with theme selectors and parameters (e.g., `![[image.jpg#right|caption|300]]`)
 - Downloads and caches external images locally for offline access
+- Create resized thumbnails of featured images with configurable dimensions
 - Bulk update commands for processing all files or all documents in the current folder
 - Cross-platform support for desktop and mobile
 - Highly customizible (see [Settings](#settings))
@@ -93,11 +94,24 @@ You can use Featured Image in combination with other plugins like [Dataview](htt
 2. Create a new note for your list, for example using the [Folder Notes plugin](https://github.com/LostPaul/obsidian-folder-notes).
 3. Use [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) to generate a list view of your notes, including the featured image as a preview.
 
+If you're using the thumbnail resizing feature, you can reference the `featureResized` property (or your custom property name) in your queries for optimized previews:
+
 Here is an example Dataview query for a list with previews that also shows the subfolders of your notes.
 I have chosen to include a Frontmatter property called "foldernote" in my folder notes so they are not shown in the list.
 
 ```dataview
 TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", regexreplace(file.folder, ".*\/([^\/]+)$", "$1") as "Folder", embed(link(feature)) as Image
+FROM ""
+WHERE contains(file.folder, this.file.folder)
+WHERE file.name != this.file.name
+WHERE !contains(foldernote, true)
+SORT file.ctime DESC
+```
+
+If you have enabled the thumbnail resizing feature, you can use the following query to display optimized thumbnails instead:
+
+```dataview
+TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", regexreplace(file.folder, ".*\/([^\/]+)$", "$1") as "Folder", embed(link(featureResized)) as Thumbnail
 FROM ""
 WHERE contains(file.folder, this.file.folder)
 WHERE file.name != this.file.name
@@ -172,6 +186,31 @@ Here are the settings for the Featured Image plugin:
     - Description: List of image file extensions to consider when searching for featured images.
     - Usage: Add or remove extensions based on the image types you use in your vault.
 
+12. **Create Resized Thumbnail**
+    - Default: `false`
+    - Description: When enabled, the plugin will create a resized version of the featured image and store its path in a separate frontmatter property.
+    - Usage: Enable this to generate smaller, optimized versions of your featured images for faster loading in previews.
+
+13. **Resized Thumbnail Frontmatter Property**
+    - Default: `featureResized`
+    - Description: The name of the frontmatter property used to store the resized thumbnail path.
+    - Usage: Change this if you want to use a different property name for the resized thumbnail.
+
+14. **Max Resized Width**
+    - Default: `0` (no restriction)
+    - Description: Maximum width in pixels for the resized thumbnail. Use 0 for no width restriction.
+    - Usage: Set this to limit the width of generated resized thumbnails.
+
+15. **Max Resized Height**
+    - Default: `0` (no restriction)
+    - Description: Maximum height in pixels for the resized thumbnail. Use 0 for no height restriction.
+    - Usage: Set this to limit the height of generated resized thumbnails.
+
+16. **Fill Resized Dimensions**
+    - Default: `false`
+    - Description: When enabled, resized thumbnails will be exactly the size specified by max width and height, which may change the aspect ratio.
+    - Usage: Enable this if you want consistently sized thumbnails with the exact dimensions specified. Keep disabled to maintain the original aspect ratio.
+
 ![Settings](images/settings.png)
 
 ## Benefits and Optimizations
@@ -185,6 +224,7 @@ Featured Image is designed with efficiency and performance in mind:
 3. **Intelligent Image Handling**: 
    - For external images: Downloads and caches them locally for offline access
    - For YouTube links: Attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats
+   - For any featured image: Can create resized thumbnails with configurable dimensions for optimized previews
    This ensures the best quality images while minimizing bandwidth usage.
 
 4. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.

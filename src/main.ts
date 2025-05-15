@@ -225,7 +225,7 @@ export default class FeaturedImage extends Plugin {
         }
         
         const cache = this.app.metadataCache.getFileCache(file);
-        const thumbnail = cache?.frontmatter?.[this.settings.thumbnailFrontmatterProperty];
+        const thumbnail = cache?.frontmatter?.[this.settings.resizedFrontmatterProperty];
         
         if (thumbnail) {
             // Attempt to extract the image path from wiki-style and embedded links
@@ -526,7 +526,7 @@ export default class FeaturedImage extends Plugin {
     private async createThumbnail(imagePath: string): Promise<string | undefined> {
         // Skip if resizing is not enabled or both dimensions are 0
         if (!this.settings.createResizedThumbnail || 
-            (this.settings.maxThumbnailWidth === 0 && this.settings.maxThumbnailHeight === 0)) {
+            (this.settings.maxResizedWidth === 0 && this.settings.maxResizedHeight === 0)) {
             return undefined;
         }
 
@@ -539,7 +539,7 @@ export default class FeaturedImage extends Plugin {
 
             // Generate a hashed name based on the source path and resize settings
             const settingsHash = createHash('md5')
-                .update(`${this.settings.maxThumbnailWidth}_${this.settings.maxThumbnailHeight}_${this.settings.fillMaxDimensions}`)
+                .update(`${this.settings.maxResizedWidth}_${this.settings.maxResizedHeight}_${this.settings.fillResizedDimensions}`)
                 .digest('hex')
                 .substring(0, 8);
             
@@ -589,9 +589,9 @@ export default class FeaturedImage extends Plugin {
             const { width, height } = this.calculateThumbnailDimensions(
                 image.width, 
                 image.height, 
-                this.settings.maxThumbnailWidth, 
-                this.settings.maxThumbnailHeight,
-                this.settings.fillMaxDimensions
+                this.settings.maxResizedWidth, 
+                this.settings.maxResizedHeight,
+                this.settings.fillResizedDimensions
             );
             
             // Resize the image
@@ -837,12 +837,12 @@ export default class FeaturedImage extends Plugin {
                                     break;
                                 // 'plain' is default, no formatting needed
                             }
-                            frontmatter[this.settings.thumbnailFrontmatterProperty] = thumbnailValue;
+                            frontmatter[this.settings.resizedFrontmatterProperty] = thumbnailValue;
                         } else {
                             if (this.settings.keepEmptyProperty) {
-                                frontmatter[this.settings.thumbnailFrontmatterProperty] = '';
+                                frontmatter[this.settings.resizedFrontmatterProperty] = '';
                             } else {
-                                delete frontmatter[this.settings.thumbnailFrontmatterProperty];
+                                delete frontmatter[this.settings.resizedFrontmatterProperty];
                             }
                         }
                     }
@@ -1148,7 +1148,7 @@ export default class FeaturedImage extends Plugin {
     async removeAllFeaturedImages() {
         let modalMessage = `This will remove the "${this.settings.frontmatterProperty}" property from the frontmatter of all markdown files in your vault`;
         if (this.settings.createResizedThumbnail) {
-            modalMessage += ` and the "${this.settings.thumbnailFrontmatterProperty}" property if present`;
+            modalMessage += ` and the "${this.settings.resizedFrontmatterProperty}" property if present`;
         }
         modalMessage += `. Proceed?`;
         
@@ -1446,7 +1446,7 @@ export default class FeaturedImage extends Plugin {
                 
                 // Check thumbnail property if enabled
                 if (this.settings.createResizedThumbnail) {
-                    const thumbnail = cache.frontmatter[this.settings.thumbnailFrontmatterProperty];
+                    const thumbnail = cache.frontmatter[this.settings.resizedFrontmatterProperty];
                     if (thumbnail) {
                         this.addNormalizedPath(thumbnail, usedFiles);
                     }
