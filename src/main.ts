@@ -797,9 +797,6 @@ export default class FeaturedImage extends Plugin {
                 this.debugLog('Dry run: Skipping frontmatter update');
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
                     let message = newFeature ? `Dry run: Would change featured image to: ${newFeature}` : `Dry run: Would remove featured image`;
-                    if (newThumbnail) {
-                        message += `, thumbnail to: ${newThumbnail}`;
-                    }
                     new Notice(message);
                 }
             } else {
@@ -853,9 +850,6 @@ export default class FeaturedImage extends Plugin {
 
                 if (!this.isRunningBulkUpdate && this.settings.showNotificationsOnUpdate) {
                     let message = newFeature ? `Featured image set to ${newFeature}` : 'Featured image removed';
-                    if (this.settings.createResizedThumbnail && newThumbnail) {
-                        message += `, thumbnail created`;
-                    }
                     new Notice(message);
                 }
             }
@@ -1080,11 +1074,9 @@ export default class FeaturedImage extends Plugin {
     ) {
         this.isRunningBulkUpdate = true;
         const batchSize = 5;
-        let thumbnailsMessage = this.settings.createResizedThumbnail ? ' and thumbnails' : '';
-        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}${thumbnailsMessage}...`);
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}...`);
 
         let updatedCount = 0;
-        let thumbnailCount = 0;
         let errorCount = 0;
         let totalFiles = files.length;
         let lastNotificationTime = Date.now();
@@ -1104,10 +1096,6 @@ export default class FeaturedImage extends Plugin {
                         // Process the file
                         const wasUpdated = await this.setFeaturedImage(file);
                         
-                        // Check if thumbnail was created
-                        const newThumbnail = this.getThumbnailFromFrontmatter(file);
-                        const thumbnailCreated = (currentThumbnail !== newThumbnail) && newThumbnail !== undefined;
-                        
                         // If file was updated and not in dry run mode, restore the original mtime
                         if (wasUpdated && !this.settings.dryRun) {
                             await this.app.vault.modify(file, await this.app.vault.read(file), {
@@ -1117,30 +1105,24 @@ export default class FeaturedImage extends Plugin {
                         
                         return { 
                             success: true, 
-                            updated: wasUpdated,
-                            thumbnailCreated: thumbnailCreated
+                            updated: wasUpdated
                         };
                     } catch (error) {
                         this.errorLog(`Error processing file ${file.path}:`, error);
                         return { 
                             success: false, 
-                            updated: false,
-                            thumbnailCreated: false
+                            updated: false
                         };
                     }
                 }));
 
                 updatedCount += results.filter(result => result.success && result.updated).length;
-                thumbnailCount += results.filter(result => result.success && result.thumbnailCreated).length;
                 errorCount += results.filter(result => !result.success).length;
 
                 // Show notification every 5 seconds
                 const currentTime = Date.now();
                 if (currentTime - lastNotificationTime >= 5000) {
                     let progressMessage = `Processed ${i + batch.length} of ${totalFiles} files. Updated ${updatedCount} featured images`;
-                    if (this.settings.createResizedThumbnail) {
-                        progressMessage += `, created ${thumbnailCount} thumbnails`;
-                    }
                     if (errorCount > 0) {
                         progressMessage += `. Errors: ${errorCount}`;
                     }
@@ -1152,9 +1134,6 @@ export default class FeaturedImage extends Plugin {
             setTimeout(() => {
                 this.isRunningBulkUpdate = false;
                 let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files`;
-                if (this.settings.createResizedThumbnail) {
-                    completionMessage += `, created ${thumbnailCount} thumbnails`;
-                }
                 if (errorCount > 0) {
                     completionMessage += `. Errors: ${errorCount}`;
                 }
@@ -1180,16 +1159,13 @@ export default class FeaturedImage extends Plugin {
         if (!confirmation) return;
 
         this.isRunningBulkUpdate = true;
-        let thumbnailsMessage = this.settings.createResizedThumbnail ? ' and thumbnails' : '';
-        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}removal of featured images${thumbnailsMessage} from all files...`);
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}removal of featured images from all files...`);
 
         const files = this.app.vault.getMarkdownFiles();
         let removedCount = 0;
-        let thumbnailRemovedCount = 0;
 
         for (const file of files) {
             const currentFeature = this.getFeatureFromFrontmatter(file);
-            const currentThumbnail = this.getThumbnailFromFrontmatter(file);
 
             // Store original mtime before modification
             const originalMtime = file.stat.mtime;
@@ -1204,19 +1180,12 @@ export default class FeaturedImage extends Plugin {
             
             if (wasRemoved) {
                 removedCount++;
-                if (currentThumbnail) {
-                    thumbnailRemovedCount++;
-                }
             }
         }
 
         setTimeout(() => {
             this.isRunningBulkUpdate = false;
-            let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files`;
-            if (this.settings.createResizedThumbnail && thumbnailRemovedCount > 0) {
-                completionMessage += `, including ${thumbnailRemovedCount} thumbnails`;
-            }
-            completionMessage += '.';
+            let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`;
             new Notice(completionMessage);
         }, 100);
     }
@@ -1324,13 +1293,7 @@ export default class FeaturedImage extends Plugin {
             // Confirm deletion
             const confirmation = await this.showConfirmationModal(
                 'Remove unused images',
-                `Found ${totalUnused} unused images:
-                - ${externalImagesCount} external images
-                - ${youtubeImagesCount} YouTube thumbnails
-                - ${autoCardImagesCount} Auto Card Link images
-                - ${resizedThumbnailsCount} resized thumbnails
-                
-                Do you want to delete these files?`
+                `Found ${totalUnused} unused images. Do you want to delete these files?`
             );
             
             if (!confirmation) {
@@ -1362,13 +1325,8 @@ export default class FeaturedImage extends Plugin {
             
             // Final report
             const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
-            new Notice(
-                `Cleanup complete. Deleted ${totalUnused} unused files (${totalMB} MB):
-                - ${externalImagesCount} external images
-                - ${youtubeImagesCount} YouTube thumbnails
-                - ${autoCardImagesCount} Auto Card Link images
-                - ${resizedThumbnailsCount} resized thumbnails`
-            );
+            new Notice(`Cleanup complete. Deleted ${totalUnused} unused files (${totalMB} MB).`);
+            
             
         } catch (error) {
             this.errorLog('Error during image cleanup:', error);

@@ -55,7 +55,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   
   // Thumbnail settings
   createResizedThumbnail: false,
-  thumbnailFrontmatterProperty: 'feature-resized',
+  thumbnailFrontmatterProperty: 'featureResized',
   maxThumbnailWidth: 0,
   maxThumbnailHeight: 0,
   fillMaxDimensions: false,
@@ -249,9 +249,9 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.createResizedThumbnail = value;
           
-          // When enabling, set the thumbnail property to frontmatterProperty-resized
+          // When enabling, set the thumbnail property to frontmatterPropertyResized
           if (value) {
-              this.plugin.settings.thumbnailFrontmatterProperty = `${this.plugin.settings.frontmatterProperty}-resized`;
+              this.plugin.settings.thumbnailFrontmatterProperty = `${this.plugin.settings.frontmatterProperty}Resized`;
               
               // Update the text field value
               const textComponent = thumbnailPropertySetting.components[0] as any;
@@ -274,10 +274,10 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
       .setName('Thumbnail frontmatter property')
       .setDesc('The name of the frontmatter property to store the resized thumbnail path.')
       .addText(text => text
-        .setPlaceholder(`${this.plugin.settings.frontmatterProperty}-resized`)
+        .setPlaceholder(`${this.plugin.settings.frontmatterProperty}Resized`)
         .setValue(this.plugin.settings.thumbnailFrontmatterProperty)
         .onChange(async (value) => {
-          this.plugin.settings.thumbnailFrontmatterProperty = value || `${this.plugin.settings.frontmatterProperty}-resized`;
+          this.plugin.settings.thumbnailFrontmatterProperty = value || `${this.plugin.settings.frontmatterProperty}Resized`;
           await this.plugin.saveSettings();
         }));
     
