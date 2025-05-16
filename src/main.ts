@@ -1645,11 +1645,6 @@ export default class FeaturedImage extends Plugin {
             try {
                 await this.app.vault.adapter.remove(filePath);
                 deletedCount++;
-                
-                // Show progress every 20 files
-                if (deletedCount % 20 === 0) {
-                    new Notice(`Deleted ${deletedCount} unused ${category} so far...`);
-                }
             } catch (error) {
                 this.errorLog(`Error deleting file ${filePath}:`, error);
             }
