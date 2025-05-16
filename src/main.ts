@@ -595,7 +595,7 @@ export default class FeaturedImage extends Plugin {
             );
             
             // Resize the image
-            const resizedImageData = await this.resizeImage(image, width, height);
+            const resizedImageData = await this.resizeImage(image, width, height, this.settings.fillResizedDimensions);
             
             // Write the resized image to disk
             await this.app.vault.adapter.writeBinary(thumbnailPath, resizedImageData);
@@ -650,7 +650,7 @@ export default class FeaturedImage extends Plugin {
         }
         
         if (fillMax && maxWidth > 0 && maxHeight > 0) {
-            // Fill mode: set to exact dimensions
+            // Fill mode: set to exact dimensions (will be cropped during resize)
             return { width: maxWidth, height: maxHeight };
         }
         
@@ -692,9 +692,10 @@ export default class FeaturedImage extends Plugin {
      * @param {HTMLImageElement} img - Image element to resize
      * @param {number} width - Target width
      * @param {number} height - Target height
+     * @param {boolean} fillMode - Whether to crop the image to fill dimensions
      * @returns {Promise<ArrayBuffer>} - Resized image as array buffer
      */
-    private resizeImage(img: HTMLImageElement, width: number, height: number): Promise<ArrayBuffer> {
+    private resizeImage(img: HTMLImageElement, width: number, height: number, fillMode: boolean = false): Promise<ArrayBuffer> {
         return new Promise((resolve, reject) => {
             try {
                 const canvas = this.canvas!;
@@ -707,10 +708,33 @@ export default class FeaturedImage extends Plugin {
                     return;
                 }
                 
+                // Calculate source dimensions for cropping
+                let sourceX = 0;
+                let sourceY = 0;
+                let sourceWidth = img.width;
+                let sourceHeight = img.height;
+                
+                if (fillMode) {
+                    // Calculate aspect ratios
+                    const targetAspect = width / height;
+                    const sourceAspect = img.width / img.height;
+                    
+                    if (sourceAspect > targetAspect) {
+                        // Source is wider, crop horizontally
+                        sourceWidth = img.height * targetAspect;
+                        sourceX = (img.width - sourceWidth) / 2;
+                    } else if (sourceAspect < targetAspect) {
+                        // Source is taller, crop vertically
+                        sourceHeight = img.width / targetAspect;
+                        sourceY = (img.height - sourceHeight) / 2;
+                    }
+                    // If aspects match, no cropping needed
+                }
+                
                 // Draw image with smooth scaling
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, 0, 0, width, height);
+                ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
                 
                 // Convert to blob
                 canvas.toBlob((blob) => {
@@ -857,7 +881,7 @@ export default class FeaturedImage extends Plugin {
             if (!this.isRunningBulkUpdate) {
                 setTimeout(() => {
                     this.updatingFiles.delete(file.path);
-                }, 100); // Just enough time for the cache to update
+                }, 500); // Allow time for metadata cache to fully update
             }
         }
     }
@@ -1138,7 +1162,7 @@ export default class FeaturedImage extends Plugin {
                     completionMessage += `. Errors: ${errorCount}`;
                 }
                 new Notice(completionMessage);
-            }, 100);
+            }, 500);
         }
     }
 
@@ -1187,7 +1211,7 @@ export default class FeaturedImage extends Plugin {
             this.isRunningBulkUpdate = false;
             let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`;
             new Notice(completionMessage);
-        }, 100);
+        }, 500);
     }
 
     /**

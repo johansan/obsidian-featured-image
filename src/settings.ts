@@ -237,7 +237,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         }))
     
     new Setting(containerEl)
-      .setName('Thumbnails')
+      .setName('Resized thumbnail')
       .setHeading()
     
     // Create resized thumbnail
@@ -310,7 +310,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     // Fill resized dimensions
     const fillDimensionsSetting = new Setting(thumbnailSettingsEl)
       .setName('Fill resized dimensions')
-      .setDesc('When enabled, resized thumbnails will be exactly the size specified by max width and height, which may change the aspect ratio.')
+      .setDesc('When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.fillResizedDimensions)
         .onChange(async (value) => {

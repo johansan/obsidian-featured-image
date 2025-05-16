@@ -208,8 +208,8 @@ Here are the settings for the Featured Image plugin:
 
 16. **Fill Resized Dimensions**
     - Default: `false`
-    - Description: When enabled, resized thumbnails will be exactly the size specified by max width and height, which may change the aspect ratio.
-    - Usage: Enable this if you want consistently sized thumbnails with the exact dimensions specified. Keep disabled to maintain the original aspect ratio.
+    - Description: When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.
+    - Usage: Enable this if you want consistently sized thumbnails with the exact dimensions specified, cropped from the center. Keep disabled to resize the image while maintaining the original aspect ratio without cropping.
 
 ![Settings](images/settings.png)
 
