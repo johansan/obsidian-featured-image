@@ -881,7 +881,7 @@ export default class FeaturedImage extends Plugin {
             if (!this.isRunningBulkUpdate) {
                 setTimeout(() => {
                     this.updatingFiles.delete(file.path);
-                }, 500); // Allow time for metadata cache to fully update
+                }, 100); // Allow time for metadata cache to fully update
             }
         }
     }
@@ -1162,7 +1162,7 @@ export default class FeaturedImage extends Plugin {
                     completionMessage += `. Errors: ${errorCount}`;
                 }
                 new Notice(completionMessage);
-            }, 500);
+            }, 100);
         }
     }
 
@@ -1211,7 +1211,7 @@ export default class FeaturedImage extends Plugin {
             this.isRunningBulkUpdate = false;
             let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`;
             new Notice(completionMessage);
-        }, 500);
+        }, 100);
     }
 
     /**
