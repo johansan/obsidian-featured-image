@@ -88,6 +88,13 @@ export default class FeaturedImage extends Plugin {
             name: 'Remove unused downloaded images and thumbnails',
             callback: () => this.cleanupUnusedImages(),
         });
+        
+        // Add command for re-rendering all resized thumbnails
+        this.addCommand({
+            id: 'featured-image-rerender-thumbnails',
+            name: 'Re-render all resized thumbnails',
+            callback: () => this.rerenderAllResizedThumbnails(),
+        });
 
 		// Watch for metadata changes and update the featured image if the file is a markdown file
         this.registerEvent(
@@ -594,7 +601,7 @@ export default class FeaturedImage extends Plugin {
                 this.settings.fillResizedDimensions
             );
             
-            // Resize the image
+            // Resize the image using alignment settings when in fill mode
             const resizedImageData = await this.resizeImage(image, width, height, this.settings.fillResizedDimensions);
             
             // Write the resized image to disk
@@ -722,11 +729,37 @@ export default class FeaturedImage extends Plugin {
                     if (sourceAspect > targetAspect) {
                         // Source is wider, crop horizontally
                         sourceWidth = img.height * targetAspect;
-                        sourceX = (img.width - sourceWidth) / 2;
+                        
+                        // Apply horizontal alignment
+                        switch (this.settings.resizedHorizontalAlign) {
+                            case 'left':
+                                sourceX = 0;
+                                break;
+                            case 'right':
+                                sourceX = img.width - sourceWidth;
+                                break;
+                            case 'center':
+                            default:
+                                sourceX = (img.width - sourceWidth) / 2;
+                                break;
+                        }
                     } else if (sourceAspect < targetAspect) {
                         // Source is taller, crop vertically
                         sourceHeight = img.width / targetAspect;
-                        sourceY = (img.height - sourceHeight) / 2;
+                        
+                        // Apply vertical alignment
+                        switch (this.settings.resizedVerticalAlign) {
+                            case 'top':
+                                sourceY = 0;
+                                break;
+                            case 'bottom':
+                                sourceY = img.height - sourceHeight;
+                                break;
+                            case 'center':
+                            default:
+                                sourceY = (img.height - sourceHeight) / 2;
+                                break;
+                        }
                     }
                     // If aspects match, no cropping needed
                 }
@@ -1651,5 +1684,106 @@ export default class FeaturedImage extends Plugin {
         }
         
         this.debugLog(`Deleted ${deletedCount} unused ${category}`);
+    }
+
+    /**
+     * Re-renders all resized thumbnails based on current settings
+     * This is useful when alignment or other resize settings are changed
+     */
+    async rerenderAllResizedThumbnails() {
+        if (!this.settings.createResizedThumbnail) {
+            new Notice('Resized thumbnails are not enabled in settings.');
+            return;
+        }
+
+        const confirmation = await this.showConfirmationModal(
+            'Re-render all resized thumbnails',
+            'This will re-render all resized thumbnails based on your current settings (size, alignment, etc.). This operation may take some time depending on the number of images. Proceed?'
+        );
+        if (!confirmation) return;
+
+        this.isRunningBulkUpdate = true;
+        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}re-rendering of all resized thumbnails...`);
+
+        const files = this.app.vault.getMarkdownFiles();
+        let totalFiles = 0;
+        let updatedCount = 0;
+        let errorCount = 0;
+
+        try {
+            // First, find all files with featured images
+            const filesToProcess: { file: TFile, feature: string }[] = [];
+
+            for (const file of files) {
+                const feature = this.getFeatureFromFrontmatter(file);
+                if (feature) {
+                    filesToProcess.push({ file, feature });
+                    totalFiles++;
+                }
+            }
+
+            // Delete all existing resized thumbnails in the resized folder
+            const resizedFolder = normalizePath(`${this.settings.thumbnailDownloadFolder}/resized`);
+            if (await this.app.vault.adapter.exists(resizedFolder)) {
+                try {
+                    const existingResized = await this.app.vault.adapter.list(resizedFolder);
+                    
+                    if (!this.settings.dryRun) {
+                        for (const file of existingResized.files) {
+                            try {
+                                await this.app.vault.adapter.remove(file);
+                            } catch (error) {
+                                this.errorLog(`Failed to delete thumbnail: ${file}`, error);
+                            }
+                        }
+                    }
+                    
+                    this.debugLog(`Cleared ${existingResized.files.length} existing thumbnails from ${resizedFolder}`);
+                } catch (error) {
+                    this.errorLog(`Error accessing resized folder: ${resizedFolder}`, error);
+                }
+            }
+
+            // Process each file with a featured image
+            const batchSize = 5;
+            for (let i = 0; i < filesToProcess.length; i += batchSize) {
+                const batch = filesToProcess.slice(i, i + batchSize);
+                
+                const results = await Promise.all(batch.map(async ({ file, feature }) => {
+                    try {
+                        // Create a new thumbnail
+                        const newThumbnail = await this.createThumbnail(feature);
+                        
+                        // Update the frontmatter with the new thumbnail
+                        if (newThumbnail) {
+                            await this.updateFrontmatter(file, feature, newThumbnail);
+                            this.debugLog(`THUMBNAIL UPDATED\n- File: ${file.path}\n- Feature: ${feature}\n- New thumbnail: ${newThumbnail}`);
+                            return true;
+                        }
+                        return false;
+                    } catch (error) {
+                        this.errorLog(`Error re-rendering thumbnail for ${file.path}:`, error);
+                        return false;
+                    }
+                }));
+                
+                updatedCount += results.filter(success => success).length;
+                errorCount += results.filter(success => !success).length;
+                
+                // Show progress notification every 20 files
+                if ((i + batch.length) % 20 === 0 || i + batch.length === filesToProcess.length) {
+                    new Notice(`Re-rendering thumbnails: ${i + batch.length}/${totalFiles} processed`);
+                }
+            }
+        } finally {
+            this.isRunningBulkUpdate = false;
+            
+            let completionMessage = `Re-rendering complete. ${updatedCount} thumbnails were updated`;
+            if (errorCount > 0) {
+                completionMessage += `. There were ${errorCount} errors.`;
+            }
+            
+            new Notice(completionMessage);
+        }
     }
 }

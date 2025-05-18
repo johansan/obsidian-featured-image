@@ -58,7 +58,7 @@ If you enjoy using Featured Image, please consider [buying me a coffee](https://
 
 ### Using Bulk Update Commands
 
-Featured Image provides two powerful bulk update commands to manage featured images across your entire vault:
+Featured Image provides several powerful commands to manage featured images across your entire vault:
 
 1. **Set featured images in all files**
    - This command scans all markdown files in your vault, and sets or updates the featured image property based on the first image or YouTube link found in each file.
@@ -82,6 +82,14 @@ Featured Image provides two powerful bulk update commands to manage featured ima
    - To use:
      1. Open the Command Palette (Ctrl/Cmd + P)
      2. Search for "Featured Image: Remove featured images from all files"
+     3. Select the command and confirm the action in the modal that appears
+
+4. **Re-render all resized thumbnails**
+   - This command regenerates all resized thumbnails based on your current settings (size, alignment, etc.).
+   - Useful after changing thumbnail settings like alignment or dimensions.
+   - To use:
+     1. Open the Command Palette (Ctrl/Cmd + P)
+     2. Search for "Featured Image: Re-render all resized thumbnails"
      3. Select the command and confirm the action in the modal that appears
 
 ![Set featured images in all files](images/bulk-update-1.png)
@@ -209,7 +217,17 @@ Here are the settings for the Featured Image plugin:
 16. **Fill Resized Dimensions**
     - Default: `false`
     - Description: When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.
-    - Usage: Enable this if you want consistently sized thumbnails with the exact dimensions specified, cropped from the center. Keep disabled to resize the image while maintaining the original aspect ratio without cropping.
+    - Usage: Enable this if you want consistently sized thumbnails with the exact dimensions specified, cropped according to your alignment settings. Keep disabled to resize the image while maintaining the original aspect ratio without cropping.
+
+17. **Resized Vertical Align**
+    - Default: `top`
+    - Description: Choose the vertical alignment (top, center, bottom) for cropped images when Fill Resized Dimensions is enabled.
+    - Usage: This setting determines which part of the image is preserved when cropping vertically.
+
+18. **Resized Horizontal Align**
+    - Default: `center`
+    - Description: Choose the horizontal alignment (left, center, right) for cropped images when Fill Resized Dimensions is enabled.
+    - Usage: This setting determines which part of the image is preserved when cropping horizontally.
 
 ![Settings](images/settings.png)
 

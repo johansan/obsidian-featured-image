@@ -27,6 +27,8 @@ export interface FeaturedImageSettings {
   maxResizedWidth: number;
   maxResizedHeight: number;
   fillResizedDimensions: boolean;
+  resizedVerticalAlign: 'top' | 'center' | 'bottom';
+  resizedHorizontalAlign: 'left' | 'center' | 'right';
 
   // Developer options
   debugMode: boolean;
@@ -59,6 +61,8 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
   maxResizedWidth: 0,
   maxResizedHeight: 0,
   fillResizedDimensions: false,
+  resizedVerticalAlign: 'top',
+  resizedHorizontalAlign: 'center',
 
   // Developer options
   debugMode: false,
@@ -316,15 +320,64 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.fillResizedDimensions = value;
           await this.plugin.saveSettings();
+          updateAlignmentSettingsVisibility(value);
+        }));
+    
+    // Create alignment settings container
+    const alignmentSettingsEl = thumbnailSettingsEl.createDiv('alignment-settings');
+    
+    // Vertical alignment setting
+    const verticalAlignSetting = new Setting(alignmentSettingsEl)
+      .setName('Vertical alignment')
+      .setDesc('Choose the vertical alignment for cropped images.')
+      .addDropdown(dropdown => dropdown
+        .addOption('top', 'Top')
+        .addOption('center', 'Center')
+        .addOption('bottom', 'Bottom')
+        .setValue(this.plugin.settings.resizedVerticalAlign)
+        .onChange(async (value) => {
+          this.plugin.settings.resizedVerticalAlign = value as 'top' | 'center' | 'bottom';
+          await this.plugin.saveSettings();
+        }));
+    
+    // Horizontal alignment setting
+    const horizontalAlignSetting = new Setting(alignmentSettingsEl)
+      .setName('Horizontal alignment')
+      .setDesc('Choose the horizontal alignment for cropped images.')
+      .addDropdown(dropdown => dropdown
+        .addOption('left', 'Left')
+        .addOption('center', 'Center')
+        .addOption('right', 'Right')
+        .setValue(this.plugin.settings.resizedHorizontalAlign)
+        .onChange(async (value) => {
+          this.plugin.settings.resizedHorizontalAlign = value as 'left' | 'center' | 'right';
+          await this.plugin.saveSettings();
         }));
     
     // Function to update thumbnail settings visibility
     const updateThumbnailSettingsVisibility = (show: boolean) => {
       thumbnailSettingsEl.style.display = show ? 'block' : 'none';
+      // Also update alignment settings visibility when thumbnail settings change
+      if (show) {
+        updateAlignmentSettingsVisibility(this.plugin.settings.fillResizedDimensions);
+      }
     };
     
-    // Initial visibility based on current setting
+    // Function to update alignment settings visibility
+    const updateAlignmentSettingsVisibility = (show: boolean) => {
+      alignmentSettingsEl.style.display = show ? 'block' : 'none';
+    };
+    
+    // Initial visibility based on current settings
     updateThumbnailSettingsVisibility(this.plugin.settings.createResizedThumbnail);
+    updateAlignmentSettingsVisibility(this.plugin.settings.createResizedThumbnail && this.plugin.settings.fillResizedDimensions);
+    
+    // Add information about re-rendering thumbnails
+    const infoEl = thumbnailSettingsEl.createDiv('thumbnail-info');
+    infoEl.createEl('p', {
+      text: 'Tip: After changing alignment or dimension settings, run the command "Re-render all resized thumbnails" from the command palette to update existing thumbnails with the new settings.',
+      cls: 'setting-item-description'
+    });
 
     new Setting(containerEl)
       .setName('Developer')
