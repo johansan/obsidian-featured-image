@@ -1709,6 +1709,7 @@ export default class FeaturedImage extends Plugin {
         let totalFiles = 0;
         let updatedCount = 0;
         let errorCount = 0;
+        let lastNotificationTime = Date.now();
 
         try {
             // First, find all files with featured images
@@ -1770,9 +1771,15 @@ export default class FeaturedImage extends Plugin {
                 updatedCount += results.filter(success => success).length;
                 errorCount += results.filter(success => !success).length;
                 
-                // Show progress notification every 20 files
-                if ((i + batch.length) % 20 === 0 || i + batch.length === filesToProcess.length) {
-                    new Notice(`Re-rendering thumbnails: ${i + batch.length}/${totalFiles} processed`);
+                // Show notification every 5 seconds
+                const currentTime = Date.now();
+                if (currentTime - lastNotificationTime >= 5000) {
+                    let progressMessage = `Re-rendering thumbnails: ${i + batch.length}/${totalFiles} processed. Updated: ${updatedCount}`;
+                    if (errorCount > 0) {
+                        progressMessage += `. Errors: ${errorCount}`;
+                    }
+                    new Notice(progressMessage);
+                    lastNotificationTime = currentTime;
                 }
             }
         } finally {
