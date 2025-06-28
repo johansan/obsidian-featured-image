@@ -1,20 +1,5 @@
 # Featured Image Plugin for Obsidian
 
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [How to Use](#how-to-use)
-  - [Basic Usage](#basic-usage)
-  - [Using Bulk Update Commands](#using-bulk-update-commands)
-  - [Creating Note Lists with Previews](#creating-note-lists-with-previews)
-- [Settings](#settings)
-- [Benefits and Optimizations](#benefits-and-optimizations)
-- [Known Issues](#known-issues)
-  - [Conflicts with Mousewheel Image Zoom Plugin](#conflicts-with-mousewheel-image-zoom-plugin)
-- [Support and Feedback](#support-and-feedback)
-
 ## Introduction
 
 Featured Image is a plugin for Obsidian that automatically sets a **featured image** property in the Frontmatter section of your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image found in your document.
@@ -22,6 +7,10 @@ Featured Image is a plugin for Obsidian that automatically sets a **featured ima
 This allows you to create rich note lists similar to what you see in other popular note taking applications such as [Apple Notes](https://apps.apple.com/us/app/notes/id1110145109), [Evernote](https://evernote.com/) and [Bear](https://bear.app/).
 
 https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
+
+[❤️ Sponsor on GitHub](https://github.com/sponsors/johansan)
+
+If you love using Featured Image, please consider supporting its continued development.
 
 ## Key Features
 
