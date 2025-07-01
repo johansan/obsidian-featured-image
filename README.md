@@ -8,9 +8,9 @@ This allows you to create rich note lists similar to what you see in other popul
 
 https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
 
-[❤️ Sponsor on GitHub](https://github.com/sponsors/johansan)
+If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan) or [Sponsor on GitHub ❤️](https://github.com/sponsors/johansan).
 
-If you love using Featured Image, please consider supporting its continued development.
+<a href="https://www.buymeacoffee.com/johansan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Key Features
 
@@ -30,10 +30,6 @@ If you love using Featured Image, please consider supporting its continued devel
 3. Search for "Featured Image"
 4. Click "Install" and then "Enable" to activate the plugin
 5. Click "Options" to configure the plugin settings
-
-If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan).
-
-<a href="https://www.buymeacoffee.com/johansan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## How to Use
 
