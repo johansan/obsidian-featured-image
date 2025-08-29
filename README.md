@@ -126,7 +126,7 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 ### Code Quality
 
-This plugin follows strict code quality standards using [Obsidian's official ESLint plugin](https://github.com/obsidianmd/eslint-plugin). The build process enforces zero tolerance for errors and warnings, ensuring reliable and maintainable code. All TypeScript is fully typed with no explicit any, and the codebase is validated with ESLint, Prettier, and dead code detection.
+This plugin follows strict code quality standards using [Obsidian's official ESLint plugin](https://github.com/obsidianmd/eslint-plugin) and the build process enforces zero tolerance for errors and warnings. All TypeScript is fully typed with no explicit any, and the codebase is validated with ESLint, Prettier, and dead code detection.
 
 ## Known Issues
 
