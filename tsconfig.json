@@ -22,7 +22,5 @@
     "target": "ES2018",
     "allowSyntheticDefaultImports": true
   },
-  "include": [
-    "**/*.ts"
-  ]
+  "include": ["**/*.ts"]
 }

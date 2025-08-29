@@ -2,11 +2,12 @@
 
 ## Introduction
 
-Featured Image is a plugin for Obsidian that automatically sets a **featured image** property in the Frontmatter section of your notes based on the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) image found in your document.
+Featured Image is a complementary plugin for [Notebook Navigator](https://github.com/johansan/notebook-navigator) that automatically finds and sets thumbnail images for your notes. It detects the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) in each document and creates optimized resized thumbnails for faster loading.
 
-This allows you to create rich note lists similar to what you see in other popular note taking applications such as [Apple Notes](https://apps.apple.com/us/app/notes/id1110145109), [Evernote](https://evernote.com/) and [Bear](https://bear.app/).
+When used with Notebook Navigator, your notes display with beautiful thumbnail previews in the file list, creating a rich visual browsing experience similar to Apple Notes, Evernote, and Bear. The resized thumbnails ensure smooth scrolling even with thousands of notes.
 
-https://github.com/user-attachments/assets/48be65f6-83b5-43f1-8e42-f82f08932b57
+![Set featured images in all files](images/notebooknavigator.png)
+
 
 If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan) or [Sponsor on GitHub ❤️](https://github.com/sponsors/johansan).
 
@@ -14,223 +15,118 @@ If you enjoy using Featured Image, please consider [buying me a coffee](https://
 
 ## Key Features
 
-- Automatically updates the Frontmatter section in your notes with a featured image property
-- Support for local images, external images, YouTube thumbnails, and Auto Card Link images
-- Full support for Wiki image links with theme selectors and parameters (e.g., `![[image.jpg#right|caption|300]]`)
-- Downloads and caches external images locally for offline access
-- Create resized thumbnails of featured images with configurable dimensions
-- Bulk update commands for processing all files or all documents in the current folder
-- Cross-platform support for desktop and mobile
-- Highly customizible (see [Settings](#settings))
+### Automatic Image Detection
+- Finds the first image in each note (local files, external URLs, YouTube videos, or Auto Card Links)
+- Sets a frontmatter property with the image path for use by other plugins
+- Handles complex Wiki link syntax including captions and dimensions
+- Works automatically as you edit notes - no manual intervention needed
 
-## Installation
+### Smart Thumbnail Generation
+- Creates optimized 128x128 thumbnails for fast loading in file browsers
+- Configurable cropping with alignment control (top/center/bottom, left/center/right)
+- Stores thumbnails separately from originals to preserve quality
+- Reduces memory usage and improves scrolling performance with large vaults
 
-1. Open Obsidian and go to **Settings**
-2. Navigate to "Community Plugins" and click "Browse"
-3. Search for "Featured Image"
-4. Click "Install" and then "Enable" to activate the plugin
-5. Click "Options" to configure the plugin settings
+### Bulk Processing
+- Update your entire vault or specific folders with one command
+- Preserves original file modification dates during bulk operations
+- Clean up unused downloaded images to save disk space
+- Re-render all thumbnails when you change size or alignment settings
 
-## How to Use
+### Works With Your Favorite Plugins
+- **Notebook Navigator** - Display beautiful thumbnails in the file list
+- **Obsidian Bases** - Show image previews in database table views (Obsidian 1.9+)
+- **Dataview** - Include thumbnails in custom queries and lists
+- Runs on desktop and mobile
 
-### Basic Usage
+## Installation & Setup
 
-1. Install the Featured Image plugin (see [Installation](#installation) section).
-2. Make sure to review and adjust the [settings](#settings) to your liking.
-3. Open a note containing an image, a YouTube link, or an Auto Card Link.
-4. Change the contents of the note, for example add a new image, YouTube link, or Auto Card Link.
-5. The plugin will automatically set the featured image property in the note's frontmatter.
+1. Open Obsidian Settings → Community Plugins → Browse
+2. Search for "Featured Image" → Install → Enable
+3. Click "Options" to configure settings (especially **Thumbnails Folder** if you want to change where images are stored)
+4. The plugin automatically detects and sets featured images when you edit notes containing images, YouTube links, or Auto Card Links
 
-### Using Bulk Update Commands
+## Bulk Commands
 
-Featured Image provides several powerful commands to manage featured images across your entire vault:
+Access these commands via Command Palette (Ctrl/Cmd + P):
 
-1. **Set featured images in all files**
-   - This command scans all markdown files in your vault, and sets or updates the featured image property based on the first image or YouTube link found in each file.
-   - The original modification dates of your files are preserved.
-   - To use:
-     1. Open the Command Palette (Ctrl/Cmd + P)
-     2. Search for "Featured Image: Set featured images in all files"
-     3. Select the command and confirm the action in the modal that appears
+1. **Set featured images in all files**  
+   Scans your entire vault and sets featured images based on the first image found in each note. File modification dates are preserved.
 
-2. **Set featured images in current folder**
-   - This command scans all markdown files in the current folder and its subfolders, and sets or updates the featured image property based on the first image or YouTube link found in each file.
-   - The original modification dates of your files are preserved.
-   - To use:
-     1. Open the Command Palette (Ctrl/Cmd + P)
-     2. Search for "Featured Image: Set featured images in current folder"
-     3. Select the command and confirm the action in the modal that appears
+2. **Set featured images in current folder**  
+   Same as above but only processes the current folder and its subfolders.
 
-3. **Remove featured images from all files**
-   - This command removes the featured image property from the frontmatter of all markdown files in your vault.
-   - The original modification dates of your files are preserved.
-   - To use:
-     1. Open the Command Palette (Ctrl/Cmd + P)
-     2. Search for "Featured Image: Remove featured images from all files"
-     3. Select the command and confirm the action in the modal that appears
+3. **Remove featured images from all files**  
+   Clears all featured image properties from your vault while preserving file modification dates.
 
-4. **Re-render all resized thumbnails**
-   - This command regenerates all resized thumbnails based on your current settings (size, alignment, etc.).
-   - Useful after changing thumbnail settings like alignment or dimensions.
-   - To use:
-     1. Open the Command Palette (Ctrl/Cmd + P)
-     2. Search for "Featured Image: Re-render all resized thumbnails"
-     3. Select the command and confirm the action in the modal that appears
+4. **Remove unused downloaded images and thumbnails**  
+   Deletes downloaded images that are no longer referenced by any notes to free up disk space.
+
+5. **Re-render all resized thumbnails**  
+   Regenerates thumbnails with your current size and alignment settings.
 
 ![Set featured images in all files](images/bulk-update-1.png)
 
-### Creating Note Lists with Previews
-
-You can use Featured Image in combination with other plugins like [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) and [Folder Notes](https://github.com/LostPaul/obsidian-folder-notes) to create beautiful lists of your notes:
-
-1. Ensure your notes have featured images set.
-2. Create a new note for your list, for example using the [Folder Notes plugin](https://github.com/LostPaul/obsidian-folder-notes).
-3. Use [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) to generate a list view of your notes, including the featured image as a preview.
-
-If you're using the thumbnail resizing feature, you can reference the `featureResized` property (or your custom property name) in your queries for optimized previews:
-
-Here is an example Dataview query for a list with previews that also shows the subfolders of your notes.
-I have chosen to include a Frontmatter property called "foldernote" in my folder notes so they are not shown in the list.
-
-```dataview
-TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", regexreplace(file.folder, ".*\/([^\/]+)$", "$1") as "Folder", embed(link(feature)) as Image
-FROM ""
-WHERE contains(file.folder, this.file.folder)
-WHERE file.name != this.file.name
-WHERE !contains(foldernote, true)
-SORT file.ctime DESC
-```
-
-If you have enabled the thumbnail resizing feature, you can use the following query to display optimized thumbnails instead:
-
-```dataview
-TABLE dateformat(file.ctime, "yyyy-MM-dd") AS "Date", regexreplace(file.folder, ".*\/([^\/]+)$", "$1") as "Folder", embed(link(featureResized)) as Thumbnail
-FROM ""
-WHERE contains(file.folder, this.file.folder)
-WHERE file.name != this.file.name
-WHERE !contains(foldernote, true)
-SORT file.ctime DESC
-```
-
-![Dataview with previews](images/dataview.png)
-
 ## Settings
 
-Here are the settings for the Featured Image plugin:
+### Basic Settings
 
-1. **Show Notifications**
-   - Default: `false`
-   - Description: When enabled, the plugin will show notifications when featured images are set, updated, or removed.
-   - Usage: Enable this if you want to receive visual feedback when the plugin makes changes to your notes.
+1. **Show Notifications** - Shows notifications when featured images are set, updated, or removed.
 
-2. **Excluded Folders**
-   - Default: `[]`
-   - Description: List of folders to exclude from processing.
-   - Usage: Add folder paths (e.g., `templates`, `archive`) to prevent the plugin from processing files in these locations. To add subfolders, use the full path (e.g., `templates/my-subfolder`).
+2. **Thumbnails Folder** - Folder where external images, YouTube thumbnails, and resized images are stored. Subfolders are created automatically.
 
-3. **Frontmatter Property**
-   - Default: `feature`
-   - Description: The name of the frontmatter property used to store the featured image path.
-   - Usage: Change this if you want to use a different property name in your frontmatter.
+3. **Excluded Folders** - Comma-separated list of folders to exclude from processing (e.g., `templates, archive`).
 
-4. **Media Link Format**
-   - Default: `plain`
-   - Description: Choose how to format the featured image property in frontmatter:
-     - `Plain text`: Stores the path as-is (e.g., `path/to/image.png`)
-     - `Wiki link`: Stores the path as a wiki link (e.g., `[[path/to/image.png]]`)
-     - `Embedded link`: Stores the path as an embedded link (e.g., `![[path/to/image.png]]`)
-   - Usage: Choose the format that best suits your needs and workflow. Plain text is the most portable, while wiki and embedded links integrate better with Obsidian's linking system.
+4. **Frontmatter Property** - The name of the frontmatter property for the featured image path.
 
-5. **Only Update if Frontmatter Property Exists**
-   - Default: `false`
-   - Description: When enabled, the plugin will only update notes that already have a featured image property.
-   - Usage: Enable this if you want to manually control which notes have featured images.
+### Resized Thumbnail
 
-6. **Keep Empty Property**
-   - Default: `false`
-   - Description: When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found.
-   - Usage: Enable this if you want to preserve the frontmatter property even when there's no featured image.
+5. **Create Resized Thumbnail** - Creates optimized thumbnail versions of featured images for faster loading.
 
-7. **Preserve Template Images**
-   - Default: `false`
-   - Description: When enabled, banner images set via templates will be retained even when the featured image is removed from the document.
-   - Usage: Enable this if you use templates to set banner images and want to ensure they aren't affected by featured image updates.
+6. **Resized Thumbnail Frontmatter Property** - The frontmatter property for the resized thumbnail path.
 
-8. **Require Exclamation Mark for YouTube Thumbnails**
-   - Default: `true`
-   - Description: When enabled, YouTube links must be prefixed with `!` to be considered for featured images.
-   - Usage: Keep this enabled if you want more control over which YouTube links become featured images.
+7. **Max Resized Width/Height** - Maximum dimensions in pixels for resized thumbnails (0 = no restriction).
 
-9. **Download WebP**
-   - Default: `true`
-   - Description: When enabled, the plugin will attempt to download WebP format thumbnails for YouTube videos.
-   - Usage: Disable this if you prefer JPG thumbnails or if you're experiencing issues with WebP images.
+8. **Fill Resized Dimensions** - Makes thumbnails exactly the specified size by cropping if needed.
 
-10. **Thumbnail Download Folder**
-    - Default: `thumbnails`
-    - Description: The folder where external images, YouTube thumbnails, and Auto Card Link images will be downloaded and stored. To set a subfolder, use the full path (e.g., `_resources/thumbnails`).
-    - Usage: Set this to your preferred location for storing downloaded images. The plugin will automatically create subfolders:
-      - `youtube/` for YouTube thumbnails
-      - `external/` for external images
-      - `autocardlink/` for Auto Card Link external images
+9. **Vertical/Horizontal Alignment** - Controls which part of the image is preserved when cropping.
 
-11. **Image Extensions**
-    - Default: `["png", "jpg", "jpeg", "gif", "webp"]`
-    - Description: List of image file extensions to consider when searching for featured images.
-    - Usage: Add or remove extensions based on the image types you use in your vault.
+### Advanced Settings
 
-12. **Create Resized Thumbnail**
-    - Default: `false`
-    - Description: When enabled, the plugin will create a resized version of the featured image and store its path in a separate frontmatter property.
-    - Usage: Enable this to generate smaller, optimized versions of your featured images for faster loading in previews.
+10. **Show Advanced Settings** - Toggle to show or hide advanced configuration options.
 
-13. **Resized Thumbnail Frontmatter Property**
-    - Default: `featureResized`
-    - Description: The name of the frontmatter property used to store the resized thumbnail path.
-    - Usage: Change this if you want to use a different property name for the resized thumbnail.
+11. **Media Link Format** - How to format image paths in frontmatter:
+    - Plain text: `path/to/image.png`
+    - Wiki link: `[[path/to/image.png]]`
+    - Embedded link: `![[path/to/image.png]]`
 
-14. **Max Resized Width**
-    - Default: `0` (no restriction)
-    - Description: Maximum width in pixels for the resized thumbnail. Use 0 for no width restriction.
-    - Usage: Set this to limit the width of generated resized thumbnails.
+12. **Only Update if Frontmatter Property Exists** - Only updates notes that already have the featured image property.
 
-15. **Max Resized Height**
-    - Default: `0` (no restriction)
-    - Description: Maximum height in pixels for the resized thumbnail. Use 0 for no height restriction.
-    - Usage: Set this to limit the height of generated resized thumbnails.
+13. **Keep Empty Property** - Keeps the property with an empty value instead of removing it when no image is found.
 
-16. **Fill Resized Dimensions**
-    - Default: `false`
-    - Description: When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.
-    - Usage: Enable this if you want consistently sized thumbnails with the exact dimensions specified, cropped according to your alignment settings. Keep disabled to resize the image while maintaining the original aspect ratio without cropping.
+14. **Don't Clear Existing Property** - Preserves existing featured images when no new image is found in the document.
 
-17. **Resized Vertical Align**
-    - Default: `top`
-    - Description: Choose the vertical alignment (top, center, bottom) for cropped images when Fill Resized Dimensions is enabled.
-    - Usage: This setting determines which part of the image is preserved when cropping vertically.
+15. **Require Exclamation Mark for YouTube Thumbnails** - YouTube links must be prefixed with `!` to be considered.
 
-18. **Resized Horizontal Align**
-    - Default: `center`
-    - Description: Choose the horizontal alignment (left, center, right) for cropped images when Fill Resized Dimensions is enabled.
-    - Usage: This setting determines which part of the image is preserved when cropping horizontally.
+16. **Download WebP** - Downloads WebP format for YouTube thumbnails when available.
 
-![Settings](images/settings.png)
+17. **Local Image Extensions** - Comma-separated list of image file extensions to search for (e.g., `png,jpg,jpeg,gif,webp`).
 
-## Benefits and Optimizations
+18. **Debug Mode** - Logs detailed information to the console for troubleshooting.
 
-Featured Image is designed with efficiency and performance in mind:
+19. **Dry Run** - Prevents any changes from being made to files (preview mode).
 
-1. **Smart Caching**: The plugin utilizes Obsidian's built-in caching system to quickly access file metadata, minimizing the need for repeated file reads and improving processing speed.
+## Technical Details
 
-2. **Optimized Document Scanning**: A combined regex is used to match various image formats, external URLs, YouTube links, and Auto Card Link images in a single pass, reducing the number of regex operations to just one, improving efficiency.
+- **Smart Caching** - Downloads external images once and stores them locally. Failed downloads use a 1x1 placeholder to prevent repeated attempts
+- **YouTube Support** - Automatically downloads thumbnails with WebP and multiple JPG fallback resolutions
+- **Performance** - Single-pass regex matching and Obsidian's metadata cache for fast processing
+- **File Preservation** - Original modification dates remain unchanged during bulk operations
+- **Automatic Organization** - Creates subfolders (youtube/, external/, autocardlink/, resized/) for different image types
 
-3. **Intelligent Image Handling**: 
-   - For external images: Downloads and caches them locally for offline access
-   - For YouTube links: Attempts to download WebP thumbnails first (if enabled), falling back to different types of JPG formats
-   - For any featured image: Can create resized thumbnails with configurable dimensions for optimized previews
-   This ensures the best quality images while minimizing bandwidth usage.
+### Code Quality
 
-4. **Customizable Processing**: Exclude specific folders and choose to only update existing featured images, providing flexibility and further optimization based on individual needs.
+This plugin follows strict code quality standards using [Obsidian's official ESLint plugin](https://github.com/obsidianmd/eslint-plugin). The build process enforces zero tolerance for errors and warnings, ensuring reliable and maintainable code. All TypeScript is fully typed with no explicit any, and the codebase is validated with ESLint, Prettier, and dead code detection.
 
 ## Known Issues
 
@@ -239,22 +135,26 @@ Featured Image is designed with efficiency and performance in mind:
 There is a known issue in the plugin "Mousewheel Image Zoom" when the same image name appears multiple times in a document. The following examples will not get resized:
 
 1. When an image is mentioned in text and then used as a link:
+
    ```markdown
    Some text mentioning example.jpg in a paragraph
    Another paragraph
 
-   ![[example.jpg|100]]  # This link would not get resized
+   ![[example.jpg|100]] # This link would not get resized
    ```
 
 2. When an image is used in frontmatter and then in the document:
+
    ```markdown
    ---
    feature: example.jpg
    ---
-   ![[example.jpg|100]]  # This link would not get resized
+
+   ![[example.jpg|100]] # This link would not get resized
    ```
 
 #### Recommended Workaround
+
 The "Image Converter" plugin offers similar functionality and has fixed this issue in version 1.2.20. Until the Mousewheel Image Zoom plugin is updated, we recommend:
 
 1. Switch to using the "Image Converter" plugin

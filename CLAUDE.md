@@ -1,196 +1,204 @@
-# Obsidian Featured Image Plugin - CLAUDE.md
+# CLAUDE instructions v1.7 Generic
 
-## Project Summary
+## Building
 
-Featured Image is an Obsidian plugin that automatically sets featured image properties in note frontmatter. It detects the first image in a note (local, YouTube, or external) and updates the frontmatter accordingly. The plugin supports bulk operations, thumbnail generation, and automatic image downloading.
-
-## Core Features
-- **Automatic Featured Image Detection**: Sets frontmatter property based on first image found
-- **Multiple Image Sources**: Wiki links (`![[image.jpg]]`), markdown links, YouTube videos, external URLs, and Auto Card Link blocks
-- **Thumbnail Generation**: Creates resized versions with configurable dimensions and alignment
-- **Bulk Operations**: Process entire vault or folders with progress tracking
-- **Smart Downloading**: Caches external images and YouTube thumbnails locally
-- **Image Management**: Cleanup commands for unused downloaded images
-
-## Quick Start for AI Assistants
-- **Main Entry Point**: `src/main.ts` (`FeaturedImage` class)
-- **Settings**: `src/settings.ts` (configuration and UI)
-- **Build Command**: `npm run build`
-- **Dev Mode**: `npm run dev`
-- **Release Assets**: `main.js`, `manifest.json`, `styles.css`
-- **Key Patterns**: Single main class, regex-based image detection, Canvas API for thumbnails
-- **Testing**: Manual testing within an Obsidian vault
-
-## Architecture Overview
-
-### Directory Structure
-```
-obsidian-featured-image/
-├── src/
-│   ├── main.ts          # Core plugin logic, image processing, file monitoring
-│   ├── settings.ts      # Settings interface, defaults, configuration UI
-│   └── modals.ts        # Confirmation modal for bulk operations
-├── styles.css           # Plugin styles
-├── manifest.json        # Plugin metadata
-└── package.json         # Dependencies (mainly build tools)
-```
-
-### Core Components
-
-#### FeaturedImage Class (main.ts)
-The main plugin class handles:
-- **Image Detection**: Pre-compiled regex patterns for various image formats
-- **Download Queue**: Manages external image and YouTube thumbnail downloads
-- **Thumbnail Generation**: Canvas-based resizing with configurable dimensions
-- **File Monitoring**: Watches for metadata changes to update featured images
-- **Bulk Processing**: Batch operations with progress notifications
-
-Key methods:
-- `updateFeaturedImage()`: Core logic for detecting and setting featured images
-- `downloadExternalImage()`: Downloads and caches external images
-- `createResizedImage()`: Generates thumbnails using Canvas API
-- `cleanupDownloadedImages()`: Removes unused cached images
-
-#### Settings (settings.ts)
-- `FeaturedImageSettings`: TypeScript interface for all settings
-- `DEFAULT_SETTINGS`: Default configuration values
-- `FeaturedImageSettingTab`: Settings UI with dynamic controls
-
-### Image Detection Patterns
-
-The plugin uses optimized regex patterns to detect:
-1. **Wiki-style images**: `![[image.jpg]]` with full parameter support
-2. **Markdown images**: `![alt](path/to/image.jpg)`
-3. **YouTube videos**: Various YouTube URL formats
-4. **External images**: HTTPS URLs to image files
-5. **Auto Card Link**: Special code block format
-
-### File Organization
-
-Downloaded content is organized in `.obsidian/plugins/featured-image/`:
-```
-thumbnails/
-├── youtube/         # YouTube thumbnails (hash-based names)
-├── external/        # Downloaded external images
-├── autocardlink/    # Auto Card Link images
-└── resized/         # Generated thumbnail versions
-```
-
-## Code Style & Patterns
-
-### TypeScript Conventions
-- **Strict Mode**: Enforced via tsconfig.json
-- **Type Safety**: No unsafe `as` casting for Obsidian types
-- **Error Handling**: Try-catch blocks with user notifications
-
-### Performance Optimizations
-- **Pre-compiled Regex**: Patterns compiled once at startup
-- **Batch Processing**: Files processed in groups of 5
-- **Debouncing**: Prevents rapid successive updates
-- **Early Returns**: Skip processing when no changes needed
-
-### State Management
-- `bulkUpdateInProgress`: Prevents concurrent bulk operations
-- `filesBeingUpdated`: Set to track files currently being processed
-- `lastProcessedContent`: Map to detect actual content changes
-
-## Obsidian Plugin Requirements
-
-### Type Safety
-Per Obsidian guidelines, avoid type assertions:
-```typescript
-// ❌ Bad
-const file = abstractFile as TFile;
-
-// ✅ Good
-if (abstractFile instanceof TFile) {
-    // abstractFile is now safely typed as TFile
-}
-```
-
-### File Deletion
-Use `fileManager.trashFile()` instead of `vault.delete()`:
-```typescript
-// ❌ Bad
-await this.app.vault.delete(file);
-
-// ✅ Good
-await this.app.fileManager.trashFile(file);
-```
-
-### Styling
-Avoid inline styles - use CSS classes:
-```typescript
-// ❌ Bad
-element.style.backgroundColor = '#dc3545';
-
-// ✅ Good
-element.addClass('featured-image-error');
-```
-
-## Common Development Tasks
-
-### Add a New Setting
-1. Update `FeaturedImageSettings` interface in `settings.ts`
-2. Add default value to `DEFAULT_SETTINGS`
-3. Add UI control in `FeaturedImageSettingTab.display()`
-4. Use setting in `main.ts` via `this.settings.propertyName`
-
-### Add a New Image Source
-1. Add detection regex to `initializeRegexPatterns()` in `main.ts`
-2. Update `updateFeaturedImage()` to handle the new format
-3. Add download logic if needed (see `downloadExternalImage()`)
-4. Update settings descriptions to mention the new source
-
-### Modify Thumbnail Generation
-1. Edit `createResizedImage()` method in `main.ts`
-2. Canvas operations use standard HTML5 Canvas API
-3. Test with various image formats and sizes
-
-### Add a New Bulk Command
-1. Add command in `onload()` method
-2. Create handler method (follow pattern of `setFeaturedImagesInFolder()`)
-3. Use `Notice` for progress updates
-4. Set `bulkUpdateInProgress` flag during operation
-
-## Build & Development
+- ALWAYS run `./scripts/build.sh` when finished making code changes
+- The build MUST complete with ZERO errors and ZERO warnings
+- If the build shows ANY errors or warnings, you MUST fix them immediately
+- Do NOT accept or ignore any ESLint errors, TypeScript errors, unused imports,
+  or dead code warnings
+- The build summary must show "✅ No warnings" - anything else is unacceptable
+- ALWAYS try to avoid eslint-ignore comments, try to find the actual problem and
+  fix it properly instead of patching with ignore comments
+- IMPORTANT: The build will NOT deploy if there are ANY warnings or errors - the
+  deployment will be aborted
 
 ```bash
-# Install dependencies
-npm install
-
-# Development build with watch mode
-npm run dev
-
-# Production build
-npm run build
-
-# Version bump (updates manifest and versions.json)
-npm version patch
+# Build (use this instead of npm run build)
+./scripts/build.sh
 ```
 
-The plugin uses esbuild for fast compilation. Output files:
-- `main.js`: Compiled plugin code
-- `styles.css`: Plugin styles (currently minimal)
-- `manifest.json`: Plugin metadata (not generated, manually maintained)
+## Version Management
 
-## Testing Checklist
+- NEVER modify version numbers in `manifest.json`, `package.json`, or
+  `versions.json`
+- These files are automatically updated by the release script
+  `scripts/release.js`
+- Only update version information in `src/releaseNotes.ts` when adding release
+  notes
 
-When making changes, test:
-1. **Image Detection**: All supported formats (wiki, markdown, YouTube, external)
-2. **Bulk Operations**: Small folder, large vault, cancellation
-3. **Thumbnail Generation**: Different sizes, alignments, formats
-4. **Edge Cases**: No images, multiple images, invalid URLs
-5. **Performance**: Large files, many images, rapid changes
-6. **Settings**: All options work as expected
-7. **File Watching**: Auto-updates on file changes
+## Code structure - IMPORTANT
 
-## Debug Mode
+When creating new classes or adding imports, member variables and functions,
+ALWAYS follow the following structure:
 
-Enable debug mode in settings for detailed console logging:
-- Image detection results
-- Download progress
-- Thumbnail generation details
-- Performance metrics
+### Functional Components:
 
-Logs are prefixed with `[Featured Image]` for easy filtering.
+// Imports import React, { useState, useEffect } from 'react';
+
+// Types/Interfaces interface Props { ... }
+
+// Component export function ComponentName({ prop1, prop2 }: Props) { // Hooks
+(state, context, refs) const [state, setState] = useState(); const context =
+useContext(); const ref = useRef();
+
+    // Derived state / memoized values
+    const computed = useMemo(() => ..., []);
+
+    // Callbacks / handlers
+    const handleClick = useCallback(() => ..., []);
+
+    // Effects (at bottom)
+    useEffect(() => ..., []);
+
+    // Render
+    return <div>...</div>;
+
+}
+
+### Key Rules:
+
+- Hooks first - All hooks at the top
+- Logic in middle - Computed values, handlers
+- Effects at bottom - Just before return
+- Early returns - Guard clauses before main render
+- Extract complex logic - Use custom hooks for reusability
+
+## Type Guards for Obsidian
+
+Always use type guards for Obsidian types:
+
+```typescript
+// GOOD
+function isFolder(file: TAbstractFile): file is TFolder {
+  return file instanceof TFolder;
+}
+
+// BAD - Never use type assertions
+const folder = file as TFolder;
+```
+
+## Important Instructions
+
+### SOFTWARE DESIGN
+
+- ALWAYS use simple and clean architectural solutions
+- ALWAYS consider best architectural practices. Example: do NOT implement direct
+  file reads in render. Use memory cache for synchronous data access.
+
+### FIXING ISSUES
+
+- NEVER try to fix the issue by patching existing code, instead
+- ALWAYS work to find the underlying reason for the issue
+- ALWAYS doubt the quality of the code, and do not be afraid to change things to
+  make things better
+- NEVER edit code to fix an issue if you are not absolutely certain what causes
+  it
+
+### COMMENTING POLICY
+
+- Comment what the code does and how to use it; do not describe change history or "what we changed"
+- Avoid migration/patch notes in code; put rationale in docs if needed
+
+## Writing Style Guide - CRITICAL
+
+### Core Principle: Features Speak for Themselves
+- Write WHAT features do, NOT WHY they're good or beneficial
+- Trust readers to understand implications without explanation
+- Avoid redundant qualifiers, justifications, and benefit statements
+
+### Feature Descriptions
+
+**BAD - Never write like this:**
+- "Touch-friendly interface with properly sized buttons for better one-handed navigation"
+- "Tag first interface - Display tags above or below folders to match your own style"
+- "Efficient caching system for improved performance and faster load times"
+- "Customizable colors to personalize your experience"
+- "Smart folder expansion for easier navigation"
+- "Optimized search to quickly find your files"
+
+**GOOD - Always write like this:**
+- "Touch-friendly interface with properly sized buttons and optimized header layouts"
+- "Tag first interface - Display tags above or below folders"
+- "Efficient caching system using IndexedDB and memory mirror"
+- "Customizable colors for folders and tags"
+- "Automatic folder expansion when revealing files"
+- "Full-text search with tag and folder filtering"
+
+### Rules for All Writing
+
+1. **Remove benefit phrases**: "for better", "to improve", "for easier", "to enhance", "allows you to", "enables", "helps you"
+2. **Remove personal phrases**: "to match your style", "personalize your", "your own", "tailored to you"
+3. **Remove performance claims**: "faster", "quicker", "more efficient" (unless stating measurable facts)
+4. **Remove subjective adjectives**: "smart", "powerful", "seamless", "intuitive", "elegant"
+5. **State facts only**: Describe what exists, not why it's good
+
+### Code Comments
+
+**BAD:**
+```typescript
+// This cache improves performance by storing data in memory for faster access
+// Smart algorithm to efficiently find the best match
+// Elegant solution for handling edge cases smoothly
+```
+
+**GOOD:**
+```typescript
+// Stores vault data in memory, mirroring IndexedDB
+// Finds first matching file by name and path
+// Handles null values and empty arrays
+```
+
+### Documentation Examples
+
+**BAD:**
+"The plugin features a powerful two-pane interface that allows you to efficiently navigate your vault with an intuitive folder tree on the left and a detailed file list on the right, making it easy to find and organize your notes."
+
+**GOOD:**
+"Two-pane interface with folder/tag tree on the left and file list on the right."
+
+### UI Text
+- Use sentence case
+- State the action or feature name only
+- No explanatory suffixes
+
+**BAD:** "Enable Auto-reveal (automatically shows current file location)"
+**GOOD:** "Enable auto-reveal"
+
+### NEVER use these patterns:
+- "X for Y" (feature for benefit)
+- "X to Y" (feature to achieve)
+- "X that allows/enables Y"
+- "X so you can Y"
+- Any form of selling or persuasion
+- Any explanation of why something is useful
+
+### ALWAYS
+
+- ALWAYS use type guards instead of assertions for Obsidian types
+- ALWAYS use `fileManager.trashFile()` not `vault.delete()`
+- ALWAYS define static styles in CSS files, not inline
+  - Exception: Dynamic user-selected values (e.g., colors in ColorPickerModal) are appropriate as inline styles
+  - Use `element.style.backgroundColor = userColor` for runtime dynamic values
+  - Use CSS files for all static styling, themes, and predefined appearances
+- ALWAYS use sentence case for UI text
+- ALWAYS use the mobileLogger class to log on mobile, mobile devices do not
+  support console
+- ALWAYS add debug logging to understand issues instead of applying fixes for
+  testing
+
+### NEVER
+
+- NEVER use type assertions (as) for Obsidian types
+- NEVER use `any` or `unknown` types
+- NEVER assume a problem is fixed unless user has tested that it works first
+- NEVER assume you know the solution to a problem without reading logs
+- NEVER apply a bug fix unless I have explicitly approved it. If you are unsure,
+  add debug logs
+- NEVER add comments describing the changes you did. Comments should only
+  describe what code the does
+- NEVER remove debug logs because you think an issue is resolved until I have
+  explicitly approved the solution
+- NEVER keep deprecated code for backwards compatibility - remove it immediately
+- NEVER add unnecessary fallbacks "just in case" - if parameters are required,
+  make them required in TypeScript. The compiler will enforce correct usage
