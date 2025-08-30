@@ -8,7 +8,6 @@ When used with Notebook Navigator, your notes display with beautiful thumbnail p
 
 ![Set featured images in all files](images/notebooknavigator.png)
 
-
 If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan) or [Sponsor on GitHub ❤️](https://github.com/sponsors/johansan).
 
 <a href="https://www.buymeacoffee.com/johansan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
@@ -16,24 +15,28 @@ If you enjoy using Featured Image, please consider [buying me a coffee](https://
 ## Key Features
 
 ### Automatic Image Detection
+
 - Finds the first image in each note (local files, external URLs, YouTube videos, or Auto Card Links)
 - Sets a frontmatter property with the image path for use by other plugins
 - Handles complex Wiki link syntax including captions and dimensions
 - Works automatically as you edit notes - no manual intervention needed
 
 ### Smart Thumbnail Generation
+
 - Creates optimized 128x128 thumbnails for fast loading in file browsers
 - Configurable cropping with alignment control (top/center/bottom, left/center/right)
 - Stores thumbnails separately from originals to preserve quality
 - Reduces memory usage and improves scrolling performance with large vaults
 
 ### Bulk Processing
+
 - Update your entire vault or specific folders with one command
 - Preserves original file modification dates during bulk operations
 - Clean up unused downloaded images to save disk space
 - Re-render all thumbnails when you change size or alignment settings
 
 ### Works With Your Favorite Plugins
+
 - **Notebook Navigator** - Display beautiful thumbnails in the file list
 - **Obsidian Bases** - Show image previews in database table views (Obsidian 1.9+)
 - **Dataview** - Include thumbnails in custom queries and lists
