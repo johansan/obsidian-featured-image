@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import FeaturedImage from './main';
+import { strings } from './i18n';
 
 export interface FeaturedImageSettings {
     // Basic settings (always visible)
@@ -76,8 +77,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Show notifications on update
         new Setting(containerEl)
-            .setName('Show notifications')
-            .setDesc('Show notifications when the featured image is set, updated or removed.')
+            .setName(strings.settings.items.showNotifications.name)
+            .setDesc(strings.settings.items.showNotifications.desc)
             .addToggle(toggle => {
                 toggle.setValue(this.plugin.settings.showNotificationsOnUpdate).onChange(async value => {
                     this.plugin.settings.showNotificationsOnUpdate = value;
@@ -87,8 +88,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Frontmatter property
         new Setting(containerEl)
-            .setName('Frontmatter property')
-            .setDesc('The name of the frontmatter property to update with the featured image')
+            .setName(strings.settings.items.frontmatterProperty.name)
+            .setDesc(strings.settings.items.frontmatterProperty.desc)
             .addText(text =>
                 text
                     .setPlaceholder(DEFAULT_SETTINGS.frontmatterProperty)
@@ -101,10 +102,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Thumbnails folder
         new Setting(containerEl)
-            .setName('Thumbnails folder')
-            .setDesc(
-                'Folder for downloaded thumbnails and resized images. Subfolders will be created automatically for different image types.'
-            )
+            .setName(strings.settings.items.thumbnailsFolder.name)
+            .setDesc(strings.settings.items.thumbnailsFolder.desc)
             .addText(text =>
                 text
                     .setPlaceholder(DEFAULT_SETTINGS.thumbnailsFolder)
@@ -123,8 +122,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Excluded folders
         new Setting(containerEl)
-            .setName('Excluded folders')
-            .setDesc('Comma separated list of folders to exclude from the featured image plugin.')
+            .setName(strings.settings.items.excludedFolders.name)
+            .setDesc(strings.settings.items.excludedFolders.desc)
             .addTextArea(text =>
                 text.setValue(this.plugin.settings.excludedFolders.join(',')).onChange(async value => {
                     this.plugin.settings.excludedFolders = value.split(',').map(folder => folder.trim().replace(/\/$/, '')); // Remove trailing slash
@@ -134,8 +133,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Create resized thumbnail
         new Setting(containerEl)
-            .setName('Resize feature image')
-            .setDesc('Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.')
+            .setName(strings.settings.items.resizeFeatureImage.name)
+            .setDesc(strings.settings.items.resizeFeatureImage.desc)
             .addToggle(toggle =>
                 toggle.setValue(this.plugin.settings.createResizedThumbnail).onChange(async value => {
                     this.plugin.settings.createResizedThumbnail = value;
@@ -152,11 +151,11 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Resized frontmatter property
         new Setting(thumbnailSettingsEl)
-            .setName('Resized thumbnail property name')
-            .setDesc('The name of the frontmatter property to store the resized thumbnail path.')
+            .setName(strings.settings.items.resizedThumbnailProperty.name)
+            .setDesc(strings.settings.items.resizedThumbnailProperty.desc)
             .addText(text =>
                 text
-                    .setPlaceholder('thumbnail')
+                    .setPlaceholder(strings.settings.items.resizedThumbnailProperty.placeholder)
                     .setValue(this.plugin.settings.resizedFrontmatterProperty)
                     .onChange(async value => {
                         this.plugin.settings.resizedFrontmatterProperty = value || 'thumbnail';
@@ -166,11 +165,11 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Max resized width
         new Setting(thumbnailSettingsEl)
-            .setName('Max resized width')
-            .setDesc('Maximum width of the resized thumbnail in pixels. Use 0 for no width restriction.')
+            .setName(strings.settings.items.maxResizedWidth.name)
+            .setDesc(strings.settings.items.maxResizedWidth.desc)
             .addText(text =>
                 text
-                    .setPlaceholder('128')
+                    .setPlaceholder(strings.settings.items.maxResizedWidth.placeholder)
                     .setValue(String(this.plugin.settings.maxResizedWidth))
                     .onChange(async value => {
                         const width = parseInt(value);
@@ -181,11 +180,11 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Max resized height
         new Setting(thumbnailSettingsEl)
-            .setName('Max resized height')
-            .setDesc('Maximum height of the resized thumbnail in pixels. Use 0 for no height restriction.')
+            .setName(strings.settings.items.maxResizedHeight.name)
+            .setDesc(strings.settings.items.maxResizedHeight.desc)
             .addText(text =>
                 text
-                    .setPlaceholder('128')
+                    .setPlaceholder(strings.settings.items.maxResizedHeight.placeholder)
                     .setValue(String(this.plugin.settings.maxResizedHeight))
                     .onChange(async value => {
                         const height = parseInt(value);
@@ -196,10 +195,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Fill resized dimensions
         new Setting(thumbnailSettingsEl)
-            .setName('Fill resized dimensions')
-            .setDesc(
-                'When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.'
-            )
+            .setName(strings.settings.items.fillResizedDimensions.name)
+            .setDesc(strings.settings.items.fillResizedDimensions.desc)
             .addToggle(toggle =>
                 toggle.setValue(this.plugin.settings.fillResizedDimensions).onChange(async value => {
                     this.plugin.settings.fillResizedDimensions = value;
@@ -213,13 +210,13 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Vertical alignment setting
         new Setting(alignmentSettingsEl)
-            .setName('Vertical alignment')
-            .setDesc('Choose the vertical alignment for cropped images.')
+            .setName(strings.settings.items.verticalAlignment.name)
+            .setDesc(strings.settings.items.verticalAlignment.desc)
             .addDropdown(dropdown =>
                 dropdown
-                    .addOption('top', 'Top')
-                    .addOption('center', 'Center')
-                    .addOption('bottom', 'Bottom')
+                    .addOption('top', strings.settings.items.verticalAlignment.options.top)
+                    .addOption('center', strings.settings.items.verticalAlignment.options.center)
+                    .addOption('bottom', strings.settings.items.verticalAlignment.options.bottom)
                     .setValue(this.plugin.settings.resizedVerticalAlign)
                     .onChange(async value => {
                         this.plugin.settings.resizedVerticalAlign = value as 'top' | 'center' | 'bottom';
@@ -229,13 +226,13 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Horizontal alignment setting
         new Setting(alignmentSettingsEl)
-            .setName('Horizontal alignment')
-            .setDesc('Choose the horizontal alignment for cropped images.')
+            .setName(strings.settings.items.horizontalAlignment.name)
+            .setDesc(strings.settings.items.horizontalAlignment.desc)
             .addDropdown(dropdown =>
                 dropdown
-                    .addOption('left', 'Left')
-                    .addOption('center', 'Center')
-                    .addOption('right', 'Right')
+                    .addOption('left', strings.settings.items.horizontalAlignment.options.left)
+                    .addOption('center', strings.settings.items.horizontalAlignment.options.center)
+                    .addOption('right', strings.settings.items.horizontalAlignment.options.right)
                     .setValue(this.plugin.settings.resizedHorizontalAlign)
                     .onChange(async value => {
                         this.plugin.settings.resizedHorizontalAlign = value as 'left' | 'center' | 'right';
@@ -246,16 +243,16 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         // Add information about re-rendering thumbnails
         const infoEl = thumbnailSettingsEl.createDiv('thumbnail-info');
         infoEl.createEl('p', {
-            text: 'Tip: After changing alignment or dimension settings, run the command "Re-render all resized thumbnails" from the command palette to update existing thumbnails with the new settings.',
+            text: strings.settings.info.rerenderTip,
             cls: 'setting-item-description'
         });
 
         // Advanced Settings Toggle
-        new Setting(containerEl).setName('Advanced').setHeading();
+        new Setting(containerEl).setName(strings.settings.headings.advanced).setHeading();
 
         new Setting(containerEl)
-            .setName('Show advanced settings')
-            .setDesc('Toggle to show or hide advanced configuration options')
+            .setName(strings.settings.items.showAdvancedSettings.name)
+            .setDesc(strings.settings.items.showAdvancedSettings.desc)
             .addToggle(toggle =>
                 toggle.setValue(this.plugin.settings.showAdvancedSettings).onChange(async value => {
                     this.plugin.settings.showAdvancedSettings = value;
@@ -270,8 +267,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Media link format
         new Setting(advancedSettingsEl)
-            .setName('Media link format')
-            .setDesc('Choose how to format the featured image property in frontmatter.')
+            .setName(strings.settings.items.mediaLinkFormat.name)
+            .setDesc(strings.settings.items.mediaLinkFormat.desc)
             .addDropdown(dropdown =>
                 dropdown
                     .addOption('plain', `${this.plugin.settings.frontmatterProperty}: image.png`)
@@ -287,8 +284,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Only update existing fields toggle
         new Setting(advancedSettingsEl)
-            .setName('Only update if frontmatter property exists')
-            .setDesc('Enable this to only update the frontmatter property if it already exists.')
+            .setName(strings.settings.items.onlyUpdateExisting.name)
+            .setDesc(strings.settings.items.onlyUpdateExisting.desc)
             .addToggle(toggle => {
                 toggle.setValue(this.plugin.settings.onlyUpdateExisting).onChange(async value => {
                     this.plugin.settings.onlyUpdateExisting = value;
@@ -298,10 +295,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Keep empty property
         new Setting(advancedSettingsEl)
-            .setName('Keep empty property')
-            .setDesc(
-                'When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.'
-            )
+            .setName(strings.settings.items.keepEmptyProperty.name)
+            .setDesc(strings.settings.items.keepEmptyProperty.desc)
             .addToggle(toggle => {
                 toggle.setValue(this.plugin.settings.keepEmptyProperty).onChange(async value => {
                     this.plugin.settings.keepEmptyProperty = value;
@@ -311,10 +306,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Preserve template images
         new Setting(advancedSettingsEl)
-            .setName("Don't clear existing property")
-            .setDesc(
-                "When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting)."
-            )
+            .setName(strings.settings.items.preserveTemplateImages.name)
+            .setDesc(strings.settings.items.preserveTemplateImages.desc)
             .addToggle(toggle => {
                 toggle.setValue(this.plugin.settings.preserveTemplateImages).onChange(async value => {
                     this.plugin.settings.preserveTemplateImages = value;
@@ -324,8 +317,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Require exclamation mark for YouTube thumbnails
         new Setting(advancedSettingsEl)
-            .setName('Require exclamation mark for YouTube thumbnails')
-            .setDesc('If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.')
+            .setName(strings.settings.items.requireExclamationForYouTube.name)
+            .setDesc(strings.settings.items.requireExclamationForYouTube.desc)
             .addToggle(toggle =>
                 toggle.setValue(this.plugin.settings.requireExclamationForYouTube).onChange(async value => {
                     this.plugin.settings.requireExclamationForYouTube = value;
@@ -335,8 +328,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Download webp
         new Setting(advancedSettingsEl)
-            .setName('Download WebP')
-            .setDesc('Download WebP versions of images from YouTube if available, otherwise download JPG.')
+            .setName(strings.settings.items.downloadWebP.name)
+            .setDesc(strings.settings.items.downloadWebP.desc)
             .addToggle(toggle => {
                 toggle.setValue(this.plugin.settings.downloadWebP).onChange(async value => {
                     this.plugin.settings.downloadWebP = value;
@@ -346,11 +339,11 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Local image extensions
         new Setting(advancedSettingsEl)
-            .setName('Local image extensions')
-            .setDesc('Comma-separated list of image file extensions to search for in documents.')
+            .setName(strings.settings.items.localImageExtensions.name)
+            .setDesc(strings.settings.items.localImageExtensions.desc)
             .addText(text =>
                 text
-                    .setPlaceholder('png,jpg,jpeg,gif,webp')
+                    .setPlaceholder(strings.settings.items.localImageExtensions.placeholder)
                     .setValue(this.plugin.settings.imageExtensions.join(','))
                     .onChange(async value => {
                         const extensions = value
@@ -369,8 +362,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Debug mode
         new Setting(advancedSettingsEl)
-            .setName('Debug mode')
-            .setDesc('Enable debug mode to log detailed information to the console.')
+            .setName(strings.settings.items.debugMode.name)
+            .setDesc(strings.settings.items.debugMode.desc)
             .addToggle(toggle =>
                 toggle.setValue(this.plugin.settings.debugMode).onChange(async value => {
                     this.plugin.settings.debugMode = value;
@@ -380,8 +373,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
 
         // Dry run
         new Setting(advancedSettingsEl)
-            .setName('Dry run')
-            .setDesc('Enable dry run to prevent any changes from being made to your files.')
+            .setName(strings.settings.items.dryRun.name)
+            .setDesc(strings.settings.items.dryRun.desc)
             .addToggle(toggle =>
                 toggle.setValue(this.plugin.settings.dryRun).onChange(async value => {
                     this.plugin.settings.dryRun = value;

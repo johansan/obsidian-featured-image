@@ -7,6 +7,7 @@ import '../styles.css';
 // Internal imports
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings';
 import { ConfirmationModal } from './modals';
+import { strings } from './i18n';
 
 // External imports
 import { createHash } from 'crypto';
@@ -67,8 +68,8 @@ export default class FeaturedImage extends Plugin {
             id: 'update-all',
             name:
                 this.settings.createResizedThumbnail && this.settings.resizedFrontmatterProperty
-                    ? 'Set feature properties in all files (add or update)'
-                    : 'Set feature property in all files (add or update)',
+                    ? strings.commands.updateAll
+                    : strings.commands.updateAllNoThumbnail,
             callback: () => this.updateAllFeaturedImages()
         });
 
@@ -77,8 +78,8 @@ export default class FeaturedImage extends Plugin {
             id: 'update-folder',
             name:
                 this.settings.createResizedThumbnail && this.settings.resizedFrontmatterProperty
-                    ? 'Set feature properties in current folder (add or update)'
-                    : 'Set feature property in current folder (add or update)',
+                    ? strings.commands.updateFolder
+                    : strings.commands.updateFolderNoThumbnail,
             callback: () => this.updateFolderFeaturedImages()
         });
 
@@ -87,22 +88,22 @@ export default class FeaturedImage extends Plugin {
             id: 'remove-all',
             name:
                 this.settings.createResizedThumbnail && this.settings.resizedFrontmatterProperty
-                    ? 'Remove feature properties in all files'
-                    : 'Remove feature property in all files',
+                    ? strings.commands.removeAll
+                    : strings.commands.removeAllNoThumbnail,
             callback: () => this.removeAllFeaturedImages()
         });
 
         // Add command for cleaning up unused images
         this.addCommand({
             id: 'cleanup-unused',
-            name: 'Remove unused downloaded images and thumbnails',
+            name: strings.commands.cleanupUnused,
             callback: () => this.cleanupUnusedImages()
         });
 
         // Add command for re-rendering all resized thumbnails
         this.addCommand({
             id: 'rerender-thumbnails',
-            name: 'Re-render all resized thumbnails',
+            name: strings.commands.rerenderThumbnails,
             callback: () => this.rerenderAllResizedThumbnails()
         });
 

@@ -1,5 +1,7 @@
 # Featured Image Plugin for Obsidian
 
+🌍 **Available in:** English • Deutsch • Español • Français • 日本語 • 中文
+
 ## Introduction
 
 Featured Image is a complementary plugin for [Notebook Navigator](https://github.com/johansan/notebook-navigator) that automatically finds and sets thumbnail images for your notes. It detects the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) in each document, downloads external images locally for instant loading, and creates optimized resized thumbnails.
