@@ -185,16 +185,34 @@ export default class FeaturedImage extends Plugin {
 
         // Generate thumbnail if feature image has changed and thumbnails are enabled
         let newThumbnail = currentThumbnail;
+        let oldThumbnailToDelete: string | undefined = undefined;
+
         if (newFeature && newFeature !== currentFeature && this.settings.createResizedThumbnail) {
+            // Feature changed, create new thumbnail
             newThumbnail = await this.createThumbnail(newFeature);
             this.debugLog(`THUMBNAIL GENERATED\n- File: ${file.path}\n- Original: ${newFeature}\n- Thumbnail: ${newThumbnail}`);
+
+            // Mark old thumbnail for deletion if it's different from the new one
+            if (currentThumbnail && currentThumbnail !== newThumbnail) {
+                oldThumbnailToDelete = currentThumbnail;
+            }
         } else if (!newFeature) {
             // Clear thumbnail if no feature image
             newThumbnail = undefined;
+            // Mark current thumbnail for deletion
+            if (currentThumbnail) {
+                oldThumbnailToDelete = currentThumbnail;
+            }
         }
 
         if (currentFeature !== newFeature || currentThumbnail !== newThumbnail) {
             await this.updateFrontmatter(file, newFeature, newThumbnail);
+
+            // Delete orphaned thumbnail after updating frontmatter
+            if (oldThumbnailToDelete) {
+                await this.deleteOrphanedThumbnail(oldThumbnailToDelete, file);
+            }
+
             this.debugLog(
                 `FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}\n- Thumbnail: ${newThumbnail}`
             );
@@ -1249,8 +1267,16 @@ export default class FeaturedImage extends Plugin {
         }
 
         // Get current thumbnail for removal
+        const currentThumbnail = this.getThumbnailFromFrontmatter(file);
+
         this.debugLog('FEATURE REMOVED\n- File: ', file.path);
         await this.updateFrontmatter(file, undefined, undefined);
+
+        // Delete orphaned thumbnail after removing from frontmatter
+        if (currentThumbnail) {
+            await this.deleteOrphanedThumbnail(currentThumbnail, file);
+        }
+
         return true;
     }
 
@@ -1768,6 +1794,73 @@ export default class FeaturedImage extends Plugin {
             }
 
             new Notice(completionMessage);
+        }
+    }
+
+    /**
+     * Checks if a thumbnail is used by any other file in the vault
+     * @param {string} thumbnailPath - The path to the thumbnail to check
+     * @param {TFile} excludeFile - Optional file to exclude from the check (usually the current file being updated)
+     * @returns {Promise<boolean>} True if the thumbnail is used elsewhere, false otherwise
+     */
+    private async isThumbnailUsedElsewhere(thumbnailPath: string, excludeFile?: TFile): Promise<boolean> {
+        if (!thumbnailPath) return false;
+
+        // Normalize the path for comparison
+        const normalizedThumbnailPath = normalizePath(thumbnailPath);
+
+        const files = this.app.vault.getMarkdownFiles();
+
+        for (const file of files) {
+            // Skip the file we're currently updating
+            if (excludeFile && file.path === excludeFile.path) continue;
+
+            const cache = this.app.metadataCache.getFileCache(file);
+            if (cache?.frontmatter) {
+                const thumbnail = cache.frontmatter[this.settings.resizedFrontmatterProperty];
+                if (thumbnail) {
+                    // Extract path from wiki-style links if needed
+                    const match = thumbnail.match(/!?\[\[(.*?)\]\]/);
+                    const path = match ? match[1] : thumbnail;
+
+                    if (normalizePath(path) === normalizedThumbnailPath) {
+                        return true; // Found another file using this thumbnail
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Deletes an orphaned thumbnail file if it's not used by any other file
+     * @param {string} thumbnailPath - The path to the thumbnail to potentially delete
+     * @param {TFile} currentFile - The file currently being updated
+     */
+    private async deleteOrphanedThumbnail(thumbnailPath: string, currentFile: TFile): Promise<void> {
+        if (!thumbnailPath) return;
+
+        // Only delete files in the resized folder
+        const normalizedPath = normalizePath(thumbnailPath);
+        const resizedFolder = normalizePath(`${this.settings.thumbnailsFolder}/resized`);
+        if (!normalizedPath.startsWith(resizedFolder)) {
+            return;
+        }
+
+        // Check if the file exists
+        if (!(await this.app.vault.adapter.exists(thumbnailPath))) {
+            return;
+        }
+
+        // Check if any other file uses this thumbnail
+        const isUsedElsewhere = await this.isThumbnailUsedElsewhere(thumbnailPath, currentFile);
+        if (!isUsedElsewhere) {
+            try {
+                await this.app.vault.adapter.remove(thumbnailPath);
+                this.debugLog('Deleted orphaned thumbnail:', thumbnailPath);
+            } catch (error) {
+                this.errorLog('Failed to delete orphaned thumbnail:', thumbnailPath, error);
+            }
         }
     }
 }
