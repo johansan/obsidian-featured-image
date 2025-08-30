@@ -76,17 +76,17 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 1. **Show Notifications** - Shows notifications when featured images are set, updated, or removed.
 
-2. **Thumbnails Folder** - Folder where external images, YouTube thumbnails, and resized images are stored. Subfolders are created automatically.
+2. **Frontmatter Property** - The name of the frontmatter property for the featured image path.
 
-3. **Excluded Folders** - Comma-separated list of folders to exclude from processing (e.g., `templates, archive`).
+3. **Thumbnails Folder** - Folder where external images, YouTube thumbnails, and resized images are stored. Subfolders are created automatically.
 
-4. **Frontmatter Property** - The name of the frontmatter property for the featured image path.
+4. **Excluded Folders** - Comma-separated list of folders to exclude from processing (e.g., `templates, archive`).
 
 ### Resized Thumbnail
 
-5. **Create Resized Thumbnail** - Creates optimized thumbnail versions of featured images for faster loading.
+5. **Resize Feature Image** - Creates optimized thumbnail versions of featured images for faster loading.
 
-6. **Resized Thumbnail Frontmatter Property** - The frontmatter property for the resized thumbnail path.
+6. **Resized Thumbnail Property Name** - The frontmatter property for the resized thumbnail path.
 
 7. **Max Resized Width/Height** - Maximum dimensions in pixels for resized thumbnails (0 = no restriction).
 
