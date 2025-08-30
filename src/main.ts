@@ -65,21 +65,30 @@ export default class FeaturedImage extends Plugin {
         // Add command for updating all featured images
         this.addCommand({
             id: 'update-all',
-            name: 'Set images in all files',
+            name:
+                this.settings.createResizedThumbnail && this.settings.resizedFrontmatterProperty
+                    ? 'Set feature properties in all files (add or update)'
+                    : 'Set feature property in all files (add or update)',
             callback: () => this.updateAllFeaturedImages()
         });
 
         // Add command for updating all featured images in current folder
         this.addCommand({
             id: 'update-folder',
-            name: 'Set images in current folder',
+            name:
+                this.settings.createResizedThumbnail && this.settings.resizedFrontmatterProperty
+                    ? 'Set feature properties in current folder (add or update)'
+                    : 'Set feature property in current folder (add or update)',
             callback: () => this.updateFolderFeaturedImages()
         });
 
         // Add command for removing all featured images
         this.addCommand({
             id: 'remove-all',
-            name: 'Remove images in all files',
+            name:
+                this.settings.createResizedThumbnail && this.settings.resizedFrontmatterProperty
+                    ? 'Remove feature properties in all files'
+                    : 'Remove feature property in all files',
             callback: () => this.removeAllFeaturedImages()
         });
 
