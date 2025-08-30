@@ -6,7 +6,7 @@ Featured Image is a complementary plugin for [Notebook Navigator](https://github
 
 When used with Notebook Navigator, your notes display with beautiful thumbnail previews in the file list, creating a rich visual browsing experience similar to Apple Notes, Evernote, and Bear. The resized thumbnails ensure smooth scrolling even with thousands of notes.
 
-![Set featured images in all files](images/notebooknavigator.png)
+![Set featured images in all files](images/notebook-navigator.png)
 
 If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan) or [Sponsor on GitHub ❤️](https://github.com/sponsors/johansan).
 
