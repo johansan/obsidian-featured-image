@@ -1,6 +1,6 @@
 # Featured Image Plugin for Obsidian
 
-🌍 **Available in:** English • Deutsch • Español • Français • 日本語 • 中文
+**Available in:** English • Deutsch • Español • Français • 日本語 • 中文
 
 ## Introduction
 
