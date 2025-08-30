@@ -1,12 +1,12 @@
-import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian';
+import { App, PluginSettingTab, Setting } from 'obsidian';
 import FeaturedImage from './main';
 
 export interface FeaturedImageSettings {
     // Basic settings (always visible)
     showNotificationsOnUpdate: boolean;
+    frontmatterProperty: string;
     thumbnailsFolder: string;
     excludedFolders: string[];
-    frontmatterProperty: string;
 
     // Resized thumbnail settings
     createResizedThumbnail: boolean;
@@ -34,13 +34,13 @@ export interface FeaturedImageSettings {
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     // Basic settings (always visible)
     showNotificationsOnUpdate: true,
+    frontmatterProperty: 'feature',
     thumbnailsFolder: 'thumbnails',
     excludedFolders: [],
-    frontmatterProperty: 'feature',
 
     // Resized thumbnail settings
     createResizedThumbnail: true,
-    resizedFrontmatterProperty: 'featureResized',
+    resizedFrontmatterProperty: 'thumbnail',
     maxResizedWidth: 128,
     maxResizedHeight: 128,
     fillResizedDimensions: true,
@@ -85,6 +85,20 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 });
             });
 
+        // Frontmatter property
+        new Setting(containerEl)
+            .setName('Frontmatter property')
+            .setDesc('The name of the frontmatter property to update with the featured image')
+            .addText(text =>
+                text
+                    .setPlaceholder(DEFAULT_SETTINGS.frontmatterProperty)
+                    .setValue(this.plugin.settings.frontmatterProperty)
+                    .onChange(async value => {
+                        this.plugin.settings.frontmatterProperty = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
         // Thumbnails folder
         new Setting(containerEl)
             .setName('Thumbnails folder')
@@ -118,38 +132,13 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 })
             );
 
-        // Frontmatter property
-        new Setting(containerEl)
-            .setName('Frontmatter property')
-            .setDesc('The name of the frontmatter property to update with the featured image')
-            .addText(text =>
-                text
-                    .setPlaceholder(DEFAULT_SETTINGS.frontmatterProperty)
-                    .setValue(this.plugin.settings.frontmatterProperty)
-                    .onChange(async value => {
-                        this.plugin.settings.frontmatterProperty = value;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
         // Create resized thumbnail
         new Setting(containerEl)
-            .setName('Create resized thumbnail')
-            .setDesc('Create a resized thumbnail of the featured image and add it to the frontmatter.')
+            .setName('Resize feature image')
+            .setDesc('Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.')
             .addToggle(toggle =>
                 toggle.setValue(this.plugin.settings.createResizedThumbnail).onChange(async value => {
                     this.plugin.settings.createResizedThumbnail = value;
-
-                    // When enabling, set the resized property to frontmatterPropertyResized
-                    if (value) {
-                        this.plugin.settings.resizedFrontmatterProperty = `${this.plugin.settings.frontmatterProperty}Resized`;
-
-                        // Update the text field value
-                        const textComponent = resizedPropertySetting.components[0] as TextComponent;
-                        if (textComponent && textComponent.setValue) {
-                            textComponent.setValue(this.plugin.settings.resizedFrontmatterProperty);
-                        }
-                    }
 
                     await this.plugin.saveSettings();
 
@@ -162,15 +151,15 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         const thumbnailSettingsEl = containerEl.createDiv('thumbnail-settings');
 
         // Resized frontmatter property
-        const resizedPropertySetting = new Setting(thumbnailSettingsEl)
-            .setName('Resized thumbnail frontmatter property')
+        new Setting(thumbnailSettingsEl)
+            .setName('Resized thumbnail property name')
             .setDesc('The name of the frontmatter property to store the resized thumbnail path.')
             .addText(text =>
                 text
-                    .setPlaceholder(`${this.plugin.settings.frontmatterProperty}Resized`)
+                    .setPlaceholder('thumbnail')
                     .setValue(this.plugin.settings.resizedFrontmatterProperty)
                     .onChange(async value => {
-                        this.plugin.settings.resizedFrontmatterProperty = value || `${this.plugin.settings.frontmatterProperty}Resized`;
+                        this.plugin.settings.resizedFrontmatterProperty = value || 'thumbnail';
                         await this.plugin.saveSettings();
                     })
             );
