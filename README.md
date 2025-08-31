@@ -131,40 +131,6 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 This plugin follows strict code quality standards using [Obsidian's official ESLint plugin](https://github.com/obsidianmd/eslint-plugin) and the build process enforces zero tolerance for errors and warnings. All TypeScript is fully typed with no explicit any, and the codebase is validated with ESLint, Prettier, and dead code detection.
 
-## Known Issues
-
-### Conflicts with Mousewheel Image Zoom Plugin
-
-There is a known issue in the plugin "Mousewheel Image Zoom" when the same image name appears multiple times in a document. The following examples will not get resized:
-
-1. When an image is mentioned in text and then used as a link:
-
-   ```markdown
-   Some text mentioning example.jpg in a paragraph
-   Another paragraph
-
-   ![[example.jpg|100]] # This link would not get resized
-   ```
-
-2. When an image is used in frontmatter and then in the document:
-
-   ```markdown
-   ---
-   feature: example.jpg
-   ---
-
-   ![[example.jpg|100]] # This link would not get resized
-   ```
-
-#### Recommended Workaround
-
-The "Image Converter" plugin offers similar functionality and has fixed this issue in version 1.2.20. Until the Mousewheel Image Zoom plugin is updated, we recommend:
-
-1. Switch to using the "Image Converter" plugin
-2. Ensure you're using version 1.2.20 or later of Image Converter
-
-The author of Mousewheel Image Zoom has been notified of this issue, but no fix has been implemented yet.
-
 ## Support and Feedback
 
 If you have any questions, suggestions, or issues, please open an issue on the [GitHub repository](https://github.com/johansan/obsidian-featured-image).
