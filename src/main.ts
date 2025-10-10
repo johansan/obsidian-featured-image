@@ -1,5 +1,5 @@
 // Obsidian imports
-import { normalizePath, Plugin, Notice, TFile, requestUrl, RequestUrlResponse } from 'obsidian';
+import { normalizePath, Plugin, Notice, TAbstractFile, TFile, requestUrl, RequestUrlResponse } from 'obsidian';
 
 // Styles
 import '../styles.css';
@@ -11,6 +11,16 @@ import { strings } from './i18n';
 
 // External imports
 import { createHash } from 'crypto';
+
+/**
+ * Represents parsed frontmatter image information.
+ */
+interface FrontmatterImageInfo {
+    rawValue: string; // Original frontmatter value as written
+    rawPath: string; // Extracted path from rawValue (without wiki-link formatting)
+    resolvedPath: string; // Resolved vault-relative path
+    isResolved: boolean; // Whether the path was successfully resolved to an existing file
+}
 
 /**
  * FeaturedImage plugin for Obsidian.
@@ -44,6 +54,9 @@ export default class FeaturedImage extends Plugin {
         0x49, 0x45, 0x4e, 0x44,                         // "IEND"
         0xae, 0x42, 0x60, 0x82                          // IEND CRC
     ]);
+
+    // Delay in milliseconds before processing file operations to allow Obsidian to complete its internal updates
+    private static readonly FILE_OPERATION_DELAY = 100;
 
     // Canvas element for image resizing
     private canvas: HTMLCanvasElement | null = null;
@@ -116,6 +129,12 @@ export default class FeaturedImage extends Plugin {
             })
         );
 
+        this.registerEvent(
+            this.app.vault.on('rename', (file, oldPath) => {
+                this.handleFileRename(file, oldPath);
+            })
+        );
+
         this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
     }
 
@@ -137,6 +156,121 @@ export default class FeaturedImage extends Plugin {
     private errorLog(...args: unknown[]) {
         const timestamp = new Date().toTimeString().split(' ')[0];
         console.error(`${timestamp}`, ...args);
+    }
+
+    /**
+     * Type guard for TFile instances.
+     * @param {TAbstractFile | null} file - The file to check.
+     * @returns {file is TFile} True when the file is a TFile instance.
+     */
+    private isTFile(file: TAbstractFile | null): file is TFile {
+        return file instanceof TFile;
+    }
+
+    /**
+     * Resolves a local image path relative to the provided context file.
+     * @param {string} imagePath - The local image path to resolve.
+     * @param {TFile} contextFile - The markdown file referencing the image.
+     * @returns {string | undefined} Canonical vault-relative path when the file exists.
+     */
+    private resolveLocalImagePath(imagePath: string, contextFile: TFile): string | undefined {
+        const trimmedPath = imagePath.trim();
+
+        const resolvedFromCache = this.app.metadataCache.getFirstLinkpathDest(trimmedPath, contextFile.path);
+        if (this.isTFile(resolvedFromCache)) {
+            return resolvedFromCache.path;
+        }
+
+        const normalizedPath = normalizePath(trimmedPath);
+        const abstractFile = this.app.vault.getAbstractFileByPath(normalizedPath);
+        if (this.isTFile(abstractFile)) {
+            return abstractFile.path;
+        }
+
+        return undefined;
+    }
+
+    /**
+     * Parses a frontmatter image value and resolves it when possible.
+     * @param {unknown} value - The raw frontmatter value.
+     * @param {TFile} contextFile - The file containing the frontmatter.
+     * @returns {FrontmatterImageInfo | undefined} Parsed frontmatter information.
+     */
+    private parseFrontmatterImage(value: unknown, contextFile: TFile): FrontmatterImageInfo | undefined {
+        if (typeof value !== 'string') {
+            return undefined;
+        }
+
+        const rawValue = value.trim();
+        if (!rawValue) {
+            return undefined;
+        }
+
+        const embedMatch = rawValue.match(/!?\[\[(.*?)\]\]/);
+        let rawPath = rawValue;
+        if (embedMatch) {
+            rawPath = embedMatch[1];
+        }
+
+        rawPath = rawPath.split('|')[0].split('#')[0].trim();
+
+        let resolvedPath = rawPath;
+        let isResolved = false;
+
+        if (rawPath) {
+            if (this.isValidUrl(rawPath)) {
+                isResolved = true;
+                resolvedPath = rawPath;
+            } else {
+                const resolved = this.resolveLocalImagePath(rawPath, contextFile);
+                if (resolved) {
+                    resolvedPath = normalizePath(resolved);
+                    isResolved = true;
+                } else {
+                    resolvedPath = normalizePath(rawPath);
+                }
+            }
+        }
+
+        return {
+            rawValue,
+            rawPath,
+            resolvedPath,
+            isResolved
+        };
+    }
+
+    /**
+     * Retrieves structured frontmatter image information for the specified property.
+     * @param {TFile} file - The file to inspect.
+     * @param {string} property - The frontmatter property name.
+     * @returns {FrontmatterImageInfo | undefined} Parsed frontmatter information.
+     */
+    private getFrontmatterImageInfo(file: TFile, property: string): FrontmatterImageInfo | undefined {
+        const cache = this.app.metadataCache.getFileCache(file);
+        const value = cache?.frontmatter?.[property];
+        return this.parseFrontmatterImage(value, file);
+    }
+
+    /**
+     * Checks whether the stored frontmatter entry matches the provided path.
+     * @param {FrontmatterImageInfo | undefined} info - Parsed frontmatter information.
+     * @param {string | undefined} candidate - The candidate path to compare.
+     * @returns {boolean} True when the paths are equivalent.
+     */
+    private isFrontmatterPathEqual(info: FrontmatterImageInfo | undefined, candidate: string | undefined): boolean {
+        if (!info?.rawValue || !candidate) {
+            return false;
+        }
+
+        if (this.isValidUrl(candidate)) {
+            return info.resolvedPath === candidate;
+        }
+
+        const normalizedCandidate = normalizePath(candidate);
+        const normalizedStored = info.isResolved ? info.resolvedPath : normalizePath(info.rawPath);
+
+        return normalizedStored === normalizedCandidate;
     }
 
     /**
@@ -174,15 +308,21 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<boolean>} True if the featured image was updated, false otherwise.
      */
     async setFeaturedImage(file: TFile): Promise<boolean> {
-        const currentFeature = this.getFeatureFromFrontmatter(file);
-        const currentThumbnail = this.getThumbnailFromFrontmatter(file);
+        // Extract detailed information about the current featured image from frontmatter
+        const currentFeatureInfo = this.getFrontmatterImageInfo(file, this.settings.frontmatterProperty);
+        const currentFeature = currentFeatureInfo?.resolvedPath;
+        // Extract detailed information about the current thumbnail if thumbnails are enabled
+        const currentThumbnailInfo = this.settings.createResizedThumbnail
+            ? this.getFrontmatterImageInfo(file, this.settings.resizedFrontmatterProperty)
+            : undefined;
+        const currentThumbnail = currentThumbnailInfo?.resolvedPath;
 
         if (this.shouldSkipProcessing(file)) {
             return false;
         }
 
         const fileContent = await this.app.vault.cachedRead(file);
-        const newFeature = await this.getFeatureFromDocument(fileContent, currentFeature);
+        const newFeature = await this.getFeatureFromDocument(fileContent, file, currentFeature);
 
         // Generate thumbnail if feature image has changed and thumbnails are enabled
         let newThumbnail = currentThumbnail;
@@ -206,8 +346,21 @@ export default class FeaturedImage extends Plugin {
             }
         }
 
-        if (currentFeature !== newFeature || currentThumbnail !== newThumbnail) {
-            await this.updateFrontmatter(file, newFeature, newThumbnail);
+        // Normalize local paths but keep URLs unchanged
+        const finalNewFeature = newFeature && !this.isValidUrl(newFeature) ? normalizePath(newFeature) : newFeature;
+        const finalNewThumbnail = newThumbnail && !this.isValidUrl(newThumbnail) ? normalizePath(newThumbnail) : newThumbnail;
+        newThumbnail = finalNewThumbnail;
+
+        // Determine if frontmatter needs updating by comparing paths semantically
+        const featureChanged = finalNewFeature
+            ? !this.isFrontmatterPathEqual(currentFeatureInfo, finalNewFeature)
+            : Boolean(currentFeatureInfo?.rawValue);
+        const thumbnailChanged = newThumbnail
+            ? !this.isFrontmatterPathEqual(currentThumbnailInfo, newThumbnail)
+            : Boolean(currentThumbnailInfo?.rawValue);
+
+        if (featureChanged || thumbnailChanged) {
+            await this.updateFrontmatter(file, finalNewFeature, newThumbnail);
 
             // Delete orphaned thumbnail after updating frontmatter
             if (oldThumbnailToDelete) {
@@ -215,7 +368,7 @@ export default class FeaturedImage extends Plugin {
             }
 
             this.debugLog(
-                `FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${newFeature}\n- Thumbnail: ${newThumbnail}`
+                `FEATURE UPDATED\n- File: ${file.path}\n- Current feature: ${currentFeature}\n- New feature: ${finalNewFeature}\n- Thumbnail: ${newThumbnail}`
             );
             return true;
         }
@@ -228,20 +381,8 @@ export default class FeaturedImage extends Plugin {
      * @returns {string | undefined} The current featured image, if any.
      */
     private getFeatureFromFrontmatter(file: TFile): string | undefined {
-        const cache = this.app.metadataCache.getFileCache(file);
-        const feature = cache?.frontmatter?.[this.settings.frontmatterProperty];
-
-        if (feature) {
-            // Attempt to extract the image path from wiki-style and embedded links
-            const match = feature.match(/!?\[\[(.*?)\]\]/);
-            if (match) {
-                return match[1];
-            }
-            // Return the feature as-is if it's not a wiki-style or embedded link
-            return feature;
-        }
-
-        return undefined;
+        const info = this.getFrontmatterImageInfo(file, this.settings.frontmatterProperty);
+        return info?.resolvedPath;
     }
 
     /**
@@ -254,20 +395,8 @@ export default class FeaturedImage extends Plugin {
             return undefined;
         }
 
-        const cache = this.app.metadataCache.getFileCache(file);
-        const thumbnail = cache?.frontmatter?.[this.settings.resizedFrontmatterProperty];
-
-        if (thumbnail) {
-            // Attempt to extract the image path from wiki-style and embedded links
-            const match = thumbnail.match(/!?\[\[(.*?)\]\]/);
-            if (match) {
-                return match[1];
-            }
-            // Return the thumbnail as-is if it's not a wiki-style or embedded link
-            return thumbnail;
-        }
-
-        return undefined;
+        const info = this.getFrontmatterImageInfo(file, this.settings.resizedFrontmatterProperty);
+        return info?.resolvedPath;
     }
 
     /**
@@ -290,6 +419,149 @@ export default class FeaturedImage extends Plugin {
         const shouldSkip = (this.settings.onlyUpdateExisting && !propertyExists) || folderIsExcluded;
 
         return shouldSkip;
+    }
+
+    /**
+     * Handles file rename events to keep feature metadata in sync.
+     * @param {TAbstractFile} file - The renamed file.
+     * @param {string} oldPath - The previous path of the file.
+     */
+    private handleFileRename(file: TAbstractFile, oldPath: string): void {
+        this.debugLog('Rename detected:', oldPath, '->', file?.path);
+
+        if (!this.isTFile(file) || this.isRunningBulkUpdate) {
+            return;
+        }
+
+        if (file.extension === 'md') {
+            this.scheduleNoteRefreshAfterRename(file);
+            return;
+        }
+
+        if (this.isManagedImageFile(file)) {
+            this.scheduleImageReferenceRefresh(file, oldPath);
+        }
+    }
+
+    /**
+     * Schedules a featured image refresh for a renamed markdown file.
+     * @param {TFile} file - The renamed markdown file.
+     */
+    private scheduleNoteRefreshAfterRename(file: TFile): void {
+        window.setTimeout(() => {
+            if (this.updatingFiles.has(file.path) || this.isRunningBulkUpdate) {
+                this.debugLog('Skipping rename refresh for note, plugin already updating:', file.path);
+                return;
+            }
+            this.debugLog('Refreshing featured image after note rename:', file.path);
+            void this.setFeaturedImage(file);
+        }, FeaturedImage.FILE_OPERATION_DELAY);
+    }
+
+    /**
+     * Schedules featured image refreshes for notes referencing a renamed asset.
+     * @param {TFile} file - The renamed asset file.
+     * @param {string} oldPath - The previous path of the asset.
+     */
+    private scheduleImageReferenceRefresh(file: TFile, oldPath: string): void {
+        const normalizedOldPath = normalizePath(oldPath);
+        window.setTimeout(() => {
+            void this.refreshImageReferences(file.path, normalizedOldPath);
+        }, FeaturedImage.FILE_OPERATION_DELAY);
+    }
+
+    /**
+     * Refreshes featured images for notes referencing a renamed asset.
+     * @param {string} newPath - The new path of the asset.
+     * @param {string} oldPath - The old path of the asset.
+     */
+    private async refreshImageReferences(newPath: string, oldPath: string): Promise<void> {
+        if (this.isRunningBulkUpdate) {
+            this.debugLog('Skipping asset rename refresh during bulk update:', newPath);
+            return;
+        }
+
+        // Build a set of paths to search for in markdown files (both old and new paths)
+        const targetPaths = new Set<string>([normalizePath(newPath)]);
+        if (oldPath) {
+            targetPaths.add(normalizePath(oldPath));
+        }
+
+        const referencingPaths = this.getMarkdownFilesReferencingPaths(targetPaths);
+
+        if (referencingPaths.size === 0) {
+            this.debugLog('No markdown files reference renamed asset:', newPath);
+            return;
+        }
+
+        this.debugLog(
+            `Refreshing featured images for ${referencingPaths.size} notes referencing renamed asset:`,
+            Array.from(referencingPaths)
+        );
+
+        // Process each markdown file that references the renamed asset
+        for (const path of referencingPaths) {
+            const abstractFile = this.app.vault.getAbstractFileByPath(path);
+            // Skip non-markdown files
+            if (!this.isTFile(abstractFile) || abstractFile.extension !== 'md') {
+                continue;
+            }
+            // Skip files already being updated to avoid conflicts
+            if (this.updatingFiles.has(abstractFile.path)) {
+                this.debugLog('Skipping asset rename refresh, plugin already updating:', abstractFile.path);
+                continue;
+            }
+            try {
+                await this.setFeaturedImage(abstractFile);
+            } catch (error) {
+                this.errorLog(`Failed to refresh featured image after asset rename for ${abstractFile.path}:`, error);
+            }
+        }
+    }
+
+    /**
+     * Collects markdown files that reference any of the provided paths.
+     * @param {Set<string>} targetPaths - Paths to find references for.
+     * @returns {Set<string>} Set of markdown file paths referencing the targets.
+     */
+    private getMarkdownFilesReferencingPaths(targetPaths: Set<string>): Set<string> {
+        const referencingPaths = new Set<string>();
+        const resolvedLinks = this.app.metadataCache.resolvedLinks;
+
+        // Search through Obsidian's resolved links cache to find files that reference the target paths
+        for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+            for (const target of targetPaths) {
+                if (Object.prototype.hasOwnProperty.call(targets, target)) {
+                    referencingPaths.add(sourcePath);
+                    break; // Found a reference, no need to check other target paths for this source
+                }
+            }
+        }
+
+        return referencingPaths;
+    }
+
+    /**
+     * Determines whether a file is an image managed by the plugin.
+     * @param {TFile} file - The file to check.
+     * @returns {boolean} True when the file is a managed image asset.
+     */
+    private isManagedImageFile(file: TFile): boolean {
+        // Check if the file extension matches configured image extensions
+        const extension = file.extension?.toLowerCase();
+        if (!extension || !this.settings.imageExtensions.map(ext => ext.toLowerCase()).includes(extension)) {
+            return false;
+        }
+
+        const normalizedPath = normalizePath(file.path);
+        const thumbnailsFolder = normalizePath(this.settings.thumbnailsFolder);
+
+        // Exclude files within the thumbnails folder (they're generated, not source images)
+        if (normalizedPath === thumbnailsFolder || normalizedPath.startsWith(`${thumbnailsFolder}/`)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -326,7 +598,11 @@ export default class FeaturedImage extends Plugin {
      * @param {string | undefined} currentFeature - The current featured image.
      * @returns {Promise<string | undefined>} The found featured image, if any.
      */
-    private async getFeatureFromDocument(content: string, currentFeature: string | undefined): Promise<string | undefined> {
+    private async getFeatureFromDocument(
+        content: string,
+        contextFile: TFile,
+        currentFeature: string | undefined
+    ): Promise<string | undefined> {
         // Remove frontmatter section from processing
         let contentWithoutFrontmatter = content;
         if (content.startsWith('---\n')) {
@@ -354,7 +630,7 @@ export default class FeaturedImage extends Plugin {
                     if (codeBlockLanguage === 'cardlink') {
                         const imageMatch = this.autoCardImageRegex.exec(codeBlockBuffer);
                         if (imageMatch?.groups?.autoCardImage) {
-                            return await this.processAutoCardLinkImage(imageMatch.groups.autoCardImage);
+                            return await this.processAutoCardLinkImage(imageMatch.groups.autoCardImage, contextFile);
                         }
                     }
                     inCodeBlock = false;
@@ -386,7 +662,15 @@ export default class FeaturedImage extends Plugin {
 
                 // Check for local wiki image links, e.g. ![[image.jpg]]
                 if (match.groups?.wikiImage) {
-                    return decodeURIComponent(match.groups.wikiImage);
+                    const wikiImage = decodeURIComponent(match.groups.wikiImage);
+                    // Attempt to resolve the wiki image path to a vault-relative path
+                    const resolvedWikiImage = this.resolveLocalImagePath(wikiImage, contextFile);
+                    if (resolvedWikiImage) {
+                        return resolvedWikiImage;
+                    }
+                    // Log error if the referenced image doesn't exist in the vault
+                    this.errorLog(`Local image not found for featured image: ${wikiImage} (referenced in ${contextFile.path})`);
+                    continue;
                 }
 
                 // Check for markdown image links, e.g. ![image.jpg](https://example.com/image.jpg)
@@ -400,7 +684,14 @@ export default class FeaturedImage extends Plugin {
                         }
                         continue;
                     }
-                    return mdImage;
+                    // Attempt to resolve the local markdown image path
+                    const resolvedMdImage = this.resolveLocalImagePath(mdImage, contextFile);
+                    if (resolvedMdImage) {
+                        return resolvedMdImage;
+                    }
+                    // Log error if the referenced local image doesn't exist
+                    this.errorLog(`Local image not found for featured image: ${mdImage} (referenced in ${contextFile.path})`);
+                    continue;
                 }
             }
         }
@@ -419,19 +710,21 @@ export default class FeaturedImage extends Plugin {
      * @param {string} imagePath - The image path from the Auto Card Link.
      * @returns {Promise<string | undefined>} The processed image path.
      */
-    private async processAutoCardLinkImage(imagePath: string): Promise<string | undefined> {
+    private async processAutoCardLinkImage(imagePath: string, contextFile: TFile): Promise<string | undefined> {
         imagePath = imagePath.trim();
 
         // Handle local images (Auto Card Link always embeds local images within quotes)
         if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
             let localPath = imagePath.slice(1, -1).trim();
             localPath = localPath.replace(/^\[\[|\]\]$/g, '');
-            const fileExists = await this.app.vault.adapter.exists(localPath);
-            if (!fileExists) {
-                this.errorLog('Local image not found:', localPath);
+            // Attempt to resolve the Auto Card Link image path to a vault-relative path
+            const resolvedLocalPath = this.resolveLocalImagePath(localPath, contextFile);
+            if (!resolvedLocalPath) {
+                // Log error if the Auto Card Link image doesn't exist in the vault
+                this.errorLog(`Local Auto Card Link image not found: ${localPath} (referenced in ${contextFile.path})`);
                 return undefined;
             }
-            return localPath;
+            return resolvedLocalPath;
         }
 
         // Handle external images
@@ -1514,14 +1807,14 @@ export default class FeaturedImage extends Plugin {
                 // Check feature property
                 const feature = cache.frontmatter[this.settings.frontmatterProperty];
                 if (feature) {
-                    this.addNormalizedPath(feature, usedFiles);
+                    this.addNormalizedPath(feature, usedFiles, file);
                 }
 
                 // Check thumbnail property if enabled
                 if (this.settings.createResizedThumbnail) {
                     const thumbnail = cache.frontmatter[this.settings.resizedFrontmatterProperty];
                     if (thumbnail) {
-                        this.addNormalizedPath(thumbnail, usedFiles);
+                        this.addNormalizedPath(thumbnail, usedFiles, file);
                     }
                 }
             }
@@ -1536,7 +1829,7 @@ export default class FeaturedImage extends Plugin {
                 if (match) {
                     // WikiImage links (![[image.jpg]])
                     if (match.groups?.wikiImage) {
-                        this.addNormalizedPath(match.groups.wikiImage, usedFiles);
+                        this.addNormalizedPath(match.groups.wikiImage, usedFiles, file);
                     }
 
                     // Markdown image links (![alt](path/to/image.jpg))
@@ -1544,7 +1837,7 @@ export default class FeaturedImage extends Plugin {
                         const mdImage = decodeURIComponent(match.groups.mdImage);
                         // Only add if it's a local path (not a URL)
                         if (!this.isValidUrl(mdImage)) {
-                            this.addNormalizedPath(mdImage, usedFiles);
+                            this.addNormalizedPath(mdImage, usedFiles, file);
                         }
                     }
 
@@ -1573,7 +1866,7 @@ export default class FeaturedImage extends Plugin {
                                 // Local images in Auto Card Link are quoted
                                 if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
                                     const localPath = imagePath.slice(1, -1).trim();
-                                    this.addNormalizedPath(localPath, usedFiles);
+                                    this.addNormalizedPath(localPath, usedFiles, file);
                                 }
                             }
                         }
@@ -1597,7 +1890,7 @@ export default class FeaturedImage extends Plugin {
      * @param {string} path - The path to add
      * @param {Set<string>} usedFiles - Set to store referenced file paths
      */
-    private addNormalizedPath(path: string, usedFiles: Set<string>): void {
+    private addNormalizedPath(path: string, usedFiles: Set<string>, contextFile?: TFile): void {
         // Remove wiki-link or embedded link formatting
         let normalizedPath = path;
         const match = path.match(/!?\[\[(.*?)\]\]/);
@@ -1607,6 +1900,16 @@ export default class FeaturedImage extends Plugin {
 
         // Remove any parameters after pipe or hash
         normalizedPath = normalizedPath.split('|')[0].split('#')[0];
+
+        // Attempt to resolve the path using the context file for relative path resolution
+        if (contextFile) {
+            const resolvedPath = this.resolveLocalImagePath(normalizedPath, contextFile);
+            if (resolvedPath) {
+                // Add the resolved path to the used files set
+                usedFiles.add(normalizePath(resolvedPath));
+                return;
+            }
+        }
 
         // Normalize path
         normalizedPath = normalizePath(normalizedPath);
