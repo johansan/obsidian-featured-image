@@ -17,7 +17,8 @@ export const STRINGS_JA = {
     // Settings
     settings: {
         headings: {
-            advanced: '詳細設定'
+            advanced: '詳細設定',
+            externalMedia: '外部メディア'
         },
 
         items: {
@@ -105,6 +106,14 @@ export const STRINGS_JA = {
             downloadWebP: {
                 name: 'WebPをダウンロード',
                 desc: '利用可能な場合はYouTubeからWebPバージョンの画像をダウンロード、そうでない場合はJPGをダウンロード。'
+            },
+            downloadExternalImages: {
+                name: '外部画像をサムネイルフォルダにダウンロード',
+                desc: '外部画像リンクをローカルに保存します。無効にすると、アイキャッチ画像の選択時にリモート画像をスキップします。'
+            },
+            downloadYoutubeThumbnails: {
+                name: 'YouTubeサムネイルをダウンロード',
+                desc: 'YouTubeサムネイルをローカルに保存します。無効にすると、アイキャッチ画像の選択時にYouTubeリンクをスキップします。'
             },
             localImageExtensions: {
                 name: 'ローカル画像拡張子',

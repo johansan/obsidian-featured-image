@@ -27,6 +27,8 @@ export interface FeaturedImageSettings {
     preserveTemplateImages: boolean;
     requireExclamationForYouTube: boolean;
     downloadWebP: boolean;
+    downloadExternalImages: boolean;
+    downloadYoutubeThumbnails: boolean;
     imageExtensions: string[];
     debugMode: boolean;
     dryRun: boolean;
@@ -57,6 +59,8 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     preserveTemplateImages: false,
     requireExclamationForYouTube: true,
     downloadWebP: true,
+    downloadExternalImages: true,
+    downloadYoutubeThumbnails: true,
     imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
     debugMode: false,
     dryRun: false
@@ -246,6 +250,34 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             text: strings.settings.info.rerenderTip,
             cls: 'setting-item-description'
         });
+
+        // External media heading
+        new Setting(containerEl).setName(strings.settings.headings.externalMedia).setHeading();
+
+        const externalMediaSettingsEl = containerEl.createDiv('external-media-settings');
+        externalMediaSettingsEl.addClass('thumbnail-settings');
+
+        // Download external images
+        new Setting(externalMediaSettingsEl)
+            .setName(strings.settings.items.downloadExternalImages.name)
+            .setDesc(strings.settings.items.downloadExternalImages.desc)
+            .addToggle(toggle =>
+                toggle.setValue(this.plugin.settings.downloadExternalImages).onChange(async value => {
+                    this.plugin.settings.downloadExternalImages = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        // Download YouTube thumbnails
+        new Setting(externalMediaSettingsEl)
+            .setName(strings.settings.items.downloadYoutubeThumbnails.name)
+            .setDesc(strings.settings.items.downloadYoutubeThumbnails.desc)
+            .addToggle(toggle =>
+                toggle.setValue(this.plugin.settings.downloadYoutubeThumbnails).onChange(async value => {
+                    this.plugin.settings.downloadYoutubeThumbnails = value;
+                    await this.plugin.saveSettings();
+                })
+            );
 
         // Advanced Settings Toggle
         new Setting(containerEl).setName(strings.settings.headings.advanced).setHeading();

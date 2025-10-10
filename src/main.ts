@@ -376,7 +376,10 @@ export default class FeaturedImage extends Plugin {
                 if (match.groups?.youtube) {
                     const videoId = this.getVideoId(match.groups.youtube);
                     if (videoId) {
-                        return await this.downloadThumbnail(videoId, currentFeature);
+                        const youtubeFeature = await this.downloadThumbnail(videoId, currentFeature);
+                        if (youtubeFeature) {
+                            return youtubeFeature;
+                        }
                     }
                     continue;
                 }
@@ -391,7 +394,11 @@ export default class FeaturedImage extends Plugin {
                     const mdImage = decodeURIComponent(match.groups.mdImage);
                     // Check if it's an external URL
                     if (this.isValidUrl(mdImage)) {
-                        return await this.downloadExternalImage(mdImage);
+                        const externalFeature = await this.downloadExternalImage(mdImage);
+                        if (externalFeature) {
+                            return externalFeature;
+                        }
+                        continue;
                     }
                     return mdImage;
                 }
@@ -443,6 +450,10 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The path to the downloaded image.
      */
     private async downloadExternalImage(imageUrl: string, subfolder: string = 'external'): Promise<string | undefined> {
+        if (!this.settings.downloadExternalImages) {
+            return undefined;
+        }
+
         // Normalize folder path
         const downloadFolder = normalizePath(`${this.settings.thumbnailsFolder}/${subfolder}`);
 
@@ -948,6 +959,10 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The path to the downloaded thumbnail.
      */
     async downloadThumbnail(videoId: string, currentFeature: string | undefined): Promise<string | undefined> {
+        if (!this.settings.downloadYoutubeThumbnails) {
+            return undefined;
+        }
+
         // Normalize YouTube folder path
         const youtubeFolder = normalizePath(`${this.settings.thumbnailsFolder}/youtube`);
         const expectedPath = `${youtubeFolder}/${videoId}`;

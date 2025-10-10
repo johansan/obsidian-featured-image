@@ -17,7 +17,8 @@ export const STRINGS_ZH = {
     // Settings
     settings: {
         headings: {
-            advanced: '高级'
+            advanced: '高级',
+            externalMedia: '外部媒体'
         },
 
         items: {
@@ -105,6 +106,14 @@ export const STRINGS_ZH = {
             downloadWebP: {
                 name: '下载 WebP',
                 desc: '如果可用，从 YouTube 下载 WebP 版本的图片，否则下载 JPG。'
+            },
+            downloadExternalImages: {
+                name: '将外部图片下载到缩略图文件夹',
+                desc: '将外部图片链接存储在本地。禁用后，在选择特色图片时跳过远程图片。'
+            },
+            downloadYoutubeThumbnails: {
+                name: '下载 YouTube 缩略图',
+                desc: '将 YouTube 缩略图存储在本地。禁用后，在选择特色图片时跳过 YouTube 链接。'
             },
             localImageExtensions: {
                 name: '本地图片扩展名',

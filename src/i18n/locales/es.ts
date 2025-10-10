@@ -17,7 +17,8 @@ export const STRINGS_ES = {
     // Settings
     settings: {
         headings: {
-            advanced: 'Avanzado'
+            advanced: 'Avanzado',
+            externalMedia: 'Medios externos'
         },
 
         items: {
@@ -105,6 +106,14 @@ export const STRINGS_ES = {
             downloadWebP: {
                 name: 'Descargar WebP',
                 desc: 'Descargar versiones WebP de imágenes de YouTube si están disponibles, de lo contrario descargar JPG.'
+            },
+            downloadExternalImages: {
+                name: 'Descargar imágenes externas en la carpeta de miniaturas',
+                desc: 'Almacenar enlaces de imágenes externas localmente. Deshabilite para omitir imágenes remotas al seleccionar la imagen destacada.'
+            },
+            downloadYoutubeThumbnails: {
+                name: 'Descargar miniaturas de YouTube',
+                desc: 'Almacenar miniaturas de YouTube localmente. Deshabilite para omitir enlaces de YouTube al seleccionar la imagen destacada.'
             },
             localImageExtensions: {
                 name: 'Extensiones de imagen local',

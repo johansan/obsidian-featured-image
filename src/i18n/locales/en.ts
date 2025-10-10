@@ -17,7 +17,8 @@ export const STRINGS_EN = {
     // Settings
     settings: {
         headings: {
-            advanced: 'Advanced'
+            advanced: 'Advanced',
+            externalMedia: 'External media'
         },
 
         items: {
@@ -105,6 +106,14 @@ export const STRINGS_EN = {
             downloadWebP: {
                 name: 'Download WebP',
                 desc: 'Download WebP versions of images from YouTube if available, otherwise download JPG.'
+            },
+            downloadExternalImages: {
+                name: 'Download external images to thumbnails folder',
+                desc: 'Store external image links locally. Disable to skip remote images when selecting a featured image.'
+            },
+            downloadYoutubeThumbnails: {
+                name: 'Download YouTube thumbnails',
+                desc: 'Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.'
             },
             localImageExtensions: {
                 name: 'Local image extensions',
