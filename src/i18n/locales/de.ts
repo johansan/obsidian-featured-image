@@ -104,10 +104,6 @@ export const STRINGS_DE = {
                 name: 'Ausrufezeichen für YouTube-Vorschaubilder erforderlich',
                 desc: 'Wenn aktiviert, werden nur YouTube-Links mit vorangestelltem Ausrufezeichen für den Vorschaubild-Download berücksichtigt.'
             },
-            downloadWebP: {
-                name: 'WebP herunterladen',
-                desc: 'WebP-Versionen von Bildern von YouTube herunterladen, falls verfügbar, andernfalls JPG herunterladen.'
-            },
             downloadExternalImages: {
                 name: 'Externe Bilder in den Vorschaubilder-Ordner herunterladen',
                 desc: 'Externe Bildlinks lokal speichern. Deaktivieren, um entfernte Bilder bei der Auswahl eines Featured Image zu überspringen.'

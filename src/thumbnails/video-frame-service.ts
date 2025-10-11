@@ -51,7 +51,7 @@ export class VideoFrameService {
         const normalizedPath = normalizePath(videoFile.path);
         const videoFolder = normalizePath(`${this.settings.thumbnailsFolder}/video`);
         const hashSource = `${normalizedPath}:${videoFile.stat.mtime}:${videoFile.stat.size}`;
-        const posterFilename = `${md5(hashSource)}.jpg`;
+        const posterFilename = `${md5(hashSource)}.webp`;
         const posterPath = `${videoFolder}/${posterFilename}`;
 
         if (await this.app.vault.adapter.exists(posterPath)) {
@@ -166,9 +166,9 @@ export class VideoFrameService {
     }
 
     /**
-     * Captures the current frame from a video element as a JPEG image.
+     * Captures the current frame from a video element as a WebP image.
      * @param {HTMLVideoElement} video - Video element to capture from.
-     * @returns {Promise<ArrayBuffer>} JPEG image data as ArrayBuffer.
+     * @returns {Promise<ArrayBuffer>} WebP image data as ArrayBuffer.
      */
     private async captureFrame(video: HTMLVideoElement): Promise<ArrayBuffer> {
         if (!video.videoWidth || !video.videoHeight) {
@@ -204,7 +204,7 @@ export class VideoFrameService {
                     reader.onerror = reject;
                     reader.readAsArrayBuffer(blob);
                 },
-                'image/jpeg',
+                'image/webp',
                 0.9
             );
         });

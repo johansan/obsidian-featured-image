@@ -104,10 +104,6 @@ export const STRINGS_EN = {
                 name: 'Require exclamation mark for YouTube thumbnails',
                 desc: 'If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.'
             },
-            downloadWebP: {
-                name: 'Download WebP',
-                desc: 'Download WebP versions of images from YouTube if available, otherwise download JPG.'
-            },
             downloadExternalImages: {
                 name: 'Download external images to thumbnails folder',
                 desc: 'Store external image links locally. Disable to skip remote images when selecting a featured image.'

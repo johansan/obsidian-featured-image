@@ -104,10 +104,6 @@ export const STRINGS_FR = {
                 name: "Exiger un point d'exclamation pour les miniatures YouTube",
                 desc: "Si activé, seuls les liens YouTube préfixés d'un point d'exclamation seront considérés pour le téléchargement de miniatures."
             },
-            downloadWebP: {
-                name: 'Télécharger WebP',
-                desc: 'Télécharger les versions WebP des images de YouTube si disponibles, sinon télécharger JPG.'
-            },
             downloadExternalImages: {
                 name: 'Télécharger les images externes dans le dossier des miniatures',
                 desc: "Stocker les liens d'images externes localement. Désactivez pour ignorer les images distantes lors de la sélection de l'image vedette."

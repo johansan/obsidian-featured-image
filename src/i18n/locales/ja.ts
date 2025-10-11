@@ -104,10 +104,6 @@ export const STRINGS_JA = {
                 name: 'YouTubeサムネイルに感嘆符が必要',
                 desc: '有効にすると、感嘆符が前に付いたYouTubeリンクのみがサムネイルダウンロードの対象となります。'
             },
-            downloadWebP: {
-                name: 'WebPをダウンロード',
-                desc: '利用可能な場合はYouTubeからWebPバージョンの画像をダウンロード、そうでない場合はJPGをダウンロード。'
-            },
             downloadExternalImages: {
                 name: '外部画像をサムネイルフォルダにダウンロード',
                 desc: '外部画像リンクをローカルに保存します。無効にすると、アイキャッチ画像の選択時にリモート画像をスキップします。'

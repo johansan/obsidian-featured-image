@@ -798,50 +798,19 @@ export default class FeaturedImage extends Plugin {
             return webpFilePath;
         }
 
-        // Check if JPG thumbnail already exists
-        const jpgFilename = `${videoId}.jpg`;
-        const jpgFilePath = `${youtubeFolder}/${jpgFilename}`;
-        if (await this.app.vault.adapter.exists(jpgFilePath)) {
-            return jpgFilePath;
-        }
-
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping thumbnail download, using mock path');
-            return `${youtubeFolder}/${videoId}.webp`; // Return a mock path
-        }
-
-        // Try to download the thumbnail in WebP format if enabled
-        if (this.settings.downloadWebP) {
-            try {
-                const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
-                if (webpResponse?.status === 200) {
-                    await this.app.vault.adapter.writeBinary(webpFilePath, webpResponse.arrayBuffer);
-                    return webpFilePath;
-                }
-            } catch {
-                this.debugLog('Failed to download WebP thumbnail');
-            }
-        }
-
-        // Fall back to JPG versions
-        try {
-            const maxResResponse = await this.fetchThumbnail(videoId, 'maxresdefault.jpg');
-            if (maxResResponse?.status === 200) {
-                await this.app.vault.adapter.writeBinary(jpgFilePath, maxResResponse.arrayBuffer);
-                return jpgFilePath;
-            }
-        } catch {
-            this.debugLog('Failed to download maxresdefault.jpg');
+            return webpFilePath; // Return a mock path
         }
 
         try {
-            const hqDefaultResponse = await this.fetchThumbnail(videoId, 'hqdefault.jpg');
-            if (hqDefaultResponse?.status === 200) {
-                await this.app.vault.adapter.writeBinary(jpgFilePath, hqDefaultResponse.arrayBuffer);
-                return jpgFilePath;
+            const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
+            if (webpResponse?.status === 200) {
+                await this.app.vault.adapter.writeBinary(webpFilePath, webpResponse.arrayBuffer);
+                return webpFilePath;
             }
         } catch (error) {
-            this.debugLog('Failed to download hqdefault.jpg:', error);
+            this.debugLog('Failed to download WebP thumbnail:', error);
         }
 
         this.errorLog(`Thumbnail for video ${videoId} could not be downloaded`);

@@ -104,10 +104,6 @@ export const STRINGS_ZH = {
                 name: 'YouTube 缩略图需要感叹号',
                 desc: '如果启用，只有带有感叹号前缀的 YouTube 链接才会被考虑用于缩略图下载。'
             },
-            downloadWebP: {
-                name: '下载 WebP',
-                desc: '如果可用，从 YouTube 下载 WebP 版本的图片，否则下载 JPG。'
-            },
             downloadExternalImages: {
                 name: '将外部图片下载到缩略图文件夹',
                 desc: '将外部图片链接存储在本地。禁用后，在选择特色图片时跳过远程图片。'

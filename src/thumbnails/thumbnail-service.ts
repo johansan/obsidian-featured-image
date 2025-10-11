@@ -60,7 +60,7 @@ export class ThumbnailService {
             const hashedName = `${sourceHash}_${settingsHash}`;
 
             const resizedFolder = normalizePath(`${this.settings.thumbnailsFolder}/resized`);
-            const thumbnailPath = `${resizedFolder}/${hashedName}.jpg`;
+            const thumbnailPath = `${resizedFolder}/${hashedName}.webp`;
 
             if (await this.app.vault.adapter.exists(thumbnailPath)) {
                 this.deps.debugLog('Resized thumbnail already exists:', thumbnailPath);
@@ -211,7 +211,7 @@ export class ThumbnailService {
      * @param {number} width - Target width for the resized image.
      * @param {number} height - Target height for the resized image.
      * @param {boolean} fillMax - Whether to crop and fill exact dimensions.
-     * @returns {Promise<ArrayBuffer>} JPEG image data as ArrayBuffer.
+     * @returns {Promise<ArrayBuffer>} WebP image data as ArrayBuffer.
      */
     private async resizeImage(img: HTMLImageElement, width: number, height: number, fillMax: boolean): Promise<ArrayBuffer> {
         const canvas = this.ensureCanvas();
@@ -223,9 +223,6 @@ export class ThumbnailService {
 
         canvas.width = width;
         canvas.height = height;
-
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, width, height);
 
         let sourceX = 0;
         let sourceY = 0;
@@ -292,7 +289,7 @@ export class ThumbnailService {
                     reader.onerror = reject;
                     reader.readAsArrayBuffer(blob);
                 },
-                'image/jpeg',
+                'image/webp',
                 0.85
             );
         });

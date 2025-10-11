@@ -104,10 +104,6 @@ export const STRINGS_ES = {
                 name: 'Requerir signo de exclamación para miniaturas de YouTube',
                 desc: 'Si está habilitado, solo los enlaces de YouTube con prefijo de signo de exclamación se considerarán para la descarga de miniaturas.'
             },
-            downloadWebP: {
-                name: 'Descargar WebP',
-                desc: 'Descargar versiones WebP de imágenes de YouTube si están disponibles, de lo contrario descargar JPG.'
-            },
             downloadExternalImages: {
                 name: 'Descargar imágenes externas en la carpeta de miniaturas',
                 desc: 'Almacenar enlaces de imágenes externas localmente. Deshabilite para omitir imágenes remotas al seleccionar la imagen destacada.'

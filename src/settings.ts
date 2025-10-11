@@ -26,7 +26,6 @@ export interface FeaturedImageSettings {
     keepEmptyProperty: boolean;
     preserveTemplateImages: boolean;
     requireExclamationForYouTube: boolean;
-    downloadWebP: boolean;
     downloadExternalImages: boolean;
     downloadYoutubeThumbnails: boolean;
     imageExtensions: string[];
@@ -60,7 +59,6 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     keepEmptyProperty: false,
     preserveTemplateImages: false,
     requireExclamationForYouTube: true,
-    downloadWebP: true,
     downloadExternalImages: true,
     downloadYoutubeThumbnails: true,
     imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
@@ -378,17 +376,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
-
-        // Download webp
-        new Setting(advancedSettingsEl)
-            .setName(strings.settings.items.downloadWebP.name)
-            .setDesc(strings.settings.items.downloadWebP.desc)
-            .addToggle(toggle => {
-                toggle.setValue(this.plugin.settings.downloadWebP).onChange(async value => {
-                    this.plugin.settings.downloadWebP = value;
-                    await this.plugin.saveSettings();
-                });
-            });
 
         // Local image extensions
         new Setting(advancedSettingsEl)
