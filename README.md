@@ -74,66 +74,63 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 ### Basic Settings
 
-1. **Show Notifications** - Shows notifications when featured images are set, updated, or removed.
+1. **Show notifications** - Show notifications when the featured image is set, updated or removed.
 
-2. **Frontmatter Property** - The name of the frontmatter property for the featured image path.
+2. **Frontmatter property** - The name of the frontmatter property to update with the featured image.
 
-3. **Thumbnails Folder** - Folder where external images, YouTube thumbnails, and resized images are stored. Subfolders are created automatically.
+3. **Resized thumbnail property name** - The name of the frontmatter property to store the resized thumbnail path.
 
-4. **Excluded Folders** - Comma-separated list of folders to exclude from processing (e.g., `templates, archive`).
+4. **Thumbnails folder** - Folder for downloaded thumbnails and resized images. Subfolders will be created automatically for different image types.
 
-### Resized Thumbnails
+5. **Excluded folders** - Comma separated list of folders to exclude from the featured image plugin.
 
-5. **Resize Feature Image** - Creates optimized thumbnail versions of featured images for faster loading.
+### Notebook Navigator
 
-6. **Resized Thumbnail Property Name** - The frontmatter property for the resized thumbnail path.
-
-7. **Max Resized Width** - Maximum width in pixels for resized thumbnails (0 = no restriction).
-
-8. **Max Resized Height** - Maximum height in pixels for resized thumbnails (0 = no restriction).
-
-9. **Fill Resized Dimensions** - Makes thumbnails exactly the specified size by cropping if needed.
-
-10. **Vertical Alignment** - Controls vertical positioning when cropping (top, center, or bottom).
-
-11. **Horizontal Alignment** - Controls horizontal positioning when cropping (left, center, or right).
+6. **Optimize settings for Notebook Navigator** - Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.
 
 ### Local Media
 
-12. **Capture Video Poster** - Extracts poster frames from local video files to use as featured images.
+7. **Capture video poster frame** - Create a still image from the first frame of local videos and use it as a featured image.
 
 ### External Media
 
-13. **Download External Images** - Downloads external images referenced in your notes for offline access and faster loading.
+8. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
 
-14. **Download YouTube Thumbnails** - Downloads YouTube video thumbnails for offline access and instant loading.
+9. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
+
+10. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
 
 ### Advanced Settings
 
-15. **Show Advanced Settings** - Toggle to show or hide advanced configuration options.
+11. **Show advanced settings** - Toggle to show or hide advanced configuration options.
 
-16. **Media Link Format** - How to format image paths in frontmatter:
+When enabled, the following additional settings are available:
+
+12. **Resize feature image** - Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.
+    - **Max resized width** - Maximum width of the resized thumbnail in pixels. Use 0 for no width restriction.
+    - **Max resized height** - Maximum height of the resized thumbnail in pixels. Use 0 for no height restriction.
+    - **Fill resized dimensions** - When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.
+      - **Vertical alignment** - Choose the vertical alignment for cropped images (top, center, or bottom).
+      - **Horizontal alignment** - Choose the horizontal alignment for cropped images (left, center, or right).
+
+13. **Media link format** - Choose how to format the featured image property in frontmatter:
     - Plain text: `path/to/image.png`
     - Wiki link: `[[path/to/image.png]]`
     - Embedded link: `![[path/to/image.png]]`
 
-17. **Only Update if Frontmatter Property Exists** - Only updates notes that already have the featured image property.
+14. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
 
-18. **Keep Empty Property** - Keeps the property with an empty value instead of removing it when no image is found.
+15. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
 
-19. **Preserve Template Images** - Preserves existing featured images when no new image is found in the document.
+16. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
 
-20. **Require Exclamation Mark for YouTube Thumbnails** - YouTube links must be prefixed with `!` to be considered.
+17. **Local image extensions** - Comma-separated list of image file extensions to search for in documents.
 
-21. **Download WebP** - Downloads WebP format for YouTube thumbnails when available.
+18. **Local video extensions** - Comma-separated list of video file extensions eligible for poster capture.
 
-22. **Local Image Extensions** - Comma-separated list of image file extensions to search for (e.g., `png,jpg,jpeg,gif,webp`).
+19. **Debug mode** - Enable debug mode to log detailed information to the console.
 
-23. **Video Extensions** - Comma-separated list of video file extensions to search for (e.g., `mp4,mov,m4v,webm`).
-
-24. **Debug Mode** - Logs detailed information to the console for troubleshooting.
-
-25. **Dry Run** - Prevents any changes from being made to files (preview mode).
+20. **Dry run** - Enable dry run to prevent any changes from being made to your files.
 
 ## Technical Details
 

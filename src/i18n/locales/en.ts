@@ -19,7 +19,8 @@ export const STRINGS_EN = {
         headings: {
             advanced: 'Advanced',
             localMedia: 'Local media',
-            externalMedia: 'External media'
+            externalMedia: 'External media',
+            notebookNavigator: 'Notebook Navigator'
         },
 
         items: {
@@ -51,12 +52,12 @@ export const STRINGS_EN = {
             maxResizedWidth: {
                 name: 'Max resized width',
                 desc: 'Maximum width of the resized thumbnail in pixels. Use 0 for no width restriction.',
-                placeholder: '128'
+                placeholder: '256'
             },
             maxResizedHeight: {
                 name: 'Max resized height',
                 desc: 'Maximum height of the resized thumbnail in pixels. Use 0 for no height restriction.',
-                placeholder: '128'
+                placeholder: '144'
             },
             fillResizedDimensions: {
                 name: 'Fill resized dimensions',
@@ -111,6 +112,11 @@ export const STRINGS_EN = {
             downloadYoutubeThumbnails: {
                 name: 'Download YouTube thumbnails',
                 desc: 'Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.'
+            },
+            optimizeNotebookNavigator: {
+                name: 'Optimize settings for Notebook Navigator',
+                desc: 'Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.',
+                action: 'Optimize'
             },
             captureVideoPoster: {
                 name: 'Capture video poster frame',

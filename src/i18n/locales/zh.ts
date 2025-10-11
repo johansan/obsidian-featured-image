@@ -19,7 +19,8 @@ export const STRINGS_ZH = {
         headings: {
             advanced: '高级',
             localMedia: '本地媒体',
-            externalMedia: '外部媒体'
+            externalMedia: '外部媒体',
+            notebookNavigator: 'Notebook Navigator'
         },
 
         items: {
@@ -51,12 +52,12 @@ export const STRINGS_ZH = {
             maxResizedWidth: {
                 name: '最大调整宽度',
                 desc: '调整大小的缩略图的最大宽度（像素）。使用 0 表示无宽度限制。',
-                placeholder: '128'
+                placeholder: '256'
             },
             maxResizedHeight: {
                 name: '最大调整高度',
                 desc: '调整大小的缩略图的最大高度（像素）。使用 0 表示无高度限制。',
-                placeholder: '128'
+                placeholder: '144'
             },
             fillResizedDimensions: {
                 name: '填充调整后的尺寸',
@@ -111,6 +112,11 @@ export const STRINGS_ZH = {
             downloadYoutubeThumbnails: {
                 name: '下载 YouTube 缩略图',
                 desc: '将 YouTube 缩略图存储在本地。禁用后，在选择特色图片时跳过 YouTube 链接。'
+            },
+            optimizeNotebookNavigator: {
+                name: '为 Notebook Navigator 优化设置',
+                desc: '为 Notebook Navigator 优化缩略图设置，并重新渲染所有已调整大小的缩略图。',
+                action: '优化'
             },
             captureVideoPoster: {
                 name: '捕获视频首帧',

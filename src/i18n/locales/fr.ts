@@ -19,7 +19,8 @@ export const STRINGS_FR = {
         headings: {
             advanced: 'Avancé',
             localMedia: 'Médias locaux',
-            externalMedia: 'Médias externes'
+            externalMedia: 'Médias externes',
+            notebookNavigator: 'Notebook Navigator'
         },
 
         items: {
@@ -51,12 +52,12 @@ export const STRINGS_FR = {
             maxResizedWidth: {
                 name: 'Largeur maximale redimensionnée',
                 desc: 'Largeur maximale de la miniature redimensionnée en pixels. Utilisez 0 pour aucune restriction de largeur.',
-                placeholder: '128'
+                placeholder: '256'
             },
             maxResizedHeight: {
                 name: 'Hauteur maximale redimensionnée',
                 desc: 'Hauteur maximale de la miniature redimensionnée en pixels. Utilisez 0 pour aucune restriction de hauteur.',
-                placeholder: '128'
+                placeholder: '144'
             },
             fillResizedDimensions: {
                 name: 'Remplir les dimensions redimensionnées',
@@ -111,6 +112,11 @@ export const STRINGS_FR = {
             downloadYoutubeThumbnails: {
                 name: 'Télécharger les miniatures YouTube',
                 desc: 'Stocker les miniatures YouTube localement. Désactivez pour ignorer les liens YouTube lors de la sélection de l’image vedette.'
+            },
+            optimizeNotebookNavigator: {
+                name: 'Optimiser pour Notebook Navigator',
+                desc: 'Optimise les paramètres de miniature pour Notebook Navigator et re-génère toutes les miniatures redimensionnées.',
+                action: 'Optimiser'
             },
             captureVideoPoster: {
                 name: 'Capturer une image vidéo',

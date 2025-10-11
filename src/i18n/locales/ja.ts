@@ -19,7 +19,8 @@ export const STRINGS_JA = {
         headings: {
             advanced: '詳細設定',
             localMedia: 'ローカルメディア',
-            externalMedia: '外部メディア'
+            externalMedia: '外部メディア',
+            notebookNavigator: 'Notebook Navigator'
         },
 
         items: {
@@ -51,12 +52,12 @@ export const STRINGS_JA = {
             maxResizedWidth: {
                 name: '最大リサイズ幅',
                 desc: 'リサイズされたサムネイルの最大幅（ピクセル）。幅制限なしの場合は0を使用。',
-                placeholder: '128'
+                placeholder: '256'
             },
             maxResizedHeight: {
                 name: '最大リサイズ高さ',
                 desc: 'リサイズされたサムネイルの最大高さ（ピクセル）。高さ制限なしの場合は0を使用。',
-                placeholder: '128'
+                placeholder: '144'
             },
             fillResizedDimensions: {
                 name: 'リサイズ寸法を満たす',
@@ -111,6 +112,11 @@ export const STRINGS_JA = {
             downloadYoutubeThumbnails: {
                 name: 'YouTubeサムネイルをダウンロード',
                 desc: 'YouTubeサムネイルをローカルに保存します。無効にすると、アイキャッチ画像の選択時にYouTubeリンクをスキップします。'
+            },
+            optimizeNotebookNavigator: {
+                name: 'Notebook Navigator向けに最適化',
+                desc: 'Notebook Navigator向けにサムネイル設定を最適化し、すべてのリサイズ済みサムネイルを再レンダリングします。',
+                action: '最適化'
             },
             captureVideoPoster: {
                 name: '動画のポスターフレームを取得',

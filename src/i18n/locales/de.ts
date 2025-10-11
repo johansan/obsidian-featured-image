@@ -19,7 +19,8 @@ export const STRINGS_DE = {
         headings: {
             advanced: 'Erweitert',
             localMedia: 'Lokale Medien',
-            externalMedia: 'Externe Medien'
+            externalMedia: 'Externe Medien',
+            notebookNavigator: 'Notebook Navigator'
         },
 
         items: {
@@ -51,12 +52,12 @@ export const STRINGS_DE = {
             maxResizedWidth: {
                 name: 'Maximale verkleinerte Breite',
                 desc: 'Maximale Breite des verkleinerten Vorschaubilds in Pixeln. 0 für keine Breitenbeschränkung verwenden.',
-                placeholder: '128'
+                placeholder: '256'
             },
             maxResizedHeight: {
                 name: 'Maximale verkleinerte Höhe',
                 desc: 'Maximale Höhe des verkleinerten Vorschaubilds in Pixeln. 0 für keine Höhenbeschränkung verwenden.',
-                placeholder: '128'
+                placeholder: '144'
             },
             fillResizedDimensions: {
                 name: 'Verkleinerte Dimensionen ausfüllen',
@@ -111,6 +112,11 @@ export const STRINGS_DE = {
             downloadYoutubeThumbnails: {
                 name: 'YouTube-Vorschaubilder herunterladen',
                 desc: 'YouTube-Vorschaubilder lokal speichern. Deaktivieren, um YouTube-Links bei der Auswahl eines Featured Image zu überspringen.'
+            },
+            optimizeNotebookNavigator: {
+                name: 'Einstellungen für Notebook Navigator optimieren',
+                desc: 'Optimiert die Thumbnail-Einstellungen für Notebook Navigator und rendert alle verkleinerten Vorschaubilder neu.',
+                action: 'Optimieren'
             },
             captureVideoPoster: {
                 name: 'Video-Posterbild erfassen',
