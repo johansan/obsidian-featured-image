@@ -82,42 +82,58 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 4. **Excluded Folders** - Comma-separated list of folders to exclude from processing (e.g., `templates, archive`).
 
-### Resized Thumbnail
+### Resized Thumbnails
 
 5. **Resize Feature Image** - Creates optimized thumbnail versions of featured images for faster loading.
 
 6. **Resized Thumbnail Property Name** - The frontmatter property for the resized thumbnail path.
 
-7. **Max Resized Width/Height** - Maximum dimensions in pixels for resized thumbnails (0 = no restriction).
+7. **Max Resized Width** - Maximum width in pixels for resized thumbnails (0 = no restriction).
 
-8. **Fill Resized Dimensions** - Makes thumbnails exactly the specified size by cropping if needed.
+8. **Max Resized Height** - Maximum height in pixels for resized thumbnails (0 = no restriction).
 
-9. **Vertical/Horizontal Alignment** - Controls which part of the image is preserved when cropping.
+9. **Fill Resized Dimensions** - Makes thumbnails exactly the specified size by cropping if needed.
+
+10. **Vertical Alignment** - Controls vertical positioning when cropping (top, center, or bottom).
+
+11. **Horizontal Alignment** - Controls horizontal positioning when cropping (left, center, or right).
+
+### Local Media
+
+12. **Capture Video Poster** - Extracts poster frames from local video files to use as featured images.
+
+### External Media
+
+13. **Download External Images** - Downloads external images referenced in your notes for offline access and faster loading.
+
+14. **Download YouTube Thumbnails** - Downloads YouTube video thumbnails for offline access and instant loading.
 
 ### Advanced Settings
 
-10. **Show Advanced Settings** - Toggle to show or hide advanced configuration options.
+15. **Show Advanced Settings** - Toggle to show or hide advanced configuration options.
 
-11. **Media Link Format** - How to format image paths in frontmatter:
+16. **Media Link Format** - How to format image paths in frontmatter:
     - Plain text: `path/to/image.png`
     - Wiki link: `[[path/to/image.png]]`
     - Embedded link: `![[path/to/image.png]]`
 
-12. **Only Update if Frontmatter Property Exists** - Only updates notes that already have the featured image property.
+17. **Only Update if Frontmatter Property Exists** - Only updates notes that already have the featured image property.
 
-13. **Keep Empty Property** - Keeps the property with an empty value instead of removing it when no image is found.
+18. **Keep Empty Property** - Keeps the property with an empty value instead of removing it when no image is found.
 
-14. **Don't Clear Existing Property** - Preserves existing featured images when no new image is found in the document.
+19. **Preserve Template Images** - Preserves existing featured images when no new image is found in the document.
 
-15. **Require Exclamation Mark for YouTube Thumbnails** - YouTube links must be prefixed with `!` to be considered.
+20. **Require Exclamation Mark for YouTube Thumbnails** - YouTube links must be prefixed with `!` to be considered.
 
-16. **Download WebP** - Downloads WebP format for YouTube thumbnails when available.
+21. **Download WebP** - Downloads WebP format for YouTube thumbnails when available.
 
-17. **Local Image Extensions** - Comma-separated list of image file extensions to search for (e.g., `png,jpg,jpeg,gif,webp`).
+22. **Local Image Extensions** - Comma-separated list of image file extensions to search for (e.g., `png,jpg,jpeg,gif,webp`).
 
-18. **Debug Mode** - Logs detailed information to the console for troubleshooting.
+23. **Video Extensions** - Comma-separated list of video file extensions to search for (e.g., `mp4,mov,m4v,webm`).
 
-19. **Dry Run** - Prevents any changes from being made to files (preview mode).
+24. **Debug Mode** - Logs detailed information to the console for troubleshooting.
+
+25. **Dry Run** - Prevents any changes from being made to files (preview mode).
 
 ## Technical Details
 

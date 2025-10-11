@@ -18,6 +18,7 @@ export const STRINGS_DE = {
     settings: {
         headings: {
             advanced: 'Erweitert',
+            localMedia: 'Lokale Medien',
             externalMedia: 'Externe Medien'
         },
 
@@ -114,6 +115,15 @@ export const STRINGS_DE = {
             downloadYoutubeThumbnails: {
                 name: 'YouTube-Vorschaubilder herunterladen',
                 desc: 'YouTube-Vorschaubilder lokal speichern. Deaktivieren, um YouTube-Links bei der Auswahl eines Featured Image zu überspringen.'
+            },
+            captureVideoPoster: {
+                name: 'Video-Posterbild erfassen',
+                desc: 'Erstellt aus dem ersten Frame lokaler Videos ein Standbild und nutzt es als Featured Image.'
+            },
+            videoExtensions: {
+                name: 'Lokale Videoerweiterungen',
+                desc: 'Kommagetrennte Liste von Video-Dateierweiterungen, die für die Poster-Erstellung verwendet werden können.',
+                placeholder: 'mp4,mov,m4v,webm'
             },
             localImageExtensions: {
                 name: 'Lokale Bilderweiterungen',

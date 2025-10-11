@@ -30,6 +30,8 @@ export interface FeaturedImageSettings {
     downloadExternalImages: boolean;
     downloadYoutubeThumbnails: boolean;
     imageExtensions: string[];
+    captureVideoPoster: boolean;
+    videoExtensions: string[];
     debugMode: boolean;
     dryRun: boolean;
 }
@@ -62,6 +64,8 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     downloadExternalImages: true,
     downloadYoutubeThumbnails: true,
     imageExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
+    captureVideoPoster: true,
+    videoExtensions: ['mp4', 'mov', 'm4v', 'webm'],
     debugMode: false,
     dryRun: false
 };
@@ -251,6 +255,23 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             cls: 'setting-item-description'
         });
 
+        // Local Media heading
+        new Setting(containerEl).setName(strings.settings.headings.localMedia).setHeading();
+
+        const localMediaSettingsEl = containerEl.createDiv('local-media-settings');
+        localMediaSettingsEl.addClass('thumbnail-settings');
+
+        // Capture video poster frames
+        new Setting(localMediaSettingsEl)
+            .setName(strings.settings.items.captureVideoPoster.name)
+            .setDesc(strings.settings.items.captureVideoPoster.desc)
+            .addToggle(toggle =>
+                toggle.setValue(this.plugin.settings.captureVideoPoster).onChange(async value => {
+                    this.plugin.settings.captureVideoPoster = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
         // External media heading
         new Setting(containerEl).setName(strings.settings.headings.externalMedia).setHeading();
 
@@ -387,6 +408,28 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                             this.plugin.settings.imageExtensions = DEFAULT_SETTINGS.imageExtensions;
                         } else {
                             this.plugin.settings.imageExtensions = extensions;
+                        }
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        // Local video extensions
+        new Setting(advancedSettingsEl)
+            .setName(strings.settings.items.videoExtensions.name)
+            .setDesc(strings.settings.items.videoExtensions.desc)
+            .addText(text =>
+                text
+                    .setPlaceholder(strings.settings.items.videoExtensions.placeholder)
+                    .setValue(this.plugin.settings.videoExtensions.join(','))
+                    .onChange(async value => {
+                        const extensions = value
+                            .split(',')
+                            .map(ext => ext.trim())
+                            .filter(ext => ext);
+                        if (extensions.length === 0) {
+                            this.plugin.settings.videoExtensions = DEFAULT_SETTINGS.videoExtensions;
+                        } else {
+                            this.plugin.settings.videoExtensions = extensions;
                         }
                         await this.plugin.saveSettings();
                     })

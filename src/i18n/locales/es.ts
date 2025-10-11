@@ -18,6 +18,7 @@ export const STRINGS_ES = {
     settings: {
         headings: {
             advanced: 'Avanzado',
+            localMedia: 'Medios locales',
             externalMedia: 'Medios externos'
         },
 
@@ -114,6 +115,15 @@ export const STRINGS_ES = {
             downloadYoutubeThumbnails: {
                 name: 'Descargar miniaturas de YouTube',
                 desc: 'Almacenar miniaturas de YouTube localmente. Deshabilite para omitir enlaces de YouTube al seleccionar la imagen destacada.'
+            },
+            captureVideoPoster: {
+                name: 'Capturar fotograma inicial de video',
+                desc: 'Crea una imagen fija del primer fotograma de videos locales y la usa como imagen destacada.'
+            },
+            videoExtensions: {
+                name: 'Extensiones de video locales',
+                desc: 'Lista separada por comas de extensiones de archivo de video elegibles para la captura de fotogramas.',
+                placeholder: 'mp4,mov,m4v,webm'
             },
             localImageExtensions: {
                 name: 'Extensiones de imagen local',

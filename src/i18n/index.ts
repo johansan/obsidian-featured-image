@@ -25,18 +25,11 @@ const LANGUAGE_MAP: Record<string, TranslationStrings> = {
 };
 
 /**
- * Gets the current language setting from Obsidian
- */
-export function getCurrentLanguage(): string {
-    return getLanguage();
-}
-
-/**
  * Detects the current Obsidian language setting
  * Falls back to English if the language is not supported
  */
 function getObsidianLanguage(): string {
-    const locale = getCurrentLanguage();
+    const locale = getLanguage();
 
     // Check if the detected language is supported
     if (locale && locale in LANGUAGE_MAP) {

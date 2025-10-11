@@ -18,6 +18,7 @@ export const STRINGS_EN = {
     settings: {
         headings: {
             advanced: 'Advanced',
+            localMedia: 'Local media',
             externalMedia: 'External media'
         },
 
@@ -114,6 +115,15 @@ export const STRINGS_EN = {
             downloadYoutubeThumbnails: {
                 name: 'Download YouTube thumbnails',
                 desc: 'Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.'
+            },
+            captureVideoPoster: {
+                name: 'Capture video poster frame',
+                desc: 'Create a still image from the first frame of local videos and use it as a featured image.'
+            },
+            videoExtensions: {
+                name: 'Local video extensions',
+                desc: 'Comma-separated list of video file extensions eligible for poster capture.',
+                placeholder: 'mp4,mov,m4v,webm'
             },
             localImageExtensions: {
                 name: 'Local image extensions',

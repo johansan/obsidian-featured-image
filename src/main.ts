@@ -8,19 +8,18 @@ import '../styles.css';
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings';
 import { ConfirmationModal } from './modals';
 import { strings } from './i18n';
+import { FeatureScanner } from './features/feature-scanner';
+import { ThumbnailService } from './thumbnails/thumbnail-service';
+import { VideoFrameService } from './thumbnails/video-frame-service';
+import { ImageMaintenanceService } from './features/image-maintenance';
 
-// External imports
-import { createHash } from 'crypto';
-
-/**
- * Represents parsed frontmatter image information.
- */
-interface FrontmatterImageInfo {
-    rawValue: string; // Original frontmatter value as written
-    rawPath: string; // Extracted path from rawValue (without wiki-link formatting)
-    resolvedPath: string; // Resolved vault-relative path
-    isResolved: boolean; // Whether the path was successfully resolved to an existing file
-}
+// Utilities
+import type { Logger } from './utils/logging';
+import { createDebugLogger, createErrorLogger } from './utils/logging';
+import { isTFile as isTFileGuard } from './utils/obsidian';
+import { isValidHttpsUrl } from './utils/urls';
+import { md5 } from './utils/hash';
+import { applyMediaProperty } from './utils/frontmatter';
 
 /**
  * FeaturedImage plugin for Obsidian.
@@ -30,11 +29,13 @@ export default class FeaturedImage extends Plugin {
     settings: FeaturedImageSettings;
     private isRunningBulkUpdate: boolean = false;
     private updatingFiles: Set<string> = new Set();
+    private debugLogger: Logger = createDebugLogger(false);
+    private errorLogger: Logger = createErrorLogger();
 
-    // Combined regex pattern
-    private combinedLineRegex: RegExp;
-    private autoCardImageRegex: RegExp;
-    private codeBlockStartRegex: RegExp;
+    private featureScanner: FeatureScanner;
+    private thumbnailService: ThumbnailService;
+    private videoFrameService: VideoFrameService;
+    private imageMaintenance: ImageMaintenanceService;
 
     // Placeholder image data for failed downloads (1x1 transparent PNG)
     // prettier-ignore
@@ -58,9 +59,6 @@ export default class FeaturedImage extends Plugin {
     // Delay in milliseconds before processing file operations to allow Obsidian to complete its internal updates
     private static readonly FILE_OPERATION_DELAY = 100;
 
-    // Canvas element for image resizing
-    private canvas: HTMLCanvasElement | null = null;
-
     /**
      * Loads the plugin, initializes settings, and sets up event listeners.
      */
@@ -68,13 +66,31 @@ export default class FeaturedImage extends Plugin {
         await this.loadSettings();
         this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
 
-        // Pre-compile regex patterns
-        this.compileRegexPatterns();
+        this.thumbnailService = new ThumbnailService(this.app, this.settings, {
+            debugLog: this.debugLog.bind(this),
+            errorLog: this.errorLog.bind(this)
+        });
 
-        // Initialize canvas for image resizing if needed
-        if (this.settings.createResizedThumbnail) {
-            this.canvas = document.createElement('canvas');
-        }
+        this.videoFrameService = new VideoFrameService(this.app, this.settings, {
+            debugLog: this.debugLog.bind(this),
+            errorLog: this.errorLog.bind(this)
+        });
+
+        this.featureScanner = new FeatureScanner(this.app, this.settings, {
+            downloadExternalImage: this.downloadExternalImage.bind(this),
+            downloadYoutubeThumbnail: this.downloadThumbnail.bind(this),
+            createVideoPoster: this.createVideoPoster.bind(this),
+            debugLog: this.debugLog.bind(this),
+            errorLog: this.errorLog.bind(this)
+        });
+
+        this.imageMaintenance = new ImageMaintenanceService(this.app, this.settings, {
+            featureScanner: this.featureScanner,
+            thumbnailService: this.thumbnailService,
+            debugLog: this.debugLog.bind(this),
+            errorLog: this.errorLog.bind(this),
+            trashFileAtPath: this.trashFileAtPath.bind(this)
+        });
 
         // Add command for updating all featured images
         this.addCommand({
@@ -144,8 +160,7 @@ export default class FeaturedImage extends Plugin {
      */
     private debugLog(...args: unknown[]) {
         if (this.settings.debugMode) {
-            const timestamp = new Date().toTimeString().split(' ')[0];
-            console.log(`${timestamp}`, ...args);
+            this.debugLogger(...args);
         }
     }
 
@@ -154,8 +169,7 @@ export default class FeaturedImage extends Plugin {
      * @param {...any} args - The arguments to log.
      */
     private errorLog(...args: unknown[]) {
-        const timestamp = new Date().toTimeString().split(' ')[0];
-        console.error(`${timestamp}`, ...args);
+        this.errorLogger(...args);
     }
 
     /**
@@ -164,113 +178,7 @@ export default class FeaturedImage extends Plugin {
      * @returns {file is TFile} True when the file is a TFile instance.
      */
     private isTFile(file: TAbstractFile | null): file is TFile {
-        return file instanceof TFile;
-    }
-
-    /**
-     * Resolves a local image path relative to the provided context file.
-     * @param {string} imagePath - The local image path to resolve.
-     * @param {TFile} contextFile - The markdown file referencing the image.
-     * @returns {string | undefined} Canonical vault-relative path when the file exists.
-     */
-    private resolveLocalImagePath(imagePath: string, contextFile: TFile): string | undefined {
-        const trimmedPath = imagePath.trim();
-
-        const resolvedFromCache = this.app.metadataCache.getFirstLinkpathDest(trimmedPath, contextFile.path);
-        if (this.isTFile(resolvedFromCache)) {
-            return resolvedFromCache.path;
-        }
-
-        const normalizedPath = normalizePath(trimmedPath);
-        const abstractFile = this.app.vault.getAbstractFileByPath(normalizedPath);
-        if (this.isTFile(abstractFile)) {
-            return abstractFile.path;
-        }
-
-        return undefined;
-    }
-
-    /**
-     * Parses a frontmatter image value and resolves it when possible.
-     * @param {unknown} value - The raw frontmatter value.
-     * @param {TFile} contextFile - The file containing the frontmatter.
-     * @returns {FrontmatterImageInfo | undefined} Parsed frontmatter information.
-     */
-    private parseFrontmatterImage(value: unknown, contextFile: TFile): FrontmatterImageInfo | undefined {
-        if (typeof value !== 'string') {
-            return undefined;
-        }
-
-        const rawValue = value.trim();
-        if (!rawValue) {
-            return undefined;
-        }
-
-        const embedMatch = rawValue.match(/!?\[\[(.*?)\]\]/);
-        let rawPath = rawValue;
-        if (embedMatch) {
-            rawPath = embedMatch[1];
-        }
-
-        rawPath = rawPath.split('|')[0].split('#')[0].trim();
-
-        let resolvedPath = rawPath;
-        let isResolved = false;
-
-        if (rawPath) {
-            if (this.isValidUrl(rawPath)) {
-                isResolved = true;
-                resolvedPath = rawPath;
-            } else {
-                const resolved = this.resolveLocalImagePath(rawPath, contextFile);
-                if (resolved) {
-                    resolvedPath = normalizePath(resolved);
-                    isResolved = true;
-                } else {
-                    resolvedPath = normalizePath(rawPath);
-                }
-            }
-        }
-
-        return {
-            rawValue,
-            rawPath,
-            resolvedPath,
-            isResolved
-        };
-    }
-
-    /**
-     * Retrieves structured frontmatter image information for the specified property.
-     * @param {TFile} file - The file to inspect.
-     * @param {string} property - The frontmatter property name.
-     * @returns {FrontmatterImageInfo | undefined} Parsed frontmatter information.
-     */
-    private getFrontmatterImageInfo(file: TFile, property: string): FrontmatterImageInfo | undefined {
-        const cache = this.app.metadataCache.getFileCache(file);
-        const value = cache?.frontmatter?.[property];
-        return this.parseFrontmatterImage(value, file);
-    }
-
-    /**
-     * Checks whether the stored frontmatter entry matches the provided path.
-     * @param {FrontmatterImageInfo | undefined} info - Parsed frontmatter information.
-     * @param {string | undefined} candidate - The candidate path to compare.
-     * @returns {boolean} True when the paths are equivalent.
-     */
-    private isFrontmatterPathEqual(info: FrontmatterImageInfo | undefined, candidate: string | undefined): boolean {
-        if (!info?.rawValue || !candidate) {
-            return false;
-        }
-
-        if (this.isValidUrl(candidate)) {
-            return info.resolvedPath === candidate;
-        }
-
-        const normalizedCandidate = normalizePath(candidate);
-        const normalizedStored = info.isResolved ? info.resolvedPath : normalizePath(info.rawPath);
-
-        return normalizedStored === normalizedCandidate;
+        return isTFileGuard(file);
     }
 
     /**
@@ -283,6 +191,19 @@ export default class FeaturedImage extends Plugin {
      */
     async loadSettings() {
         this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+        this.debugLogger = createDebugLogger(this.settings.debugMode);
+        if (this.featureScanner) {
+            this.featureScanner.setSettings(this.settings);
+        }
+        if (this.thumbnailService) {
+            this.thumbnailService.setSettings(this.settings);
+        }
+        if (this.videoFrameService) {
+            this.videoFrameService.setSettings(this.settings);
+        }
+        if (this.imageMaintenance) {
+            this.imageMaintenance.setSettings(this.settings);
+        }
 
         // Migration: Set initial mediaLinkFormat based on legacy useMediaLinks setting
         // The only time useMediaLinks is true and mediaLinkFormat is 'plain' is when the plugin was updated to the new format
@@ -298,8 +219,19 @@ export default class FeaturedImage extends Plugin {
      */
     async saveSettings() {
         await this.saveData(this.settings);
-        // Recompile regex patterns
-        this.compileRegexPatterns();
+        this.debugLogger = createDebugLogger(this.settings.debugMode);
+        if (this.featureScanner) {
+            this.featureScanner.setSettings(this.settings);
+        }
+        if (this.thumbnailService) {
+            this.thumbnailService.setSettings(this.settings);
+        }
+        if (this.videoFrameService) {
+            this.videoFrameService.setSettings(this.settings);
+        }
+        if (this.imageMaintenance) {
+            this.imageMaintenance.setSettings(this.settings);
+        }
     }
 
     /**
@@ -308,12 +240,22 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<boolean>} True if the featured image was updated, false otherwise.
      */
     async setFeaturedImage(file: TFile): Promise<boolean> {
+        if (!this.featureScanner) {
+            this.errorLog('Feature scanner not initialized, skipping featured image update for', file.path);
+            return false;
+        }
+
+        if (!this.thumbnailService) {
+            this.errorLog('Thumbnail service not initialized, skipping featured image update for', file.path);
+            return false;
+        }
+
         // Extract detailed information about the current featured image from frontmatter
-        const currentFeatureInfo = this.getFrontmatterImageInfo(file, this.settings.frontmatterProperty);
+        const currentFeatureInfo = this.featureScanner.getFrontmatterImageInfo(file, this.settings.frontmatterProperty);
         const currentFeature = currentFeatureInfo?.resolvedPath;
         // Extract detailed information about the current thumbnail if thumbnails are enabled
         const currentThumbnailInfo = this.settings.createResizedThumbnail
-            ? this.getFrontmatterImageInfo(file, this.settings.resizedFrontmatterProperty)
+            ? this.featureScanner.getFrontmatterImageInfo(file, this.settings.resizedFrontmatterProperty)
             : undefined;
         const currentThumbnail = currentThumbnailInfo?.resolvedPath;
 
@@ -322,7 +264,7 @@ export default class FeaturedImage extends Plugin {
         }
 
         const fileContent = await this.app.vault.cachedRead(file);
-        const newFeature = await this.getFeatureFromDocument(fileContent, file, currentFeature);
+        const newFeature = await this.featureScanner.getFeatureFromDocument(fileContent, file, currentFeature);
 
         // Generate thumbnail if feature image has changed and thumbnails are enabled
         let newThumbnail = currentThumbnail;
@@ -330,7 +272,7 @@ export default class FeaturedImage extends Plugin {
 
         if (newFeature && newFeature !== currentFeature && this.settings.createResizedThumbnail) {
             // Feature changed, create new thumbnail
-            newThumbnail = await this.createThumbnail(newFeature);
+            newThumbnail = await this.thumbnailService.createThumbnail(newFeature);
             this.debugLog(`THUMBNAIL GENERATED\n- File: ${file.path}\n- Original: ${newFeature}\n- Thumbnail: ${newThumbnail}`);
 
             // Mark old thumbnail for deletion if it's different from the new one
@@ -353,10 +295,10 @@ export default class FeaturedImage extends Plugin {
 
         // Determine if frontmatter needs updating by comparing paths semantically
         const featureChanged = finalNewFeature
-            ? !this.isFrontmatterPathEqual(currentFeatureInfo, finalNewFeature)
+            ? !this.featureScanner.isFrontmatterPathEqual(currentFeatureInfo, finalNewFeature)
             : Boolean(currentFeatureInfo?.rawValue);
         const thumbnailChanged = newThumbnail
-            ? !this.isFrontmatterPathEqual(currentThumbnailInfo, newThumbnail)
+            ? !this.featureScanner.isFrontmatterPathEqual(currentThumbnailInfo, newThumbnail)
             : Boolean(currentThumbnailInfo?.rawValue);
 
         if (featureChanged || thumbnailChanged) {
@@ -364,7 +306,7 @@ export default class FeaturedImage extends Plugin {
 
             // Delete orphaned thumbnail after updating frontmatter
             if (oldThumbnailToDelete) {
-                await this.deleteOrphanedThumbnail(oldThumbnailToDelete, file);
+                await this.thumbnailService.deleteOrphanedThumbnail(oldThumbnailToDelete, file);
             }
 
             this.debugLog(
@@ -381,7 +323,11 @@ export default class FeaturedImage extends Plugin {
      * @returns {string | undefined} The current featured image, if any.
      */
     private getFeatureFromFrontmatter(file: TFile): string | undefined {
-        const info = this.getFrontmatterImageInfo(file, this.settings.frontmatterProperty);
+        if (!this.featureScanner) {
+            return undefined;
+        }
+
+        const info = this.featureScanner.getFrontmatterImageInfo(file, this.settings.frontmatterProperty);
         return info?.resolvedPath;
     }
 
@@ -395,7 +341,11 @@ export default class FeaturedImage extends Plugin {
             return undefined;
         }
 
-        const info = this.getFrontmatterImageInfo(file, this.settings.resizedFrontmatterProperty);
+        if (!this.featureScanner) {
+            return undefined;
+        }
+
+        const info = this.featureScanner.getFrontmatterImageInfo(file, this.settings.resizedFrontmatterProperty);
         return info?.resolvedPath;
     }
 
@@ -565,178 +515,6 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Compiles the regular expressions used in getFeatureFromDocument.
-     */
-    private compileRegexPatterns() {
-        const imageExtensionsPattern = this.settings.imageExtensions.join('|');
-
-        // Wiki image pattern, updated to handle additional selectors and parameters after the image name
-        // e.g. ![[image.jpg]], ![[image.jpg|caption]], ![[image.jpg#right|caption|300]]
-        const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]|#]+\\.(${imageExtensionsPattern}))(?:[#|][^\\]]*)?\\]\\]`;
-
-        // Markdown image pattern, e.g. external ![](https://example.com/imagelink) or local ![](resources/image.jpg)
-        const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>(?:https?:\\/\\/(?:[^)(]|\\([^)(]*\\))+|[^)(]+\\.(${imageExtensionsPattern})))\\)`;
-
-        // YouTube pattern, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
-        const youtubePattern = `${this.settings.requireExclamationForYouTube ? '!' : '!?'}\\[.*?\\]\\((?<youtube>https?:\\/\\/(?:www\\.)?(?:youtube\\.com|youtu\\.be)\\/\\S+)\\)`;
-
-        // IMPORTANT: Put YouTube first in the alternation so it is captured before mdImage
-        const combinedRegexString = [
-            youtubePattern, // check youtube group first
-            wikiImagePattern, // then wiki image links
-            mdImagePattern // then markdown image links
-        ].join('|');
-
-        this.combinedLineRegex = new RegExp(combinedRegexString, 'i');
-        this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
-        this.codeBlockStartRegex = /^[\s]*```[\s]*(\w+)?[\s]*$/;
-    }
-
-    /**
-     * Finds the featured image in the document content.
-     * @param {string} content - The document content to search.
-     * @param {string | undefined} currentFeature - The current featured image.
-     * @returns {Promise<string | undefined>} The found featured image, if any.
-     */
-    private async getFeatureFromDocument(
-        content: string,
-        contextFile: TFile,
-        currentFeature: string | undefined
-    ): Promise<string | undefined> {
-        // Remove frontmatter section from processing
-        let contentWithoutFrontmatter = content;
-        if (content.startsWith('---\n')) {
-            const frontmatterEnd = content.indexOf('\n---\n', 4);
-            if (frontmatterEnd !== -1) {
-                contentWithoutFrontmatter = content.substring(frontmatterEnd + 5);
-            }
-        }
-
-        const lines = contentWithoutFrontmatter.split('\n');
-        let inCodeBlock = false;
-        let codeBlockLanguage = '';
-        let codeBlockBuffer = '';
-
-        for (const line of lines) {
-            // First check for Auto Card Link code blocks
-            const codeBlockMatch = this.codeBlockStartRegex.exec(line);
-            if (codeBlockMatch) {
-                if (!inCodeBlock) {
-                    inCodeBlock = true;
-                    codeBlockLanguage = (codeBlockMatch[1] || '').toLowerCase();
-                    codeBlockBuffer = '';
-                    continue;
-                } else {
-                    if (codeBlockLanguage === 'cardlink') {
-                        const imageMatch = this.autoCardImageRegex.exec(codeBlockBuffer);
-                        if (imageMatch?.groups?.autoCardImage) {
-                            return await this.processAutoCardLinkImage(imageMatch.groups.autoCardImage, contextFile);
-                        }
-                    }
-                    inCodeBlock = false;
-                    codeBlockLanguage = '';
-                    continue;
-                }
-            }
-
-            if (inCodeBlock && codeBlockLanguage === 'cardlink') {
-                codeBlockBuffer += `${line}\n`;
-                continue;
-            }
-
-            // Check for other images (local or external)
-            const match = this.combinedLineRegex.exec(line);
-
-            if (match) {
-                // Check for YouTube links, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
-                if (match.groups?.youtube) {
-                    const videoId = this.getVideoId(match.groups.youtube);
-                    if (videoId) {
-                        const youtubeFeature = await this.downloadThumbnail(videoId, currentFeature);
-                        if (youtubeFeature) {
-                            return youtubeFeature;
-                        }
-                    }
-                    continue;
-                }
-
-                // Check for local wiki image links, e.g. ![[image.jpg]]
-                if (match.groups?.wikiImage) {
-                    const wikiImage = decodeURIComponent(match.groups.wikiImage);
-                    // Attempt to resolve the wiki image path to a vault-relative path
-                    const resolvedWikiImage = this.resolveLocalImagePath(wikiImage, contextFile);
-                    if (resolvedWikiImage) {
-                        return resolvedWikiImage;
-                    }
-                    // Log error if the referenced image doesn't exist in the vault
-                    this.errorLog(`Local image not found for featured image: ${wikiImage} (referenced in ${contextFile.path})`);
-                    continue;
-                }
-
-                // Check for markdown image links, e.g. ![image.jpg](https://example.com/image.jpg)
-                if (match.groups?.mdImage) {
-                    const mdImage = decodeURIComponent(match.groups.mdImage);
-                    // Check if it's an external URL
-                    if (this.isValidUrl(mdImage)) {
-                        const externalFeature = await this.downloadExternalImage(mdImage);
-                        if (externalFeature) {
-                            return externalFeature;
-                        }
-                        continue;
-                    }
-                    // Attempt to resolve the local markdown image path
-                    const resolvedMdImage = this.resolveLocalImagePath(mdImage, contextFile);
-                    if (resolvedMdImage) {
-                        return resolvedMdImage;
-                    }
-                    // Log error if the referenced local image doesn't exist
-                    this.errorLog(`Local image not found for featured image: ${mdImage} (referenced in ${contextFile.path})`);
-                    continue;
-                }
-            }
-        }
-
-        // After all the image searching logic, before returning undefined
-        if (this.settings.preserveTemplateImages && currentFeature) {
-            this.debugLog('No new image found, preserving existing featured image:', currentFeature);
-            return currentFeature;
-        }
-
-        return undefined;
-    }
-
-    /**
-     * Processes an Auto Card Link image.
-     * @param {string} imagePath - The image path from the Auto Card Link.
-     * @returns {Promise<string | undefined>} The processed image path.
-     */
-    private async processAutoCardLinkImage(imagePath: string, contextFile: TFile): Promise<string | undefined> {
-        imagePath = imagePath.trim();
-
-        // Handle local images (Auto Card Link always embeds local images within quotes)
-        if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
-            let localPath = imagePath.slice(1, -1).trim();
-            localPath = localPath.replace(/^\[\[|\]\]$/g, '');
-            // Attempt to resolve the Auto Card Link image path to a vault-relative path
-            const resolvedLocalPath = this.resolveLocalImagePath(localPath, contextFile);
-            if (!resolvedLocalPath) {
-                // Log error if the Auto Card Link image doesn't exist in the vault
-                this.errorLog(`Local Auto Card Link image not found: ${localPath} (referenced in ${contextFile.path})`);
-                return undefined;
-            }
-            return resolvedLocalPath;
-        }
-
-        // Handle external images
-        if (!this.isValidUrl(imagePath)) {
-            this.errorLog('Invalid Auto Card Link URL:', imagePath);
-            return undefined;
-        }
-
-        return await this.downloadExternalImage(imagePath, 'autocardlink');
-    }
-
-    /**
      * Downloads an external image and saves it locally.
      * @param {string} imageUrl - The URL of the image to download.
      * @param {string} subfolder - The subfolder to save the image in.
@@ -772,10 +550,9 @@ export default class FeaturedImage extends Plugin {
                 return failedMarkerPath;
             }
             this.debugLog('Retrying old failed download:', imageUrl);
-            try {
-                await this.app.vault.adapter.remove(failedMarkerPath);
-            } catch (error) {
-                this.errorLog('Failed to remove old failed marker:', error);
+            const removed = await this.trashFileAtPath(failedMarkerPath);
+            if (!removed) {
+                this.debugLog('Failed to remove old failed marker via trash:', failedMarkerPath);
             }
         }
 
@@ -846,276 +623,25 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Creates a resized thumbnail of an image
-     * @param {string} imagePath - Path to the original image
-     * @returns {Promise<string | undefined>} - Path to the resized image or undefined if failed
+     * Moves a file to the Obsidian trash if it exists.
+     * @param {string} filePath - Path of the file to trash.
+     * @returns {Promise<boolean>} True when the file was trashed.
      */
-    private async createThumbnail(imagePath: string): Promise<string | undefined> {
-        // Skip if resizing is not enabled or both dimensions are 0
-        if (!this.settings.createResizedThumbnail || (this.settings.maxResizedWidth === 0 && this.settings.maxResizedHeight === 0)) {
-            return undefined;
+    private async trashFileAtPath(filePath: string): Promise<boolean> {
+        const normalizedPath = normalizePath(filePath);
+        const abstractFile = this.app.vault.getAbstractFileByPath(normalizedPath);
+        if (!this.isTFile(abstractFile)) {
+            this.debugLog('Attempted to trash non-file path:', normalizedPath);
+            return false;
         }
 
         try {
-            // Check if the source image exists
-            if (!(await this.app.vault.adapter.exists(imagePath))) {
-                this.errorLog('Source image not found:', imagePath);
-                return undefined;
-            }
-
-            // Generate a hashed name based on the source path and resize settings
-            const settingsHash = createHash('md5')
-                .update(`${this.settings.maxResizedWidth}_${this.settings.maxResizedHeight}_${this.settings.fillResizedDimensions}`)
-                .digest('hex')
-                .substring(0, 8);
-
-            const sourceHash = createHash('md5').update(imagePath).digest('hex');
-
-            const hashedName = `${sourceHash}_${settingsHash}`;
-
-            // Define paths
-            const resizedFolder = normalizePath(`${this.settings.thumbnailsFolder}/resized`);
-            const thumbnailPath = `${resizedFolder}/${hashedName}.jpg`; // We'll always output JPG for consistency
-
-            // Check if resized thumbnail already exists
-            if (await this.app.vault.adapter.exists(thumbnailPath)) {
-                this.debugLog('Resized thumbnail already exists:', thumbnailPath);
-                return thumbnailPath;
-            }
-
-            // Skip actual processing in dry run mode
-            if (this.settings.dryRun) {
-                this.debugLog('Dry run: Skipping thumbnail creation, using mock path');
-                return thumbnailPath;
-            }
-
-            // Create the resize directory if it doesn't exist
-            if (!(await this.app.vault.adapter.exists(resizedFolder))) {
-                await this.app.vault.adapter.mkdir(resizedFolder);
-            }
-
-            // Read the image file
-            const imageBuffer = await this.app.vault.adapter.readBinary(imagePath);
-
-            // Create blob URL from the image buffer
-            const blob = new Blob([imageBuffer]);
-            const imageUrl = URL.createObjectURL(blob);
-
-            // Load the image
-            const image = await this.loadImage(imageUrl);
-
-            // Initialize canvas if needed
-            if (!this.canvas) {
-                this.canvas = document.createElement('canvas');
-            }
-
-            // Calculate new dimensions
-            const { width, height } = this.calculateThumbnailDimensions(
-                image.width,
-                image.height,
-                this.settings.maxResizedWidth,
-                this.settings.maxResizedHeight,
-                this.settings.fillResizedDimensions
-            );
-
-            // Resize the image using alignment settings when in fill mode
-            const resizedImageData = await this.resizeImage(image, width, height, this.settings.fillResizedDimensions);
-
-            // Write the resized image to disk
-            await this.app.vault.adapter.writeBinary(thumbnailPath, resizedImageData);
-
-            // Clean up
-            URL.revokeObjectURL(imageUrl);
-
-            return thumbnailPath;
+            await this.app.fileManager.trashFile(abstractFile);
+            return true;
         } catch (error) {
-            this.errorLog('Error creating thumbnail:', error);
-            return undefined;
+            this.errorLog(`Failed to trash file at ${normalizedPath}:`, error);
+            return false;
         }
-    }
-
-    /**
-     * Loads an image from a URL
-     * @param {string} url - URL of the image to load
-     * @returns {Promise<HTMLImageElement>} - Loaded image element
-     */
-    private loadImage(url: string): Promise<HTMLImageElement> {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = e => reject(e);
-            img.src = url;
-        });
-    }
-
-    /**
-     * Calculates the dimensions for the thumbnail
-     * @param {number} srcWidth - Original image width
-     * @param {number} srcHeight - Original image height
-     * @param {number} maxWidth - Maximum thumbnail width
-     * @param {number} maxHeight - Maximum thumbnail height
-     * @param {boolean} fillMax - Whether to fill the max dimensions
-     * @returns {Object} - The calculated width and height
-     */
-    private calculateThumbnailDimensions(
-        srcWidth: number,
-        srcHeight: number,
-        maxWidth: number,
-        maxHeight: number,
-        fillMax: boolean
-    ): { width: number; height: number } {
-        let width = srcWidth;
-        let height = srcHeight;
-
-        if (maxWidth === 0 && maxHeight === 0) {
-            // No resizing if both dimensions are 0
-            return { width, height };
-        }
-
-        if (fillMax && maxWidth > 0 && maxHeight > 0) {
-            // Fill mode: set to exact dimensions (will be cropped during resize)
-            return { width: maxWidth, height: maxHeight };
-        }
-
-        // Calculate aspect ratio
-        const aspectRatio = srcWidth / srcHeight;
-
-        if (maxWidth > 0 && maxHeight > 0) {
-            // Both dimensions specified, fit within the box
-            if (srcWidth > maxWidth || srcHeight > maxHeight) {
-                if (maxWidth / maxHeight > aspectRatio) {
-                    // Height is the limiting factor
-                    height = maxHeight;
-                    width = Math.round(height * aspectRatio);
-                } else {
-                    // Width is the limiting factor
-                    width = maxWidth;
-                    height = Math.round(width / aspectRatio);
-                }
-            }
-        } else if (maxWidth > 0) {
-            // Only width specified
-            if (srcWidth > maxWidth) {
-                width = maxWidth;
-                height = Math.round(width / aspectRatio);
-            }
-        } else if (maxHeight > 0) {
-            // Only height specified
-            if (srcHeight > maxHeight) {
-                height = maxHeight;
-                width = Math.round(height * aspectRatio);
-            }
-        }
-
-        return { width, height };
-    }
-
-    /**
-     * Resizes an image using canvas
-     * @param {HTMLImageElement} img - Image element to resize
-     * @param {number} width - Target width
-     * @param {number} height - Target height
-     * @param {boolean} fillMode - Whether to crop the image to fill dimensions
-     * @returns {Promise<ArrayBuffer>} - Resized image as array buffer
-     */
-    private resizeImage(img: HTMLImageElement, width: number, height: number, fillMode: boolean = false): Promise<ArrayBuffer> {
-        return new Promise((resolve, reject) => {
-            try {
-                const canvas = this.canvas;
-                if (!canvas) {
-                    reject(new Error('Canvas not initialized'));
-                    return;
-                }
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'));
-                    return;
-                }
-
-                // Calculate source dimensions for cropping
-                let sourceX = 0;
-                let sourceY = 0;
-                let sourceWidth = img.width;
-                let sourceHeight = img.height;
-
-                if (fillMode) {
-                    // Calculate aspect ratios
-                    const targetAspect = width / height;
-                    const sourceAspect = img.width / img.height;
-
-                    if (sourceAspect > targetAspect) {
-                        // Source is wider, crop horizontally
-                        sourceWidth = img.height * targetAspect;
-
-                        // Apply horizontal alignment
-                        switch (this.settings.resizedHorizontalAlign) {
-                            case 'left':
-                                sourceX = 0;
-                                break;
-                            case 'right':
-                                sourceX = img.width - sourceWidth;
-                                break;
-                            case 'center':
-                            default:
-                                sourceX = (img.width - sourceWidth) / 2;
-                                break;
-                        }
-                    } else if (sourceAspect < targetAspect) {
-                        // Source is taller, crop vertically
-                        sourceHeight = img.width / targetAspect;
-
-                        // Apply vertical alignment
-                        switch (this.settings.resizedVerticalAlign) {
-                            case 'top':
-                                sourceY = 0;
-                                break;
-                            case 'bottom':
-                                sourceY = img.height - sourceHeight;
-                                break;
-                            case 'center':
-                            default:
-                                sourceY = (img.height - sourceHeight) / 2;
-                                break;
-                        }
-                    }
-                    // If aspects match, no cropping needed
-                }
-
-                // Draw image with smooth scaling
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
-
-                // Convert to blob
-                canvas.toBlob(
-                    blob => {
-                        if (!blob) {
-                            reject(new Error('Failed to create blob from canvas'));
-                            return;
-                        }
-
-                        // Convert blob to array buffer
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                            if (reader.result instanceof ArrayBuffer) {
-                                resolve(reader.result);
-                            } else {
-                                reject(new Error('Failed to convert blob to array buffer'));
-                            }
-                        };
-                        reader.onerror = reject;
-                        reader.readAsArrayBuffer(blob);
-                    },
-                    'image/jpeg',
-                    0.85
-                ); // Use JPEG with 85% quality
-            } catch (error) {
-                reject(error);
-            }
-        });
     }
 
     /**
@@ -1144,12 +670,7 @@ export default class FeaturedImage extends Plugin {
      * @returns {boolean} True if the URL is valid, false otherwise.
      */
     private isValidUrl(url: string): boolean {
-        try {
-            const parsedUrl = new URL(url);
-            return parsedUrl.protocol === 'https:';
-        } catch {
-            return false;
-        }
+        return isValidHttpsUrl(url);
     }
 
     /**
@@ -1158,8 +679,38 @@ export default class FeaturedImage extends Plugin {
      * @returns {string | undefined} The hashed filename.
      */
     private generateHashedFilenameFromUrl(url: string): string {
-        const hash = createHash('md5').update(url).digest('hex');
-        return hash;
+        return md5(url);
+    }
+
+    /**
+     * Creates a poster image for the provided local video file.
+     * @param {string} videoPath - Vault-relative path to the video file.
+     * @returns {Promise<string | undefined>} Path to the generated poster image.
+     */
+    private async createVideoPoster(videoPath: string): Promise<string | undefined> {
+        if (!this.settings.captureVideoPoster) {
+            return undefined;
+        }
+
+        if (!this.videoFrameService) {
+            this.errorLog('Video frame service not initialized, unable to capture poster for', videoPath);
+            return undefined;
+        }
+
+        const normalizedPath = normalizePath(videoPath);
+        const abstractFile = this.app.vault.getAbstractFileByPath(normalizedPath);
+        if (!this.isTFile(abstractFile)) {
+            this.errorLog('Video file not found for poster capture:', videoPath);
+            return undefined;
+        }
+
+        const supportedExtensions = new Set(this.settings.videoExtensions.map(ext => ext.toLowerCase()));
+        if (!supportedExtensions.has(abstractFile.extension.toLowerCase())) {
+            this.debugLog('Skipping video poster capture for unsupported extension:', abstractFile.extension);
+            return undefined;
+        }
+
+        return await this.videoFrameService.createPoster(abstractFile);
     }
 
     /**
@@ -1184,50 +735,20 @@ export default class FeaturedImage extends Plugin {
                 }
             } else {
                 await this.app.fileManager.processFrontMatter(file, frontmatter => {
-                    // Handle featured image
-                    if (newFeature) {
-                        // Format the value based on the selected format
-                        let featureValue = newFeature;
-                        switch (this.settings.mediaLinkFormat) {
-                            case 'wiki':
-                                featureValue = `[[${newFeature}]]`;
-                                break;
-                            case 'embed':
-                                featureValue = `![[${newFeature}]]`;
-                                break;
-                            // 'plain' is default, no formatting needed
-                        }
-                        frontmatter[this.settings.frontmatterProperty] = featureValue;
-                    } else {
-                        if (this.settings.keepEmptyProperty) {
-                            frontmatter[this.settings.frontmatterProperty] = '';
-                        } else {
-                            delete frontmatter[this.settings.frontmatterProperty];
-                        }
-                    }
+                    applyMediaProperty(frontmatter, {
+                        property: this.settings.frontmatterProperty,
+                        value: newFeature,
+                        format: this.settings.mediaLinkFormat,
+                        keepEmpty: this.settings.keepEmptyProperty
+                    });
 
-                    // Handle thumbnail if enabled
                     if (this.settings.createResizedThumbnail) {
-                        if (newThumbnail) {
-                            // Format the value based on the selected format
-                            let thumbnailValue = newThumbnail;
-                            switch (this.settings.mediaLinkFormat) {
-                                case 'wiki':
-                                    thumbnailValue = `[[${newThumbnail}]]`;
-                                    break;
-                                case 'embed':
-                                    thumbnailValue = `![[${newThumbnail}]]`;
-                                    break;
-                                // 'plain' is default, no formatting needed
-                            }
-                            frontmatter[this.settings.resizedFrontmatterProperty] = thumbnailValue;
-                        } else {
-                            if (this.settings.keepEmptyProperty) {
-                                frontmatter[this.settings.resizedFrontmatterProperty] = '';
-                            } else {
-                                delete frontmatter[this.settings.resizedFrontmatterProperty];
-                            }
-                        }
+                        applyMediaProperty(frontmatter, {
+                            property: this.settings.resizedFrontmatterProperty,
+                            value: newThumbnail,
+                            format: this.settings.mediaLinkFormat,
+                            keepEmpty: this.settings.keepEmptyProperty
+                        });
                     }
                 });
 
@@ -1346,52 +867,6 @@ export default class FeaturedImage extends Plugin {
             method: 'GET',
             headers: { Accept: isWebp ? 'image/webp' : 'image/jpeg' }
         });
-    }
-
-    /**
-     * Extracts the video ID from a YouTube URL.
-     * @param {string} url - The YouTube URL.
-     * @returns {string | null} The extracted video ID, or null if not found.
-     */
-    getVideoId(url: string): string | null {
-        try {
-            const parsedUrl = new URL(url);
-            const hostname = parsedUrl.hostname;
-            const pathname = parsedUrl.pathname;
-            const searchParams = parsedUrl.searchParams;
-
-            // Handle mobile URLs by normalizing the hostname
-            const normalizedHostname = hostname.replace('m.youtube.com', 'youtube.com');
-
-            if (hostname.includes('youtu.be')) {
-                // Short URLs: https://youtu.be/dQw4w9WgXcQ
-                return pathname.slice(1);
-            }
-
-            if (normalizedHostname.includes('youtube.com')) {
-                // Standard watch URLs: https://www.youtube.com/watch?v=dQw4w9WgXcQ
-                // Mobile URLs: https://m.youtube.com/watch?v=dQw4w9WgXcQ
-                if (pathname === '/watch') {
-                    return searchParams.get('v');
-                }
-
-                // Embed URLs: https://www.youtube.com/embed/dQw4w9WgXcQ
-                // Direct video URLs: https://www.youtube.com/v/dQw4w9WgXcQ
-                // Shortened URLs: https://www.youtube.com/shorts/dQw4w9WgXcQ
-                if (pathname.startsWith('/embed/') || pathname.startsWith('/v/') || pathname.startsWith('/shorts/')) {
-                    return pathname.split('/')[2];
-                }
-
-                // Playlist with specific video: https://www.youtube.com/playlist?v=dQw4w9WgXcQ
-                if (pathname === '/playlist') {
-                    return searchParams.get('v');
-                }
-            }
-            return null;
-        } catch {
-            this.errorLog('Invalid YouTube URL:', url);
-            return null;
-        }
     }
 
     /**
@@ -1583,7 +1058,9 @@ export default class FeaturedImage extends Plugin {
 
         // Delete orphaned thumbnail after removing from frontmatter
         if (currentThumbnail) {
-            await this.deleteOrphanedThumbnail(currentThumbnail, file);
+            if (this.thumbnailService) {
+                await this.thumbnailService.deleteOrphanedThumbnail(currentThumbnail, file);
+            }
         }
 
         return true;
@@ -1614,394 +1091,12 @@ export default class FeaturedImage extends Plugin {
      * Cleans up unused downloaded images and thumbnails.
      */
     async cleanupUnusedImages() {
-        this.debugLog('Starting cleanup of unused images');
-        new Notice('Scanning for unused images...');
-
-        // Initialize counters
-        let externalImagesCount = 0;
-        let youtubeImagesCount = 0;
-        let autoCardImagesCount = 0;
-        let resizedThumbnailsCount = 0;
-        let totalBytes = 0;
-
-        // Initialize file path sets
-        const externalImages = new Set<string>();
-        const youtubeImages = new Set<string>();
-        const autoCardImages = new Set<string>();
-        const resizedThumbnails = new Set<string>();
-        const usedFiles = new Set<string>();
-
-        try {
-            // Step 1: Collect all target files
-            await this.collectImageFiles(externalImages, youtubeImages, autoCardImages, resizedThumbnails);
-
-            this.debugLog(`Collected image files:
-                - External: ${externalImages.size}
-                - YouTube: ${youtubeImages.size}
-                - Auto Card: ${autoCardImages.size}
-                - Resized Thumbnails: ${resizedThumbnails.size}`);
-
-            // Step 2: Build reference map from all markdown files
-            await this.buildReferenceMap(usedFiles);
-
-            this.debugLog(`Found ${usedFiles.size} unique file references in notes`);
-
-            // Step 3: Find unused files
-            const unusedExternal = this.findUnusedFiles(externalImages, usedFiles);
-            const unusedYoutube = this.findUnusedFiles(youtubeImages, usedFiles);
-            const unusedAutoCard = this.findUnusedFiles(autoCardImages, usedFiles);
-            const unusedResized = this.findUnusedFiles(resizedThumbnails, usedFiles);
-
-            externalImagesCount = unusedExternal.size;
-            youtubeImagesCount = unusedYoutube.size;
-            autoCardImagesCount = unusedAutoCard.size;
-            resizedThumbnailsCount = unusedResized.size;
-
-            const totalUnused = externalImagesCount + youtubeImagesCount + autoCardImagesCount + resizedThumbnailsCount;
-
-            if (totalUnused === 0) {
-                new Notice('No unused images found.');
-                return;
-            }
-
-            // Confirm deletion
-            const confirmation = await this.showConfirmationModal(
-                'Remove unused images',
-                `Found ${totalUnused} unused images. Do you want to delete these files?`,
-                false
-            );
-
-            if (!confirmation) {
-                new Notice('Cleanup cancelled.');
-                return;
-            }
-
-            // Step 4: Delete unused files
-            if (this.settings.dryRun) {
-                this.debugLog('Dry run: Would delete unused files');
-                new Notice(`Dry run: Would delete ${totalUnused} unused files.`);
-                return;
-            }
-
-            // Delete files in batches
-            new Notice(`Deleting ${totalUnused} unused files...`);
-
-            // Calculate size before deletion
-            totalBytes = await this.calculateFileSizes([...unusedExternal, ...unusedYoutube, ...unusedAutoCard, ...unusedResized]);
-
-            // Delete files
-            await this.deleteUnusedFiles(unusedExternal, 'external images');
-            await this.deleteUnusedFiles(unusedYoutube, 'YouTube thumbnails');
-            await this.deleteUnusedFiles(unusedAutoCard, 'Auto Card Link images');
-            await this.deleteUnusedFiles(unusedResized, 'resized thumbnails');
-
-            // Final report
-            const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
-            new Notice(`Cleanup complete. Deleted ${totalUnused} unused files (${totalMB} MB).`);
-        } catch (error) {
-            this.errorLog('Error during image cleanup:', error);
-            new Notice('Error during image cleanup. Check console for details.');
-        }
-    }
-
-    /**
-     * Collects all image files in the thumbnail folder.
-     * @param {Set<string>} externalImages - Set to store external image paths
-     * @param {Set<string>} youtubeImages - Set to store YouTube thumbnail paths
-     * @param {Set<string>} autoCardImages - Set to store Auto Card Link image paths
-     * @param {Set<string>} resizedThumbnails - Set to store resized thumbnail paths
-     */
-    private async collectImageFiles(
-        externalImages: Set<string>,
-        youtubeImages: Set<string>,
-        autoCardImages: Set<string>,
-        resizedThumbnails: Set<string>
-    ): Promise<void> {
-        const thumbnailFolder = normalizePath(this.settings.thumbnailsFolder);
-
-        // Ensure thumbnail directory exists
-        if (!(await this.app.vault.adapter.exists(thumbnailFolder))) {
-            this.debugLog(`Thumbnail folder ${thumbnailFolder} does not exist`);
+        if (!this.imageMaintenance) {
+            this.errorLog('Image maintenance service not initialized.');
             return;
         }
 
-        // Check each subfolder
-        const externalFolder = `${thumbnailFolder}/external`;
-        const youtubeFolder = `${thumbnailFolder}/youtube`;
-        const autoCardFolder = `${thumbnailFolder}/autocardlink`;
-        const resizedFolder = `${thumbnailFolder}/resized`;
-
-        // Collect external images
-        if (await this.app.vault.adapter.exists(externalFolder)) {
-            await this.collectFilesInFolder(externalFolder, externalImages, '.failed.png');
-        }
-
-        // Collect YouTube thumbnails
-        if (await this.app.vault.adapter.exists(youtubeFolder)) {
-            await this.collectFilesInFolder(youtubeFolder, youtubeImages, '.failed.png');
-        }
-
-        // Collect Auto Card Link images
-        if (await this.app.vault.adapter.exists(autoCardFolder)) {
-            await this.collectFilesInFolder(autoCardFolder, autoCardImages, '.failed.png');
-        }
-
-        // Collect resized thumbnails
-        if (await this.app.vault.adapter.exists(resizedFolder)) {
-            await this.collectFilesInFolder(resizedFolder, resizedThumbnails, '.failed.png');
-        }
-    }
-
-    /**
-     * Collects all files in a folder.
-     * @param {string} folderPath - Path to the folder
-     * @param {Set<string>} fileSet - Set to store file paths
-     * @param {string} excludeExtension - Extension to exclude (e.g., '.failed.png')
-     */
-    private async collectFilesInFolder(folderPath: string, fileSet: Set<string>, excludeExtension: string): Promise<void> {
-        try {
-            const files = await this.app.vault.adapter.list(folderPath);
-
-            // Process regular files (not directories)
-            for (const file of files.files) {
-                // Skip files with excluded extension
-                if (file.endsWith(excludeExtension)) {
-                    continue;
-                }
-
-                fileSet.add(file);
-            }
-
-            // Process nested directories if any
-            for (const dir of files.folders) {
-                await this.collectFilesInFolder(dir, fileSet, excludeExtension);
-            }
-        } catch (error) {
-            this.errorLog(`Error collecting files in ${folderPath}:`, error);
-        }
-    }
-
-    /**
-     * Builds a map of all file references in markdown files.
-     * @param {Set<string>} usedFiles - Set to store all referenced file paths
-     */
-    private async buildReferenceMap(usedFiles: Set<string>): Promise<void> {
-        const markdownFiles = this.app.vault.getMarkdownFiles();
-
-        // Process all markdown files
-        for (const file of markdownFiles) {
-            await this.processFileReferences(file, usedFiles);
-        }
-    }
-
-    /**
-     * Processes a file to extract all image references.
-     * @param {TFile} file - The file to process
-     * @param {Set<string>} usedFiles - Set to store referenced file paths
-     */
-    private async processFileReferences(file: TFile, usedFiles: Set<string>): Promise<void> {
-        try {
-            // Get frontmatter references
-            const cache = this.app.metadataCache.getFileCache(file);
-            if (cache?.frontmatter) {
-                // Check feature property
-                const feature = cache.frontmatter[this.settings.frontmatterProperty];
-                if (feature) {
-                    this.addNormalizedPath(feature, usedFiles, file);
-                }
-
-                // Check thumbnail property if enabled
-                if (this.settings.createResizedThumbnail) {
-                    const thumbnail = cache.frontmatter[this.settings.resizedFrontmatterProperty];
-                    if (thumbnail) {
-                        this.addNormalizedPath(thumbnail, usedFiles, file);
-                    }
-                }
-            }
-
-            // Process document body for embedded images
-            const content = await this.app.vault.cachedRead(file);
-            const lines = content.split('\n');
-
-            for (const line of lines) {
-                // Use existing regex patterns to find images
-                const match = this.combinedLineRegex.exec(line);
-                if (match) {
-                    // WikiImage links (![[image.jpg]])
-                    if (match.groups?.wikiImage) {
-                        this.addNormalizedPath(match.groups.wikiImage, usedFiles, file);
-                    }
-
-                    // Markdown image links (![alt](path/to/image.jpg))
-                    if (match.groups?.mdImage) {
-                        const mdImage = decodeURIComponent(match.groups.mdImage);
-                        // Only add if it's a local path (not a URL)
-                        if (!this.isValidUrl(mdImage)) {
-                            this.addNormalizedPath(mdImage, usedFiles, file);
-                        }
-                    }
-
-                    // YouTube links can be skipped as they're processed separately
-                }
-            }
-
-            // Process Auto Card Link codeblocks
-            let inCodeBlock = false;
-            let codeBlockLanguage = '';
-            let codeBlockBuffer = '';
-
-            for (const line of lines) {
-                const codeBlockMatch = this.codeBlockStartRegex.exec(line);
-                if (codeBlockMatch) {
-                    if (!inCodeBlock) {
-                        inCodeBlock = true;
-                        codeBlockLanguage = (codeBlockMatch[1] || '').toLowerCase();
-                        codeBlockBuffer = '';
-                        continue;
-                    } else {
-                        if (codeBlockLanguage === 'cardlink') {
-                            const imageMatch = this.autoCardImageRegex.exec(codeBlockBuffer);
-                            if (imageMatch?.groups?.autoCardImage) {
-                                const imagePath = imageMatch.groups.autoCardImage.trim();
-                                // Local images in Auto Card Link are quoted
-                                if (imagePath.startsWith('"') && imagePath.endsWith('"')) {
-                                    const localPath = imagePath.slice(1, -1).trim();
-                                    this.addNormalizedPath(localPath, usedFiles, file);
-                                }
-                            }
-                        }
-                        inCodeBlock = false;
-                        codeBlockLanguage = '';
-                        continue;
-                    }
-                }
-
-                if (inCodeBlock && codeBlockLanguage === 'cardlink') {
-                    codeBlockBuffer += `${line}\n`;
-                }
-            }
-        } catch (error) {
-            this.errorLog(`Error processing references in ${file.path}:`, error);
-        }
-    }
-
-    /**
-     * Adds a normalized path to the used files set.
-     * @param {string} path - The path to add
-     * @param {Set<string>} usedFiles - Set to store referenced file paths
-     */
-    private addNormalizedPath(path: string, usedFiles: Set<string>, contextFile?: TFile): void {
-        // Remove wiki-link or embedded link formatting
-        let normalizedPath = path;
-        const match = path.match(/!?\[\[(.*?)\]\]/);
-        if (match) {
-            normalizedPath = match[1];
-        }
-
-        // Remove any parameters after pipe or hash
-        normalizedPath = normalizedPath.split('|')[0].split('#')[0];
-
-        // Attempt to resolve the path using the context file for relative path resolution
-        if (contextFile) {
-            const resolvedPath = this.resolveLocalImagePath(normalizedPath, contextFile);
-            if (resolvedPath) {
-                // Add the resolved path to the used files set
-                usedFiles.add(normalizePath(resolvedPath));
-                return;
-            }
-        }
-
-        // Normalize path
-        normalizedPath = normalizePath(normalizedPath);
-
-        // Add to the set
-        usedFiles.add(normalizedPath);
-    }
-
-    /**
-     * Finds unused files by comparing the file set with the used files set.
-     * @param {Set<string>} fileSet - Set of all files in a category
-     * @param {Set<string>} usedFiles - Set of all referenced files
-     * @returns {Set<string>} Set of unused files
-     */
-    private findUnusedFiles(fileSet: Set<string>, usedFiles: Set<string>): Set<string> {
-        const unusedFiles = new Set<string>();
-
-        for (const file of fileSet) {
-            // Check if the file is used
-            if (!this.isFileReferenced(file, usedFiles)) {
-                unusedFiles.add(file);
-            }
-        }
-
-        return unusedFiles;
-    }
-
-    /**
-     * Checks if a file is referenced in the used files set.
-     * @param {string} filePath - The file path to check
-     * @param {Set<string>} usedFiles - Set of all referenced files
-     * @returns {boolean} True if the file is referenced, false otherwise
-     */
-    private isFileReferenced(filePath: string, usedFiles: Set<string>): boolean {
-        // Direct match
-        if (usedFiles.has(filePath)) {
-            return true;
-        }
-
-        // Basename match (in case the path differs but filename matches)
-        const fileName = filePath.split('/').pop() || '';
-
-        for (const usedFile of usedFiles) {
-            const usedFileName = usedFile.split('/').pop() || '';
-            if (fileName === usedFileName) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Calculates the total size of a list of files.
-     * @param {string[]} filePaths - List of file paths
-     * @returns {Promise<number>} Total size in bytes
-     */
-    private async calculateFileSizes(filePaths: string[]): Promise<number> {
-        let totalBytes = 0;
-
-        for (const filePath of filePaths) {
-            try {
-                const stat = await this.app.vault.adapter.stat(filePath);
-                if (stat) {
-                    totalBytes += stat.size;
-                }
-            } catch (error) {
-                this.errorLog(`Error getting file size for ${filePath}:`, error);
-            }
-        }
-
-        return totalBytes;
-    }
-
-    /**
-     * Deletes unused files.
-     * @param {Set<string>} unusedFiles - Set of unused file paths
-     * @param {string} category - Category name for logging
-     */
-    private async deleteUnusedFiles(unusedFiles: Set<string>, category: string): Promise<void> {
-        let deletedCount = 0;
-
-        for (const filePath of unusedFiles) {
-            try {
-                await this.app.vault.adapter.remove(filePath);
-                deletedCount++;
-            } catch (error) {
-                this.errorLog(`Error deleting file ${filePath}:`, error);
-            }
-        }
-
-        this.debugLog(`Deleted ${deletedCount} unused ${category}`);
+        await this.imageMaintenance.cleanupUnusedImages(this.showConfirmationModal.bind(this));
     }
 
     /**
@@ -2009,177 +1104,21 @@ export default class FeaturedImage extends Plugin {
      * This is useful when alignment or other resize settings are changed
      */
     async rerenderAllResizedThumbnails() {
-        if (!this.settings.createResizedThumbnail) {
-            new Notice('Resized thumbnails are not enabled in settings.');
+        if (!this.imageMaintenance) {
+            this.errorLog('Image maintenance service not initialized, unable to re-render thumbnails.');
             return;
         }
 
-        const confirmation = await this.showConfirmationModal(
-            'Re-render all resized thumbnails',
-            'This will re-render all resized thumbnails based on your current settings (size, alignment, etc.). This operation may take some time depending on the number of images. Proceed?'
-        );
-        if (!confirmation) return;
-
-        this.isRunningBulkUpdate = true;
-        new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}re-rendering of all resized thumbnails...`);
-
-        const files = this.app.vault.getMarkdownFiles();
-        let totalFiles = 0;
-        let updatedCount = 0;
-        let errorCount = 0;
-        let lastNotificationTime = Date.now();
-
-        try {
-            // First, find all files with featured images
-            const filesToProcess: { file: TFile; feature: string }[] = [];
-
-            for (const file of files) {
-                const feature = this.getFeatureFromFrontmatter(file);
-                if (feature) {
-                    filesToProcess.push({ file, feature });
-                    totalFiles++;
-                }
-            }
-
-            // Delete all existing resized thumbnails in the resized folder
-            const resizedFolder = normalizePath(`${this.settings.thumbnailsFolder}/resized`);
-            if (await this.app.vault.adapter.exists(resizedFolder)) {
-                try {
-                    const existingResized = await this.app.vault.adapter.list(resizedFolder);
-
-                    if (!this.settings.dryRun) {
-                        for (const file of existingResized.files) {
-                            try {
-                                await this.app.vault.adapter.remove(file);
-                            } catch (error) {
-                                this.errorLog(`Failed to delete thumbnail: ${file}`, error);
-                            }
-                        }
-                    }
-
-                    this.debugLog(`Cleared ${existingResized.files.length} existing thumbnails from ${resizedFolder}`);
-                } catch (error) {
-                    this.errorLog(`Error accessing resized folder: ${resizedFolder}`, error);
-                }
-            }
-
-            // Process each file with a featured image
-            const batchSize = 5;
-            for (let i = 0; i < filesToProcess.length; i += batchSize) {
-                const batch = filesToProcess.slice(i, i + batchSize);
-
-                const results = await Promise.all(
-                    batch.map(async ({ file, feature }) => {
-                        try {
-                            // Create a new thumbnail
-                            const newThumbnail = await this.createThumbnail(feature);
-
-                            // Update the frontmatter with the new thumbnail
-                            if (newThumbnail) {
-                                await this.updateFrontmatter(file, feature, newThumbnail);
-                                this.debugLog(
-                                    `THUMBNAIL UPDATED\n- File: ${file.path}\n- Feature: ${feature}\n- New thumbnail: ${newThumbnail}`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch (error) {
-                            this.errorLog(`Error re-rendering thumbnail for ${file.path}:`, error);
-                            return false;
-                        }
-                    })
-                );
-
-                updatedCount += results.filter(success => success).length;
-                errorCount += results.filter(success => !success).length;
-
-                // Show notification every 5 seconds
-                const currentTime = Date.now();
-                if (currentTime - lastNotificationTime >= 5000) {
-                    let progressMessage = `Re-rendering thumbnails: ${i + batch.length}/${totalFiles} processed. Updated: ${updatedCount}`;
-                    if (errorCount > 0) {
-                        progressMessage += `. Errors: ${errorCount}`;
-                    }
-                    new Notice(progressMessage);
-                    lastNotificationTime = currentTime;
-                }
-            }
-        } finally {
-            this.isRunningBulkUpdate = false;
-
-            let completionMessage = `Re-rendering complete. ${updatedCount} thumbnails were updated`;
-            if (errorCount > 0) {
-                completionMessage += `. There were ${errorCount} errors.`;
-            }
-
-            new Notice(completionMessage);
-        }
-    }
-
-    /**
-     * Checks if a thumbnail is used by any other file in the vault
-     * @param {string} thumbnailPath - The path to the thumbnail to check
-     * @param {TFile} excludeFile - Optional file to exclude from the check (usually the current file being updated)
-     * @returns {Promise<boolean>} True if the thumbnail is used elsewhere, false otherwise
-     */
-    private async isThumbnailUsedElsewhere(thumbnailPath: string, excludeFile?: TFile): Promise<boolean> {
-        if (!thumbnailPath) return false;
-
-        // Normalize the path for comparison
-        const normalizedThumbnailPath = normalizePath(thumbnailPath);
-
-        const files = this.app.vault.getMarkdownFiles();
-
-        for (const file of files) {
-            // Skip the file we're currently updating
-            if (excludeFile && file.path === excludeFile.path) continue;
-
-            const cache = this.app.metadataCache.getFileCache(file);
-            if (cache?.frontmatter) {
-                const thumbnail = cache.frontmatter[this.settings.resizedFrontmatterProperty];
-                if (thumbnail) {
-                    // Extract path from wiki-style links if needed
-                    const match = thumbnail.match(/!?\[\[(.*?)\]\]/);
-                    const path = match ? match[1] : thumbnail;
-
-                    if (normalizePath(path) === normalizedThumbnailPath) {
-                        return true; // Found another file using this thumbnail
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Deletes an orphaned thumbnail file if it's not used by any other file
-     * @param {string} thumbnailPath - The path to the thumbnail to potentially delete
-     * @param {TFile} currentFile - The file currently being updated
-     */
-    private async deleteOrphanedThumbnail(thumbnailPath: string, currentFile: TFile): Promise<void> {
-        if (!thumbnailPath) return;
-
-        // Only delete files in the resized folder
-        const normalizedPath = normalizePath(thumbnailPath);
-        const resizedFolder = normalizePath(`${this.settings.thumbnailsFolder}/resized`);
-        if (!normalizedPath.startsWith(resizedFolder)) {
-            return;
-        }
-
-        // Check if the file exists
-        if (!(await this.app.vault.adapter.exists(thumbnailPath))) {
-            return;
-        }
-
-        // Check if any other file uses this thumbnail
-        const isUsedElsewhere = await this.isThumbnailUsedElsewhere(thumbnailPath, currentFile);
-        if (!isUsedElsewhere) {
-            try {
-                await this.app.vault.adapter.remove(thumbnailPath);
-                this.debugLog('Deleted orphaned thumbnail:', thumbnailPath);
-            } catch (error) {
-                this.errorLog('Failed to delete orphaned thumbnail:', thumbnailPath, error);
-            }
-        }
+        await this.imageMaintenance.rerenderAllResizedThumbnails({
+            confirm: this.showConfirmationModal.bind(this),
+            startBulkUpdate: () => {
+                this.isRunningBulkUpdate = true;
+            },
+            endBulkUpdate: () => {
+                this.isRunningBulkUpdate = false;
+            },
+            getFeatureFromFrontmatter: this.getFeatureFromFrontmatter.bind(this),
+            updateFrontmatter: this.updateFrontmatter.bind(this)
+        });
     }
 }

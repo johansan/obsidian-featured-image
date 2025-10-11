@@ -18,6 +18,7 @@ export const STRINGS_ZH = {
     settings: {
         headings: {
             advanced: '高级',
+            localMedia: '本地媒体',
             externalMedia: '外部媒体'
         },
 
@@ -114,6 +115,15 @@ export const STRINGS_ZH = {
             downloadYoutubeThumbnails: {
                 name: '下载 YouTube 缩略图',
                 desc: '将 YouTube 缩略图存储在本地。禁用后，在选择特色图片时跳过 YouTube 链接。'
+            },
+            captureVideoPoster: {
+                name: '捕获视频首帧',
+                desc: '从本地视频的第一帧创建静态图像，并将其用作特色图片。'
+            },
+            videoExtensions: {
+                name: '本地视频扩展名',
+                desc: '用于捕获首帧的视频文件扩展名（逗号分隔）。',
+                placeholder: 'mp4,mov,m4v,webm'
             },
             localImageExtensions: {
                 name: '本地图片扩展名',

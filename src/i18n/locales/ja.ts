@@ -18,6 +18,7 @@ export const STRINGS_JA = {
     settings: {
         headings: {
             advanced: '詳細設定',
+            localMedia: 'ローカルメディア',
             externalMedia: '外部メディア'
         },
 
@@ -114,6 +115,15 @@ export const STRINGS_JA = {
             downloadYoutubeThumbnails: {
                 name: 'YouTubeサムネイルをダウンロード',
                 desc: 'YouTubeサムネイルをローカルに保存します。無効にすると、アイキャッチ画像の選択時にYouTubeリンクをスキップします。'
+            },
+            captureVideoPoster: {
+                name: '動画のポスターフレームを取得',
+                desc: 'ローカル動画の最初のフレームから静止画を作成し、アイキャッチ画像として使用します。'
+            },
+            videoExtensions: {
+                name: 'ローカル動画拡張子',
+                desc: 'ポスターフレームの取得対象となる動画ファイル拡張子のカンマ区切りリスト。',
+                placeholder: 'mp4,mov,m4v,webm'
             },
             localImageExtensions: {
                 name: 'ローカル画像拡張子',
