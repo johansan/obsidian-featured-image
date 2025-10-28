@@ -1,5 +1,6 @@
 import { App, Notice, TFile, normalizePath } from 'obsidian';
 import { FeaturedImageSettings } from '../settings';
+import { restoreMtimeWithOffset } from '../utils/mtime';
 import { FeatureScanner } from './feature-scanner';
 import { ThumbnailService } from '../thumbnails/thumbnail-service';
 
@@ -205,10 +206,16 @@ export class ImageMaintenanceService {
                 const results = await Promise.all(
                     batch.map(async ({ file, feature }) => {
                         try {
+                            const originalMtime = file.stat.mtime;
                             const newThumbnail = await this.deps.thumbnailService.createThumbnail(feature);
 
                             if (newThumbnail) {
                                 await options.updateFrontmatter(file, feature, newThumbnail);
+                                await restoreMtimeWithOffset(this.app, file, originalMtime, {
+                                    dryRun: this.settings.dryRun,
+                                    errorLog: this.deps.errorLog,
+                                    context: 'Failed to adjust modification time'
+                                });
                                 this.deps.debugLog(
                                     `THUMBNAIL UPDATED\n- File: ${file.path}\n- Feature: ${feature}\n- New thumbnail: ${newThumbnail}`
                                 );

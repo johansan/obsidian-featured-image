@@ -154,6 +154,12 @@ export const STRINGS_FR = {
         thumbnailsRerendered: '{count} miniatures re-générées'
     },
 
+    // Modals
+    modals: {
+        mtimeOffsetNote:
+            "Remarque : les horodatages des fichiers sont avancés d'environ 1,5 seconde afin que les services de synchronisation détectent la modification."
+    },
+
     // Errors
     errors: {
         httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>

@@ -154,6 +154,12 @@ export const STRINGS_DE = {
         thumbnailsRerendered: '{count} Vorschaubilder neu gerendert'
     },
 
+    // Modals
+    modals: {
+        mtimeOffsetNote:
+            'Hinweis: Die Dateizeitstempel werden um etwa 1,5 Sekunden nach vorne verschoben, damit Synchronisierungsdienste die Änderung erkennen.'
+    },
+
     // Errors
     errors: {
         httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>

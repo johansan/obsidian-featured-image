@@ -48,11 +48,6 @@ export class ThumbnailService {
         }
 
         try {
-            if (!(await this.app.vault.adapter.exists(imagePath))) {
-                this.deps.errorLog('Source image not found:', imagePath);
-                return undefined;
-            }
-
             const settingsHash = md5(
                 `${this.settings.maxResizedWidth}_${this.settings.maxResizedHeight}_${this.settings.fillResizedDimensions}`
             ).substring(0, 8);
@@ -70,6 +65,11 @@ export class ThumbnailService {
             if (this.settings.dryRun) {
                 this.deps.debugLog('Dry run: Skipping thumbnail creation, using mock path');
                 return thumbnailPath;
+            }
+
+            if (!(await this.app.vault.adapter.exists(imagePath))) {
+                this.deps.errorLog('Source image not found:', imagePath);
+                return undefined;
             }
 
             if (!(await this.app.vault.adapter.exists(resizedFolder))) {

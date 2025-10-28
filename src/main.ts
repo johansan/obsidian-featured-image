@@ -14,11 +14,12 @@ import { ImageMaintenanceService } from './features/image-maintenance';
 
 // Utilities
 import type { Logger } from './utils/logging';
+import { applyMediaProperty } from './utils/frontmatter';
+import { md5 } from './utils/hash';
 import { createDebugLogger, createErrorLogger } from './utils/logging';
+import { restoreMtimeWithOffset } from './utils/mtime';
 import { isTFile as isTFileGuard } from './utils/obsidian';
 import { isValidHttpsUrl } from './utils/urls';
-import { md5 } from './utils/hash';
-import { applyMediaProperty } from './utils/frontmatter';
 
 /**
  * FeaturedImage plugin for Obsidian.
@@ -592,26 +593,43 @@ export default class FeaturedImage extends Plugin {
             await this.app.vault.adapter.mkdir(youtubeFolder);
         }
 
-        // Check if WebP thumbnail already exists
-        const webpFilename = `${videoId}.webp`;
-        const webpFilePath = `${youtubeFolder}/${webpFilename}`;
-        if (await this.app.vault.adapter.exists(webpFilePath)) {
-            return webpFilePath;
+        // Reuse existing thumbnail if present
+        for (const extension of ['webp', 'jpg']) {
+            const existingPath = `${youtubeFolder}/${videoId}.${extension}`;
+            if (await this.app.vault.adapter.exists(existingPath)) {
+                return existingPath;
+            }
         }
 
         if (this.settings.dryRun) {
             this.debugLog('Dry run: Skipping thumbnail download, using mock path');
-            return webpFilePath; // Return a mock path
+            return `${youtubeFolder}/${videoId}.webp`; // Return a mock path
         }
 
-        try {
-            const webpResponse = await this.fetchThumbnail(videoId, 'maxresdefault.webp');
-            if (webpResponse?.status === 200) {
-                await this.app.vault.adapter.writeBinary(webpFilePath, webpResponse.arrayBuffer);
-                return webpFilePath;
+        const candidates: { quality: string; extension: 'webp' | 'jpg' }[] = [
+            { quality: 'maxresdefault.webp', extension: 'webp' },
+            { quality: 'maxresdefault.jpg', extension: 'jpg' },
+            { quality: 'sddefault.jpg', extension: 'jpg' },
+            { quality: 'hqdefault.jpg', extension: 'jpg' },
+            { quality: 'mqdefault.jpg', extension: 'jpg' },
+            { quality: 'default.jpg', extension: 'jpg' }
+        ];
+
+        for (const candidate of candidates) {
+            const targetPath = `${youtubeFolder}/${videoId}.${candidate.extension}`;
+            try {
+                const response = await this.fetchThumbnail(videoId, candidate.quality);
+                if (response?.status === 200) {
+                    await this.app.vault.adapter.writeBinary(targetPath, response.arrayBuffer);
+                    if (candidate.extension !== 'webp') {
+                        this.debugLog(`YouTube thumbnail fallback used ${candidate.quality} for video ${videoId}, saved as ${targetPath}`);
+                    }
+                    return targetPath;
+                }
+                this.debugLog(`YouTube thumbnail request returned status ${response?.status ?? 'unknown'} for ${candidate.quality}`);
+            } catch (error) {
+                this.debugLog(`Failed to download ${candidate.quality} thumbnail for ${videoId}:`, error);
             }
-        } catch (error) {
-            this.debugLog('Failed to download WebP thumbnail:', error);
         }
 
         this.errorLog(`Thumbnail for video ${videoId} could not be downloaded`);
@@ -711,10 +729,12 @@ export default class FeaturedImage extends Plugin {
                             // Process the file
                             const wasUpdated = await this.setFeaturedImage(file);
 
-                            // If file was updated and not in dry run mode, restore the original mtime
-                            if (wasUpdated && !this.settings.dryRun) {
-                                await this.app.vault.modify(file, await this.app.vault.read(file), {
-                                    mtime: originalMtime
+                            // If file was updated, gently restore mtime (original + 1.5s offset) to preserve ordering
+                            if (wasUpdated) {
+                                await restoreMtimeWithOffset(this.app, file, originalMtime, {
+                                    dryRun: this.settings.dryRun,
+                                    errorLog: this.errorLog.bind(this),
+                                    context: 'Failed to adjust modification time during bulk update'
                                 });
                             }
 
@@ -784,10 +804,12 @@ export default class FeaturedImage extends Plugin {
             const originalMtime = file.stat.mtime;
             const wasRemoved = await this.removeFeaturedImage(file, currentFeature);
 
-            // If file was modified and not in dry run mode, restore the original mtime
-            if (wasRemoved && !this.settings.dryRun) {
-                await this.app.vault.modify(file, await this.app.vault.read(file), {
-                    mtime: originalMtime
+            // If file was modified, gently restore mtime (original + 1.5s offset) to preserve ordering
+            if (wasRemoved) {
+                await restoreMtimeWithOffset(this.app, file, originalMtime, {
+                    dryRun: this.settings.dryRun,
+                    errorLog: this.errorLog.bind(this),
+                    context: 'Failed to adjust modification time during cleanup'
                 });
             }
 

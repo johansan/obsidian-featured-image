@@ -154,6 +154,11 @@ export const STRINGS_EN = {
         thumbnailsRerendered: '{count} thumbnails re-rendered'
     },
 
+    // Modals
+    modals: {
+        mtimeOffsetNote: 'Note: File modification times shift forward by about 1.5 seconds so sync providers register the change.'
+    },
+
     // Errors
     errors: {
         httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>

@@ -153,6 +153,11 @@ export const STRINGS_ZH = {
         thumbnailsRerendered: '已重新渲染 {count} 个缩略图'
     },
 
+    // Modals
+    modals: {
+        mtimeOffsetNote: '提示：为确保同步服务检测到更改，文件的修改时间会向前推进约 1.5 秒。'
+    },
+
     // Errors
     errors: {
         httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>

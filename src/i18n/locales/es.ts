@@ -154,6 +154,12 @@ export const STRINGS_ES = {
         thumbnailsRerendered: '{count} miniaturas re-renderizadas'
     },
 
+    // Modals
+    modals: {
+        mtimeOffsetNote:
+            'Nota: Las marcas de tiempo de los archivos se adelantan unos 1,5 segundos para que los servicios de sincronización registren el cambio.'
+    },
+
     // Errors
     errors: {
         httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>

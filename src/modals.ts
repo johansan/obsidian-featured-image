@@ -1,4 +1,5 @@
 import { App, Modal, Setting } from 'obsidian';
+import { strings } from './i18n';
 
 export class ConfirmationModal extends Modal {
     result: boolean;
@@ -27,7 +28,7 @@ export class ConfirmationModal extends Modal {
                 cls: 'featured-image-info'
             });
             infoEl.createEl('p', {
-                text: 'Note: The original modification dates of all files will be preserved.',
+                text: strings.modals.mtimeOffsetNote,
                 cls: 'featured-image-info-text'
             });
         }

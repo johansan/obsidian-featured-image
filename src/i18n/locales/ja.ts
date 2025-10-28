@@ -154,6 +154,11 @@ export const STRINGS_JA = {
         thumbnailsRerendered: '{count}個のサムネイルを再レンダリングしました'
     },
 
+    // Modals
+    modals: {
+        mtimeOffsetNote: '注意: 同期サービスが変更を検出できるように、ファイルの更新時刻を約1.5秒先にずらします。'
+    },
+
     // Errors
     errors: {
         httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>
