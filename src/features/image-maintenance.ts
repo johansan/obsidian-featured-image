@@ -58,25 +58,22 @@ export class ImageMaintenanceService {
         let youtubeImagesCount = 0;
         let autoCardImagesCount = 0;
         let resizedThumbnailsCount = 0;
-        let videoFramesCount = 0;
 
         const externalImages = new Set<string>();
         const youtubeImages = new Set<string>();
         const autoCardImages = new Set<string>();
         const resizedThumbnails = new Set<string>();
-        const videoFrames = new Set<string>();
         const usedFiles = new Set<string>();
 
         try {
             // Step 1: Collect all target files
-            await this.collectImageFiles(externalImages, youtubeImages, autoCardImages, resizedThumbnails, videoFrames);
+            await this.collectImageFiles(externalImages, youtubeImages, autoCardImages, resizedThumbnails);
 
             this.deps.debugLog(`Collected image files:
                 - External: ${externalImages.size}
                 - YouTube: ${youtubeImages.size}
                 - Auto Card: ${autoCardImages.size}
-                - Resized Thumbnails: ${resizedThumbnails.size}
-                - Video Posters: ${videoFrames.size}`);
+                - Resized Thumbnails: ${resizedThumbnails.size}`);
 
             // Step 2: Build reference map from all markdown files
             await this.buildReferenceMap(usedFiles);
@@ -88,22 +85,18 @@ export class ImageMaintenanceService {
             const unusedYoutube = this.findUnusedFiles(youtubeImages, usedFiles);
             const unusedAutoCard = this.findUnusedFiles(autoCardImages, usedFiles);
             const unusedResized = this.findUnusedFiles(resizedThumbnails, usedFiles);
-            const unusedVideo = this.findUnusedFiles(videoFrames, usedFiles);
 
             externalImagesCount = unusedExternal.size;
             youtubeImagesCount = unusedYoutube.size;
             autoCardImagesCount = unusedAutoCard.size;
             resizedThumbnailsCount = unusedResized.size;
-            videoFramesCount = unusedVideo.size;
-
             this.deps.debugLog(`Unused images detected:
                 - External: ${externalImagesCount}
                 - YouTube: ${youtubeImagesCount}
                 - Auto Card: ${autoCardImagesCount}
-                - Resized Thumbnails: ${resizedThumbnailsCount}
-                - Video Posters: ${videoFramesCount}`);
+                - Resized Thumbnails: ${resizedThumbnailsCount}`);
 
-            const totalUnused = externalImagesCount + youtubeImagesCount + autoCardImagesCount + resizedThumbnailsCount + videoFramesCount;
+            const totalUnused = externalImagesCount + youtubeImagesCount + autoCardImagesCount + resizedThumbnailsCount;
 
             if (totalUnused === 0) {
                 new Notice('No unused images found.');
@@ -131,7 +124,7 @@ export class ImageMaintenanceService {
             // Delete files in batches
             new Notice(`Deleting ${totalUnused} unused files...`);
 
-            const allUnusedPaths = [...unusedExternal, ...unusedYoutube, ...unusedAutoCard, ...unusedResized, ...unusedVideo];
+            const allUnusedPaths = [...unusedExternal, ...unusedYoutube, ...unusedAutoCard, ...unusedResized];
 
             const totalBytes = await this.calculateFileSizes(allUnusedPaths);
             const deletedCount = await this.deleteUnusedFiles(allUnusedPaths);
@@ -263,14 +256,12 @@ export class ImageMaintenanceService {
      * @param {Set<string>} youtubeImages - Set to store YouTube thumbnail paths.
      * @param {Set<string>} autoCardImages - Set to store Auto Card Link image paths.
      * @param {Set<string>} resizedThumbnails - Set to store resized thumbnail paths.
-     * @param {Set<string>} videoPosters - Set to store captured video poster paths.
      */
     private async collectImageFiles(
         externalImages: Set<string>,
         youtubeImages: Set<string>,
         autoCardImages: Set<string>,
-        resizedThumbnails: Set<string>,
-        videoPosters: Set<string>
+        resizedThumbnails: Set<string>
     ): Promise<void> {
         const thumbnailFolder = normalizePath(this.settings.thumbnailsFolder);
 
@@ -285,7 +276,6 @@ export class ImageMaintenanceService {
         const youtubeFolder = `${thumbnailFolder}/youtube`;
         const autoCardFolder = `${thumbnailFolder}/autocardlink`;
         const resizedFolder = `${thumbnailFolder}/resized`;
-        const videoFolder = `${thumbnailFolder}/video`;
 
         if (await this.app.vault.adapter.exists(externalFolder)) {
             await this.collectFilesInFolder(externalFolder, externalImages, '.failed.png');
@@ -301,10 +291,6 @@ export class ImageMaintenanceService {
 
         if (await this.app.vault.adapter.exists(resizedFolder)) {
             await this.collectFilesInFolder(resizedFolder, resizedThumbnails, '.failed.png');
-        }
-
-        if (await this.app.vault.adapter.exists(videoFolder)) {
-            await this.collectFilesInFolder(videoFolder, videoPosters);
         }
     }
 

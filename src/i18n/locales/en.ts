@@ -118,20 +118,6 @@ export const STRINGS_EN = {
                 desc: 'Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.',
                 action: 'Optimize'
             },
-            captureVideoPoster: {
-                name: 'Capture video poster frame',
-                desc: 'Create a still image from the first frame of local videos and use it as a featured image.'
-            },
-            videoExtensions: {
-                name: 'Local video extensions',
-                desc: 'Comma-separated list of video file extensions eligible for poster capture.',
-                placeholder: 'mp4,mov,m4v,webm'
-            },
-            localImageExtensions: {
-                name: 'Local image extensions',
-                desc: 'Comma-separated list of image file extensions to search for in documents.',
-                placeholder: 'png,jpg,jpeg,gif,webp'
-            },
             debugMode: {
                 name: 'Debug mode',
                 desc: 'Enable debug mode to log detailed information to the console.'

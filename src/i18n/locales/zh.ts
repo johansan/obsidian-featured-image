@@ -118,20 +118,6 @@ export const STRINGS_ZH = {
                 desc: '为 Notebook Navigator 优化缩略图设置，并重新渲染所有已调整大小的缩略图。',
                 action: '优化'
             },
-            captureVideoPoster: {
-                name: '捕获视频首帧',
-                desc: '从本地视频的第一帧创建静态图像，并将其用作特色图片。'
-            },
-            videoExtensions: {
-                name: '本地视频扩展名',
-                desc: '用于捕获首帧的视频文件扩展名（逗号分隔）。',
-                placeholder: 'mp4,mov,m4v,webm'
-            },
-            localImageExtensions: {
-                name: '本地图片扩展名',
-                desc: '要在文档中搜索的图片文件扩展名的逗号分隔列表。',
-                placeholder: 'png,jpg,jpeg,gif,webp'
-            },
             debugMode: {
                 name: '调试模式',
                 desc: '启用调试模式以在控制台中记录详细信息。'

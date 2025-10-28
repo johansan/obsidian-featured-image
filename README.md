@@ -88,49 +88,43 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 6. **Optimize settings for Notebook Navigator** - Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.
 
-### Local Media
-
-7. **Capture video poster frame** - Create a still image from the first frame of local videos and use it as a featured image.
-
 ### External Media
 
-8. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
+7. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
 
-9. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
+8. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
 
-10. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
+9. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
 
 ### Advanced Settings
 
-11. **Show advanced settings** - Toggle to show or hide advanced configuration options.
+10. **Show advanced settings** - Toggle to show or hide advanced configuration options.
 
 When enabled, the following additional settings are available:
 
-12. **Resize feature image** - Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.
+11. **Resize feature image** - Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.
     - **Max resized width** - Maximum width of the resized thumbnail in pixels. Use 0 for no width restriction.
     - **Max resized height** - Maximum height of the resized thumbnail in pixels. Use 0 for no height restriction.
     - **Fill resized dimensions** - When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.
       - **Vertical alignment** - Choose the vertical alignment for cropped images (top, center, or bottom).
       - **Horizontal alignment** - Choose the horizontal alignment for cropped images (left, center, or right).
 
-13. **Media link format** - Choose how to format the featured image property in frontmatter:
+12. **Media link format** - Choose how to format the featured image property in frontmatter:
     - Plain text: `path/to/image.png`
     - Wiki link: `[[path/to/image.png]]`
     - Embedded link: `![[path/to/image.png]]`
 
-14. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
+13. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
 
-15. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
+14. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
 
-16. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
+15. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
 
-17. **Local image extensions** - Comma-separated list of image file extensions to search for in documents.
+16. **Local image extensions** - Comma-separated list of image file extensions to search for in documents.
 
-18. **Local video extensions** - Comma-separated list of video file extensions eligible for poster capture.
+17. **Debug mode** - Enable debug mode to log detailed information to the console.
 
-19. **Debug mode** - Enable debug mode to log detailed information to the console.
-
-20. **Dry run** - Enable dry run to prevent any changes from being made to your files.
+18. **Dry run** - Enable dry run to prevent any changes from being made to your files.
 
 ## Technical Details
 

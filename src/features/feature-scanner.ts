@@ -1,5 +1,5 @@
 import { App, TFile, normalizePath } from 'obsidian';
-import { FeaturedImageSettings } from '../settings';
+import { FeaturedImageSettings, SUPPORTED_IMAGE_EXTENSIONS } from '../settings';
 import { resolveLocalImagePath } from '../utils/obsidian';
 import { isValidHttpsUrl } from '../utils/urls';
 
@@ -19,7 +19,6 @@ interface FrontmatterImageInfo {
 interface FeatureScannerDeps {
     downloadExternalImage: (imageUrl: string, subfolder?: string) => Promise<string | undefined>;
     downloadYoutubeThumbnail: (videoId: string, currentFeature: string | undefined) => Promise<string | undefined>;
-    createVideoPoster: (videoPath: string) => Promise<string | undefined>;
     debugLog: (...args: unknown[]) => void;
     errorLog: (...args: unknown[]) => void;
 }
@@ -168,39 +167,6 @@ export class FeatureScanner {
                     this.deps.errorLog(`Local image not found for featured image: ${mdImage} (referenced in ${contextFile.path})`);
                     continue;
                 }
-
-                // Check for local wiki video links, e.g. ![[video.mp4]]
-                if (match.groups?.wikiVideo) {
-                    const wikiVideo = decodeURIComponent(match.groups.wikiVideo);
-                    const resolvedWikiVideo = resolveLocalImagePath(this.app, wikiVideo, contextFile);
-                    if (resolvedWikiVideo) {
-                        const posterPath = await this.deps.createVideoPoster(resolvedWikiVideo);
-                        if (posterPath) {
-                            return posterPath;
-                        }
-                    } else {
-                        this.deps.errorLog(`Local video not found for poster capture: ${wikiVideo} (referenced in ${contextFile.path})`);
-                    }
-                    continue;
-                }
-
-                // Check for markdown video links, e.g. ![clip](folder/video.mp4)
-                if (match.groups?.mdVideo) {
-                    const mdVideo = decodeURIComponent(match.groups.mdVideo);
-                    if (isValidHttpsUrl(mdVideo)) {
-                        this.deps.debugLog('Skipping remote video for poster capture due to CORS limitations:', mdVideo);
-                        continue;
-                    }
-                    const resolvedMdVideo = resolveLocalImagePath(this.app, mdVideo, contextFile);
-                    if (resolvedMdVideo) {
-                        const posterPath = await this.deps.createVideoPoster(resolvedMdVideo);
-                        if (posterPath) {
-                            return posterPath;
-                        }
-                    } else {
-                        this.deps.errorLog(`Local video not found for poster capture: ${mdVideo} (referenced in ${contextFile.path})`);
-                    }
-                }
             }
         }
 
@@ -262,17 +228,6 @@ export class FeatureScanner {
                         const mdImage = decodeURIComponent(match.groups.mdImage);
                         if (!isValidHttpsUrl(mdImage)) {
                             this.addNormalizedPath(mdImage, usedFiles, file);
-                        }
-                    }
-
-                    if (match.groups?.wikiVideo) {
-                        this.addNormalizedPath(match.groups.wikiVideo, usedFiles, file);
-                    }
-
-                    if (match.groups?.mdVideo) {
-                        const mdVideo = decodeURIComponent(match.groups.mdVideo);
-                        if (!isValidHttpsUrl(mdVideo)) {
-                            this.addNormalizedPath(mdVideo, usedFiles, file);
                         }
                     }
                 }
@@ -402,19 +357,15 @@ export class FeatureScanner {
      * Compiles the regular expressions used for feature detection.
      */
     private compileRegexPatterns(): void {
-        const imageExtensionsPattern = this.settings.imageExtensions.join('|');
-        const videoExtensionsPattern =
-            this.settings.videoExtensions.length > 0 ? this.settings.videoExtensions.join('|') : 'mp4|mov|m4v|webm';
+        const imageExtensionsPattern = SUPPORTED_IMAGE_EXTENSIONS.join('|');
 
         const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]|#]+\\.(${imageExtensionsPattern}))(?:[#|][^\\]]*)?\\]\\]`;
         const mdImagePattern = `!\\[.*?\\]\\((?<mdImage>(?:https?:\\/\\/(?:[^)(]|\\([^)(]*\\))+|[^)(]+\\.(${imageExtensionsPattern})))\\)`;
-        const wikiVideoPattern = `!\\[\\[(?<wikiVideo>[^\\]|#]+\\.(${videoExtensionsPattern}))(?:[#|][^\\]]*)?\\]\\]`;
-        const mdVideoPattern = `!\\[.*?\\]\\((?<mdVideo>(?:https?:\\/\\/(?:[^)(]|\\([^)(]*\\))+|[^)(]+\\.(${videoExtensionsPattern})))\\)`;
         const youtubePattern = `${
             this.settings.requireExclamationForYouTube ? '!' : '!?'
         }\\[.*?\\]\\((?<youtube>https?:\\/\\/(?:www\\.)?(?:youtube\\.com|youtu\\.be)\\/\\S+)\\)`;
 
-        const combinedRegexString = [youtubePattern, wikiImagePattern, mdImagePattern, wikiVideoPattern, mdVideoPattern].join('|');
+        const combinedRegexString = [youtubePattern, wikiImagePattern, mdImagePattern].join('|');
 
         this.combinedLineRegex = new RegExp(combinedRegexString, 'i');
         this.combinedLineGlobalRegex = new RegExp(combinedRegexString, 'gi');

@@ -5,12 +5,11 @@ import { normalizePath, Plugin, Notice, TAbstractFile, TFile, requestUrl, Reques
 import '../styles.css';
 
 // Internal imports
-import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab } from './settings';
+import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab, SUPPORTED_IMAGE_EXTENSIONS } from './settings';
 import { ConfirmationModal } from './modals';
 import { strings } from './i18n';
 import { FeatureScanner } from './features/feature-scanner';
 import { ThumbnailService } from './thumbnails/thumbnail-service';
-import { VideoFrameService } from './thumbnails/video-frame-service';
 import { ImageMaintenanceService } from './features/image-maintenance';
 
 // Utilities
@@ -34,7 +33,6 @@ export default class FeaturedImage extends Plugin {
 
     private featureScanner: FeatureScanner;
     private thumbnailService: ThumbnailService;
-    private videoFrameService: VideoFrameService;
     private imageMaintenance: ImageMaintenanceService;
 
     // Placeholder image data for failed downloads (1x1 transparent PNG)
@@ -56,9 +54,6 @@ export default class FeaturedImage extends Plugin {
         0xae, 0x42, 0x60, 0x82                          // IEND CRC
     ]);
 
-    // Delay in milliseconds before processing file operations to allow Obsidian to complete its internal updates
-    private static readonly FILE_OPERATION_DELAY = 100;
-
     /**
      * Loads the plugin, initializes settings, and sets up event listeners.
      */
@@ -71,15 +66,9 @@ export default class FeaturedImage extends Plugin {
             errorLog: this.errorLog.bind(this)
         });
 
-        this.videoFrameService = new VideoFrameService(this.app, this.settings, {
-            debugLog: this.debugLog.bind(this),
-            errorLog: this.errorLog.bind(this)
-        });
-
         this.featureScanner = new FeatureScanner(this.app, this.settings, {
             downloadExternalImage: this.downloadExternalImage.bind(this),
             downloadYoutubeThumbnail: this.downloadThumbnail.bind(this),
-            createVideoPoster: this.createVideoPoster.bind(this),
             debugLog: this.debugLog.bind(this),
             errorLog: this.errorLog.bind(this)
         });
@@ -145,12 +134,6 @@ export default class FeaturedImage extends Plugin {
             })
         );
 
-        this.registerEvent(
-            this.app.vault.on('rename', (file, oldPath) => {
-                this.handleFileRename(file, oldPath);
-            })
-        );
-
         this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
     }
 
@@ -198,9 +181,6 @@ export default class FeaturedImage extends Plugin {
         if (this.thumbnailService) {
             this.thumbnailService.setSettings(this.settings);
         }
-        if (this.videoFrameService) {
-            this.videoFrameService.setSettings(this.settings);
-        }
         if (this.imageMaintenance) {
             this.imageMaintenance.setSettings(this.settings);
         }
@@ -225,9 +205,6 @@ export default class FeaturedImage extends Plugin {
         }
         if (this.thumbnailService) {
             this.thumbnailService.setSettings(this.settings);
-        }
-        if (this.videoFrameService) {
-            this.videoFrameService.setSettings(this.settings);
         }
         if (this.imageMaintenance) {
             this.imageMaintenance.setSettings(this.settings);
@@ -372,149 +349,6 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
-     * Handles file rename events to keep feature metadata in sync.
-     * @param {TAbstractFile} file - The renamed file.
-     * @param {string} oldPath - The previous path of the file.
-     */
-    private handleFileRename(file: TAbstractFile, oldPath: string): void {
-        this.debugLog('Rename detected:', oldPath, '->', file?.path);
-
-        if (!this.isTFile(file) || this.isRunningBulkUpdate) {
-            return;
-        }
-
-        if (file.extension === 'md') {
-            this.scheduleNoteRefreshAfterRename(file);
-            return;
-        }
-
-        if (this.isManagedImageFile(file)) {
-            this.scheduleImageReferenceRefresh(file, oldPath);
-        }
-    }
-
-    /**
-     * Schedules a featured image refresh for a renamed markdown file.
-     * @param {TFile} file - The renamed markdown file.
-     */
-    private scheduleNoteRefreshAfterRename(file: TFile): void {
-        window.setTimeout(() => {
-            if (this.updatingFiles.has(file.path) || this.isRunningBulkUpdate) {
-                this.debugLog('Skipping rename refresh for note, plugin already updating:', file.path);
-                return;
-            }
-            this.debugLog('Refreshing featured image after note rename:', file.path);
-            void this.setFeaturedImage(file);
-        }, FeaturedImage.FILE_OPERATION_DELAY);
-    }
-
-    /**
-     * Schedules featured image refreshes for notes referencing a renamed asset.
-     * @param {TFile} file - The renamed asset file.
-     * @param {string} oldPath - The previous path of the asset.
-     */
-    private scheduleImageReferenceRefresh(file: TFile, oldPath: string): void {
-        const normalizedOldPath = normalizePath(oldPath);
-        window.setTimeout(() => {
-            void this.refreshImageReferences(file.path, normalizedOldPath);
-        }, FeaturedImage.FILE_OPERATION_DELAY);
-    }
-
-    /**
-     * Refreshes featured images for notes referencing a renamed asset.
-     * @param {string} newPath - The new path of the asset.
-     * @param {string} oldPath - The old path of the asset.
-     */
-    private async refreshImageReferences(newPath: string, oldPath: string): Promise<void> {
-        if (this.isRunningBulkUpdate) {
-            this.debugLog('Skipping asset rename refresh during bulk update:', newPath);
-            return;
-        }
-
-        // Build a set of paths to search for in markdown files (both old and new paths)
-        const targetPaths = new Set<string>([normalizePath(newPath)]);
-        if (oldPath) {
-            targetPaths.add(normalizePath(oldPath));
-        }
-
-        const referencingPaths = this.getMarkdownFilesReferencingPaths(targetPaths);
-
-        if (referencingPaths.size === 0) {
-            this.debugLog('No markdown files reference renamed asset:', newPath);
-            return;
-        }
-
-        this.debugLog(
-            `Refreshing featured images for ${referencingPaths.size} notes referencing renamed asset:`,
-            Array.from(referencingPaths)
-        );
-
-        // Process each markdown file that references the renamed asset
-        for (const path of referencingPaths) {
-            const abstractFile = this.app.vault.getAbstractFileByPath(path);
-            // Skip non-markdown files
-            if (!this.isTFile(abstractFile) || abstractFile.extension !== 'md') {
-                continue;
-            }
-            // Skip files already being updated to avoid conflicts
-            if (this.updatingFiles.has(abstractFile.path)) {
-                this.debugLog('Skipping asset rename refresh, plugin already updating:', abstractFile.path);
-                continue;
-            }
-            try {
-                await this.setFeaturedImage(abstractFile);
-            } catch (error) {
-                this.errorLog(`Failed to refresh featured image after asset rename for ${abstractFile.path}:`, error);
-            }
-        }
-    }
-
-    /**
-     * Collects markdown files that reference any of the provided paths.
-     * @param {Set<string>} targetPaths - Paths to find references for.
-     * @returns {Set<string>} Set of markdown file paths referencing the targets.
-     */
-    private getMarkdownFilesReferencingPaths(targetPaths: Set<string>): Set<string> {
-        const referencingPaths = new Set<string>();
-        const resolvedLinks = this.app.metadataCache.resolvedLinks;
-
-        // Search through Obsidian's resolved links cache to find files that reference the target paths
-        for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
-            for (const target of targetPaths) {
-                if (Object.prototype.hasOwnProperty.call(targets, target)) {
-                    referencingPaths.add(sourcePath);
-                    break; // Found a reference, no need to check other target paths for this source
-                }
-            }
-        }
-
-        return referencingPaths;
-    }
-
-    /**
-     * Determines whether a file is an image managed by the plugin.
-     * @param {TFile} file - The file to check.
-     * @returns {boolean} True when the file is a managed image asset.
-     */
-    private isManagedImageFile(file: TFile): boolean {
-        // Check if the file extension matches configured image extensions
-        const extension = file.extension?.toLowerCase();
-        if (!extension || !this.settings.imageExtensions.map(ext => ext.toLowerCase()).includes(extension)) {
-            return false;
-        }
-
-        const normalizedPath = normalizePath(file.path);
-        const thumbnailsFolder = normalizePath(this.settings.thumbnailsFolder);
-
-        // Exclude files within the thumbnails folder (they're generated, not source images)
-        if (normalizedPath === thumbnailsFolder || normalizedPath.startsWith(`${thumbnailsFolder}/`)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
      * Downloads an external image and saves it locally.
      * @param {string} imageUrl - The URL of the image to download.
      * @param {string} subfolder - The subfolder to save the image in.
@@ -611,9 +445,7 @@ export default class FeaturedImage extends Plugin {
      * @returns {Promise<string | undefined>} The path to the existing file, or undefined if not found.
      */
     private async findExistingImageFile(folderPath: string, hashedFilename: string): Promise<string | undefined> {
-        const extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']; // List of known image extensions
-
-        for (const ext of extensions) {
+        for (const ext of SUPPORTED_IMAGE_EXTENSIONS) {
             const filePath = `${folderPath}/${hashedFilename}.${ext}`;
             if (await this.app.vault.adapter.exists(filePath)) {
                 return filePath;
@@ -680,37 +512,6 @@ export default class FeaturedImage extends Plugin {
      */
     private generateHashedFilenameFromUrl(url: string): string {
         return md5(url);
-    }
-
-    /**
-     * Creates a poster image for the provided local video file.
-     * @param {string} videoPath - Vault-relative path to the video file.
-     * @returns {Promise<string | undefined>} Path to the generated poster image.
-     */
-    private async createVideoPoster(videoPath: string): Promise<string | undefined> {
-        if (!this.settings.captureVideoPoster) {
-            return undefined;
-        }
-
-        if (!this.videoFrameService) {
-            this.errorLog('Video frame service not initialized, unable to capture poster for', videoPath);
-            return undefined;
-        }
-
-        const normalizedPath = normalizePath(videoPath);
-        const abstractFile = this.app.vault.getAbstractFileByPath(normalizedPath);
-        if (!this.isTFile(abstractFile)) {
-            this.errorLog('Video file not found for poster capture:', videoPath);
-            return undefined;
-        }
-
-        const supportedExtensions = new Set(this.settings.videoExtensions.map(ext => ext.toLowerCase()));
-        if (!supportedExtensions.has(abstractFile.extension.toLowerCase())) {
-            this.debugLog('Skipping video poster capture for unsupported extension:', abstractFile.extension);
-            return undefined;
-        }
-
-        return await this.videoFrameService.createPoster(abstractFile);
     }
 
     /**

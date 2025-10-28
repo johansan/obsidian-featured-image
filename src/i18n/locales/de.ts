@@ -118,20 +118,6 @@ export const STRINGS_DE = {
                 desc: 'Optimiert die Thumbnail-Einstellungen für Notebook Navigator und rendert alle verkleinerten Vorschaubilder neu.',
                 action: 'Optimieren'
             },
-            captureVideoPoster: {
-                name: 'Video-Posterbild erfassen',
-                desc: 'Erstellt aus dem ersten Frame lokaler Videos ein Standbild und nutzt es als Featured Image.'
-            },
-            videoExtensions: {
-                name: 'Lokale Videoerweiterungen',
-                desc: 'Kommagetrennte Liste von Video-Dateierweiterungen, die für die Poster-Erstellung verwendet werden können.',
-                placeholder: 'mp4,mov,m4v,webm'
-            },
-            localImageExtensions: {
-                name: 'Lokale Bilderweiterungen',
-                desc: 'Kommagetrennte Liste von Bilddateierweiterungen, nach denen in Dokumenten gesucht werden soll.',
-                placeholder: 'png,jpg,jpeg,gif,webp'
-            },
             debugMode: {
                 name: 'Debug-Modus',
                 desc: 'Debug-Modus aktivieren, um detaillierte Informationen in der Konsole zu protokollieren.'

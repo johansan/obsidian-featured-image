@@ -118,20 +118,6 @@ export const STRINGS_FR = {
                 desc: 'Optimise les paramètres de miniature pour Notebook Navigator et re-génère toutes les miniatures redimensionnées.',
                 action: 'Optimiser'
             },
-            captureVideoPoster: {
-                name: 'Capturer une image vidéo',
-                desc: "Crée une image fixe à partir de la première image des vidéos locales et l'utilise comme image vedette."
-            },
-            videoExtensions: {
-                name: 'Extensions vidéo locales',
-                desc: 'Liste séparée par des virgules des extensions vidéo prises en charge pour la capture.',
-                placeholder: 'mp4,mov,m4v,webm'
-            },
-            localImageExtensions: {
-                name: "Extensions d'image locales",
-                desc: "Liste d'extensions de fichiers image séparées par des virgules à rechercher dans les documents.",
-                placeholder: 'png,jpg,jpeg,gif,webp'
-            },
             debugMode: {
                 name: 'Mode débogage',
                 desc: 'Activer le mode débogage pour enregistrer des informations détaillées dans la console.'

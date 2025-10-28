@@ -118,20 +118,6 @@ export const STRINGS_JA = {
                 desc: 'Notebook Navigator向けにサムネイル設定を最適化し、すべてのリサイズ済みサムネイルを再レンダリングします。',
                 action: '最適化'
             },
-            captureVideoPoster: {
-                name: '動画のポスターフレームを取得',
-                desc: 'ローカル動画の最初のフレームから静止画を作成し、アイキャッチ画像として使用します。'
-            },
-            videoExtensions: {
-                name: 'ローカル動画拡張子',
-                desc: 'ポスターフレームの取得対象となる動画ファイル拡張子のカンマ区切りリスト。',
-                placeholder: 'mp4,mov,m4v,webm'
-            },
-            localImageExtensions: {
-                name: 'ローカル画像拡張子',
-                desc: 'ドキュメント内で検索する画像ファイル拡張子のカンマ区切りリスト。',
-                placeholder: 'png,jpg,jpeg,gif,webp'
-            },
             debugMode: {
                 name: 'デバッグモード',
                 desc: 'デバッグモードを有効にして、コンソールに詳細情報をログ出力します。'
