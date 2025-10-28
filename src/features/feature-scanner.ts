@@ -1,5 +1,6 @@
 import { App, TFile, normalizePath } from 'obsidian';
 import { FeaturedImageSettings, SUPPORTED_IMAGE_EXTENSIONS } from '../settings';
+import { strings } from '../i18n';
 import { resolveLocalImagePath } from '../utils/obsidian';
 import { isValidHttpsUrl } from '../utils/urls';
 
@@ -153,18 +154,23 @@ export class FeatureScanner {
                 // Check for markdown image links, e.g. ![image.jpg](https://example.com/image.jpg)
                 if (match.groups?.mdImage) {
                     const mdImage = decodeURIComponent(match.groups.mdImage);
-                    if (isValidHttpsUrl(mdImage)) {
-                        const externalFeature = await this.deps.downloadExternalImage(mdImage);
+                    const trimmedMdImage = mdImage.trim();
+                    if (trimmedMdImage.toLowerCase().startsWith('http://')) {
+                        this.deps.errorLog(strings.errors.httpImageLinkIgnored(contextFile.path, trimmedMdImage));
+                        continue;
+                    }
+                    if (isValidHttpsUrl(trimmedMdImage)) {
+                        const externalFeature = await this.deps.downloadExternalImage(trimmedMdImage);
                         if (externalFeature) {
                             return externalFeature;
                         }
                         continue;
                     }
-                    const resolvedMdImage = resolveLocalImagePath(this.app, mdImage, contextFile);
+                    const resolvedMdImage = resolveLocalImagePath(this.app, trimmedMdImage, contextFile);
                     if (resolvedMdImage) {
                         return resolvedMdImage;
                     }
-                    this.deps.errorLog(`Local image not found for featured image: ${mdImage} (referenced in ${contextFile.path})`);
+                    this.deps.errorLog(`Local image not found for featured image: ${trimmedMdImage} (referenced in ${contextFile.path})`);
                     continue;
                 }
             }
@@ -226,8 +232,13 @@ export class FeatureScanner {
 
                     if (match.groups?.mdImage) {
                         const mdImage = decodeURIComponent(match.groups.mdImage);
-                        if (!isValidHttpsUrl(mdImage)) {
-                            this.addNormalizedPath(mdImage, usedFiles, file);
+                        const trimmedMdImage = mdImage.trim();
+                        if (trimmedMdImage.toLowerCase().startsWith('http://')) {
+                            this.deps.errorLog(strings.errors.httpImageLinkIgnored(file.path, trimmedMdImage));
+                            continue;
+                        }
+                        if (!isValidHttpsUrl(trimmedMdImage)) {
+                            this.addNormalizedPath(trimmedMdImage, usedFiles, file);
                         }
                     }
                 }
@@ -265,6 +276,15 @@ export class FeatureScanner {
         let isResolved = false;
 
         if (rawPath) {
+            if (rawPath.toLowerCase().startsWith('http://')) {
+                this.deps.errorLog(strings.errors.httpImageLinkIgnored(contextFile.path, rawPath));
+                return {
+                    rawValue,
+                    rawPath,
+                    resolvedPath: rawPath,
+                    isResolved: false
+                };
+            }
             if (isValidHttpsUrl(rawPath)) {
                 isResolved = true;
                 resolvedPath = rawPath;
@@ -306,12 +326,18 @@ export class FeatureScanner {
             return resolvedLocalPath;
         }
 
-        if (!isValidHttpsUrl(imagePath)) {
-            this.deps.errorLog('Invalid Auto Card Link URL:', imagePath);
+        const normalizedImagePath = imagePath.trim();
+        if (normalizedImagePath.toLowerCase().startsWith('http://')) {
+            this.deps.errorLog(strings.errors.httpImageLinkIgnored(contextFile.path, normalizedImagePath, 'Auto Card Link'));
             return undefined;
         }
 
-        return await this.deps.downloadExternalImage(imagePath, 'autocardlink');
+        if (!isValidHttpsUrl(normalizedImagePath)) {
+            this.deps.errorLog('Invalid Auto Card Link URL:', normalizedImagePath);
+            return undefined;
+        }
+
+        return await this.deps.downloadExternalImage(normalizedImagePath, 'autocardlink');
     }
 
     /**

@@ -152,5 +152,11 @@ export const STRINGS_FR = {
         filesProcessed: '{count} fichiers traités',
         imagesDeleted: '{count} images supprimées',
         thumbnailsRerendered: '{count} miniatures re-générées'
+    },
+
+    // Errors
+    errors: {
+        httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>
+            `Lien d'image HTTP${source ? ` ${source}` : ''} ignoré dans ${filePath} : ${url}. Featured Image ne traite que les liens HTTPS ; modifie le lien en HTTPS.`
     }
 };

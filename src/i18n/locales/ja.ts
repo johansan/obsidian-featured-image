@@ -152,5 +152,11 @@ export const STRINGS_JA = {
         filesProcessed: '{count}個のファイルを処理しました',
         imagesDeleted: '{count}個の画像を削除しました',
         thumbnailsRerendered: '{count}個のサムネイルを再レンダリングしました'
+    },
+
+    // Errors
+    errors: {
+        httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>
+            `HTTP${source ? ` ${source}` : ''}画像リンクを${filePath}で無視しました: ${url}。Featured ImageはHTTPSリンクのみ処理します。リンクをHTTPSに変更してください。`
     }
 };

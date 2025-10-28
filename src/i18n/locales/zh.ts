@@ -151,5 +151,11 @@ export const STRINGS_ZH = {
         filesProcessed: '已处理 {count} 个文件',
         imagesDeleted: '已删除 {count} 个图片',
         thumbnailsRerendered: '已重新渲染 {count} 个缩略图'
+    },
+
+    // Errors
+    errors: {
+        httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>
+            `已忽略 ${filePath} 中的 HTTP${source ? ` ${source}` : ''} 图片链接：${url}。Featured Image 仅处理 HTTPS 链接；请将链接改为 HTTPS。`
     }
 };

@@ -152,5 +152,11 @@ export const STRINGS_EN = {
         filesProcessed: '{count} files processed',
         imagesDeleted: '{count} images deleted',
         thumbnailsRerendered: '{count} thumbnails re-rendered'
+    },
+
+    // Errors
+    errors: {
+        httpImageLinkIgnored: (filePath: string, url: string, source?: string) =>
+            `HTTP${source ? ` ${source}` : ''} image link ignored in ${filePath}: ${url}. Featured Image only processes HTTPS links; update the link to use HTTPS.`
     }
 };
