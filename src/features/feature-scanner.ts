@@ -153,8 +153,9 @@ export class FeatureScanner {
 
                 // Check for markdown image links, e.g. ![image.jpg](https://example.com/image.jpg)
                 if (match.groups?.mdImage) {
-                    const mdImage = decodeURIComponent(match.groups.mdImage);
-                    const trimmedMdImage = mdImage.trim();
+                    const decodedMdImage = decodeURIComponent(match.groups.mdImage);
+                    const sanitizedMdImage = this.stripMarkdownImageTitle(decodedMdImage);
+                    const trimmedMdImage = sanitizedMdImage.trim();
                     if (trimmedMdImage.toLowerCase().startsWith('http://')) {
                         this.deps.errorLog(strings.errors.httpImageLinkIgnored(contextFile.path, trimmedMdImage));
                         continue;
@@ -231,8 +232,9 @@ export class FeatureScanner {
                     }
 
                     if (match.groups?.mdImage) {
-                        const mdImage = decodeURIComponent(match.groups.mdImage);
-                        const trimmedMdImage = mdImage.trim();
+                        const decodedMdImage = decodeURIComponent(match.groups.mdImage);
+                        const sanitizedMdImage = this.stripMarkdownImageTitle(decodedMdImage);
+                        const trimmedMdImage = sanitizedMdImage.trim();
                         if (trimmedMdImage.toLowerCase().startsWith('http://')) {
                             this.deps.errorLog(strings.errors.httpImageLinkIgnored(file.path, trimmedMdImage));
                             continue;
@@ -397,6 +399,27 @@ export class FeatureScanner {
         this.combinedLineGlobalRegex = new RegExp(combinedRegexString, 'gi');
         this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
         this.codeBlockStartRegex = /^[\s]*```[\s]*(\w+)?[\s]*$/;
+    }
+
+    /**
+     * Removes a trailing Markdown title/caption from an image target.
+     * @param {string} value - Raw target string captured from Markdown.
+     * @returns {string} Target value without the optional title segment.
+     */
+    private stripMarkdownImageTitle(value: string): string {
+        const trimmedValue = value.trim();
+        if (!trimmedValue) {
+            return trimmedValue;
+        }
+
+        const titlePattern = /\s+(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\((?:[^)\\]|\\.)*\))\s*$/;
+        const match = titlePattern.exec(trimmedValue);
+        if (!match) {
+            return trimmedValue;
+        }
+
+        const candidate = trimmedValue.slice(0, match.index).trimEnd();
+        return candidate || trimmedValue;
     }
 
     /**
