@@ -142,7 +142,7 @@ export class FeatureScanner {
 
                 // Check for local wiki image links, e.g. ![[image.jpg]]
                 if (match.groups?.wikiImage) {
-                    const wikiImage = decodeURIComponent(match.groups.wikiImage);
+                    const wikiImage = this.safeDecodeLinkComponent(match.groups.wikiImage);
                     const resolvedWikiImage = resolveLocalImagePath(this.app, wikiImage, contextFile);
                     if (resolvedWikiImage) {
                         return resolvedWikiImage;
@@ -153,11 +153,11 @@ export class FeatureScanner {
 
                 // Check for markdown image links, e.g. ![image.jpg](https://example.com/image.jpg)
                 if (match.groups?.mdImage) {
-                    const decodedMdImage = decodeURIComponent(match.groups.mdImage);
+                    const decodedMdImage = this.safeDecodeLinkComponent(match.groups.mdImage);
                     const sanitizedMdImage = this.stripMarkdownImageTitle(decodedMdImage);
                     const trimmedMdImage = sanitizedMdImage.trim();
-                    if (trimmedMdImage.toLowerCase().startsWith('http://')) {
-                        this.deps.errorLog(strings.errors.httpImageLinkIgnored(contextFile.path, trimmedMdImage));
+                    if (this.isHttpUrl(trimmedMdImage)) {
+                        this.logHttpImageWarning(contextFile.path, trimmedMdImage);
                         continue;
                     }
                     if (isValidHttpsUrl(trimmedMdImage)) {
@@ -232,11 +232,11 @@ export class FeatureScanner {
                     }
 
                     if (match.groups?.mdImage) {
-                        const decodedMdImage = decodeURIComponent(match.groups.mdImage);
+                        const decodedMdImage = this.safeDecodeLinkComponent(match.groups.mdImage);
                         const sanitizedMdImage = this.stripMarkdownImageTitle(decodedMdImage);
                         const trimmedMdImage = sanitizedMdImage.trim();
-                        if (trimmedMdImage.toLowerCase().startsWith('http://')) {
-                            this.deps.errorLog(strings.errors.httpImageLinkIgnored(file.path, trimmedMdImage));
+                        if (this.isHttpUrl(trimmedMdImage)) {
+                            this.logHttpImageWarning(file.path, trimmedMdImage);
                             continue;
                         }
                         if (!isValidHttpsUrl(trimmedMdImage)) {
@@ -278,8 +278,8 @@ export class FeatureScanner {
         let isResolved = false;
 
         if (rawPath) {
-            if (rawPath.toLowerCase().startsWith('http://')) {
-                this.deps.errorLog(strings.errors.httpImageLinkIgnored(contextFile.path, rawPath));
+            if (this.isHttpUrl(rawPath)) {
+                this.logHttpImageWarning(contextFile.path, rawPath);
                 return {
                     rawValue,
                     rawPath,
@@ -329,8 +329,8 @@ export class FeatureScanner {
         }
 
         const normalizedImagePath = imagePath.trim();
-        if (normalizedImagePath.toLowerCase().startsWith('http://')) {
-            this.deps.errorLog(strings.errors.httpImageLinkIgnored(contextFile.path, normalizedImagePath, 'Auto Card Link'));
+        if (this.isHttpUrl(normalizedImagePath)) {
+            this.logHttpImageWarning(contextFile.path, normalizedImagePath, 'Auto Card Link');
             return undefined;
         }
 
@@ -399,6 +399,38 @@ export class FeatureScanner {
         this.combinedLineGlobalRegex = new RegExp(combinedRegexString, 'gi');
         this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
         this.codeBlockStartRegex = /^[\s]*```[\s]*(\w+)?[\s]*$/;
+    }
+
+    /**
+     * Attempts to decode a link component while tolerating invalid percent sequences.
+     * @param {string} value - Raw captured value.
+     * @returns {string} Decoded value or the original string when decoding fails.
+     */
+    private safeDecodeLinkComponent(value: string): string {
+        try {
+            return decodeURIComponent(value);
+        } catch {
+            return value;
+        }
+    }
+
+    /**
+     * Checks whether a URL uses the HTTP protocol.
+     * @param {string} url - URL to inspect.
+     * @returns {boolean} True when the URL starts with http:// (case-insensitive).
+     */
+    private isHttpUrl(url: string): boolean {
+        return url.trim().toLowerCase().startsWith('http://');
+    }
+
+    /**
+     * Logs a warning about ignored HTTP image links.
+     * @param {string} filePath - File path where the link was found.
+     * @param {string} url - URL that was ignored.
+     * @param {string | undefined} source - Optional source descriptor for contextual messaging.
+     */
+    private logHttpImageWarning(filePath: string, url: string, source?: string): void {
+        this.deps.errorLog(strings.errors.httpImageLinkIgnored(filePath, url, source));
     }
 
     /**
