@@ -47,6 +47,12 @@ export class ThumbnailService {
             return undefined;
         }
 
+        // SVGs are vector-based; avoid rasterizing to canvas (can taint if external refs exist).
+        // Reuse the original SVG path as the "thumbnail".
+        if (imagePath.toLowerCase().endsWith('.svg')) {
+            return imagePath;
+        }
+
         try {
             const settingsHash = md5(
                 `${this.settings.maxResizedWidth}_${this.settings.maxResizedHeight}_${this.settings.fillResizedDimensions}`
@@ -82,9 +88,17 @@ export class ThumbnailService {
 
             try {
                 const image = await this.loadImage(imageUrl);
+                const sourceWidth = image.naturalWidth || image.width || 0;
+                const sourceHeight = image.naturalHeight || image.height || 0;
+
+                if (sourceWidth <= 0 || sourceHeight <= 0) {
+                    this.deps.errorLog('Unable to determine source image dimensions:', imagePath);
+                    return undefined;
+                }
+
                 const { width, height } = this.calculateThumbnailDimensions(
-                    image.width,
-                    image.height,
+                    sourceWidth,
+                    sourceHeight,
                     this.settings.maxResizedWidth,
                     this.settings.maxResizedHeight,
                     this.settings.fillResizedDimensions
@@ -226,41 +240,43 @@ export class ThumbnailService {
 
         let sourceX = 0;
         let sourceY = 0;
-        let sourceWidth = img.width;
-        let sourceHeight = img.height;
+        const originalWidth = img.naturalWidth || img.width;
+        const originalHeight = img.naturalHeight || img.height;
+        let sourceWidth = originalWidth;
+        let sourceHeight = originalHeight;
 
         if (fillMax && width > 0 && height > 0) {
-            const aspectRatio = img.width / img.height;
+            const aspectRatio = originalWidth / originalHeight;
             const targetRatio = width / height;
 
             if (aspectRatio > targetRatio) {
-                sourceWidth = img.height * targetRatio;
+                sourceWidth = originalHeight * targetRatio;
 
                 switch (this.settings.resizedHorizontalAlign) {
                     case 'left':
                         sourceX = 0;
                         break;
                     case 'right':
-                        sourceX = img.width - sourceWidth;
+                        sourceX = originalWidth - sourceWidth;
                         break;
                     case 'center':
                     default:
-                        sourceX = (img.width - sourceWidth) / 2;
+                        sourceX = (originalWidth - sourceWidth) / 2;
                         break;
                 }
             } else if (aspectRatio < targetRatio) {
-                sourceHeight = img.width / targetRatio;
+                sourceHeight = originalWidth / targetRatio;
 
                 switch (this.settings.resizedVerticalAlign) {
                     case 'top':
                         sourceY = 0;
                         break;
                     case 'bottom':
-                        sourceY = img.height - sourceHeight;
+                        sourceY = originalHeight - sourceHeight;
                         break;
                     case 'center':
                     default:
-                        sourceY = (img.height - sourceHeight) / 2;
+                        sourceY = (originalHeight - sourceHeight) / 2;
                         break;
                 }
             }
