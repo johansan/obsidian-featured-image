@@ -482,14 +482,15 @@ export default class FeaturedImage extends Plugin {
      * @param {string} contentType - The Content-Type header value.
      * @returns {string | undefined} The file extension without the dot.
      */
-    private getExtensionFromContentType(contentType: string): string | undefined {
-        const mimeTypes: { [key: string]: string } = {
-            'image/jpeg': 'jpg',
-            'image/png': 'png',
-            'image/gif': 'gif',
-            'image/webp': 'webp',
-            'image/svg+xml': 'svg'
-        };
+	    private getExtensionFromContentType(contentType: string): string | undefined {
+	        const mimeTypes: { [key: string]: string } = {
+	            'image/jpeg': 'jpg',
+	            'image/png': 'png',
+	            'image/gif': 'gif',
+	            'image/webp': 'webp',
+	            'image/svg+xml': 'svg',
+	            'image/avif': 'avif'
+	        };
 
         // Handle potential parameters in Content-Type (e.g., "image/jpeg; charset=utf-8")
         const mimeType = contentType.split(';')[0].trim().toLowerCase();

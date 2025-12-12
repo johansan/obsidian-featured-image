@@ -32,7 +32,7 @@ export interface FeaturedImageSettings {
     dryRun: boolean;
 }
 
-export const SUPPORTED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] as const;
+export const SUPPORTED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'] as const;
 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     // Basic settings (always visible)
