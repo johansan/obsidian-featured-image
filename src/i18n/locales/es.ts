@@ -18,7 +18,9 @@ export const STRINGS_ES = {
     settings: {
         headings: {
             advanced: 'Avanzado',
+            frontmatter: 'Frontmatter',
             localMedia: 'Medios locales',
+            resizeThumbnail: 'Redimensionar miniatura',
             externalMedia: 'Medios externos',
             notebookNavigator: 'Notebook Navigator'
         },
@@ -81,13 +83,13 @@ export const STRINGS_ES = {
                     right: 'Derecha'
                 }
             },
-            showAdvancedSettings: {
-                name: 'Mostrar configuración avanzada',
-                desc: 'Alternar para mostrar u ocultar opciones de configuración avanzada'
-            },
             mediaLinkFormat: {
                 name: 'Formato de enlace de medios',
                 desc: 'Elija cómo formatear la propiedad de imagen destacada en el frontmatter.'
+            },
+            frontmatterImageSourceProperties: {
+                name: 'Propiedades de origen de imagen en frontmatter',
+                desc: 'Lista separada por comas de propiedades de frontmatter para buscar rutas/URLs de imágenes antes de escanear el documento. Admite cadenas y listas YAML.'
             },
             onlyUpdateExisting: {
                 name: 'Solo actualizar si existe la propiedad de frontmatter',

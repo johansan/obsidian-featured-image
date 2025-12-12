@@ -241,8 +241,11 @@ export default class FeaturedImage extends Plugin {
             return false;
         }
 
-        const fileContent = await this.app.vault.cachedRead(file);
-        const newFeature = await this.featureScanner.getFeatureFromDocument(fileContent, file, currentFeature);
+        let newFeature = await this.featureScanner.getFeatureFromFrontmatterSources(file);
+        if (!newFeature) {
+            const fileContent = await this.app.vault.cachedRead(file);
+            newFeature = await this.featureScanner.getFeatureFromDocument(fileContent, file, currentFeature);
+        }
 
         // Generate thumbnail if feature image has changed and thumbnails are enabled
         let newThumbnail = currentThumbnail;
@@ -382,6 +385,8 @@ export default class FeaturedImage extends Plugin {
             // If the marker is more than 12 hours old, remove it and try again
             if (markerAge < twelveHours) {
                 this.debugLog('Skipping recently failed download:', imageUrl);
+                // Returning the marker path is intentional: callers may store it in frontmatter to avoid
+                // repeatedly retrying a broken/removed remote URL until the user clears the property.
                 return failedMarkerPath;
             }
             this.debugLog('Retrying old failed download:', imageUrl);
@@ -482,15 +487,15 @@ export default class FeaturedImage extends Plugin {
      * @param {string} contentType - The Content-Type header value.
      * @returns {string | undefined} The file extension without the dot.
      */
-	    private getExtensionFromContentType(contentType: string): string | undefined {
-	        const mimeTypes: { [key: string]: string } = {
-	            'image/jpeg': 'jpg',
-	            'image/png': 'png',
-	            'image/gif': 'gif',
-	            'image/webp': 'webp',
-	            'image/svg+xml': 'svg',
-	            'image/avif': 'avif'
-	        };
+    private getExtensionFromContentType(contentType: string): string | undefined {
+        const mimeTypes: { [key: string]: string } = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/gif': 'gif',
+            'image/webp': 'webp',
+            'image/svg+xml': 'svg',
+            'image/avif': 'avif'
+        };
 
         // Handle potential parameters in Content-Type (e.g., "image/jpeg; charset=utf-8")
         const mimeType = contentType.split(';')[0].trim().toLowerCase();

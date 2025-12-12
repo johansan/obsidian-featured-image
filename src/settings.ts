@@ -19,7 +19,7 @@ export interface FeaturedImageSettings {
     resizedHorizontalAlign: 'left' | 'center' | 'right';
 
     // Advanced settings
-    showAdvancedSettings: boolean;
+    frontmatterImageSourceProperties: string[];
     mediaLinkFormat: 'plain' | 'wiki' | 'embed';
     useMediaLinks: boolean; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
     onlyUpdateExisting: boolean;
@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     resizedHorizontalAlign: 'center',
 
     // Advanced settings
-    showAdvancedSettings: false,
+    frontmatterImageSourceProperties: [],
     mediaLinkFormat: 'plain',
     useMediaLinks: false, // TODO: Remove in the future, it has been replaced by mediaLinkFormat
     onlyUpdateExisting: false,
@@ -105,19 +105,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.frontmatterProperty)
                     .onChange(async value => {
                         this.plugin.settings.frontmatterProperty = value;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        const resizedThumbnailSetting = new Setting(containerEl)
-            .setName(strings.settings.items.resizedThumbnailProperty.name)
-            .setDesc(strings.settings.items.resizedThumbnailProperty.desc)
-            .addText(text =>
-                text
-                    .setPlaceholder(strings.settings.items.resizedThumbnailProperty.placeholder)
-                    .setValue(this.plugin.settings.resizedFrontmatterProperty)
-                    .onChange(async value => {
-                        this.plugin.settings.resizedFrontmatterProperty = value || 'thumbnail';
                         await this.plugin.saveSettings();
                     })
             );
@@ -186,11 +173,81 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                     })
             );
 
+        // Frontmatter heading
+        new Setting(containerEl).setName(strings.settings.headings.frontmatter).setHeading();
+
+        const frontmatterSettingsEl = containerEl.createDiv('frontmatter-settings');
+
+        // Frontmatter image source properties
+        new Setting(frontmatterSettingsEl)
+            .setName(strings.settings.items.frontmatterImageSourceProperties.name)
+            .setDesc(strings.settings.items.frontmatterImageSourceProperties.desc)
+            .addTextArea(text =>
+                text.setValue(this.plugin.settings.frontmatterImageSourceProperties.join(',')).onChange(async value => {
+                    const parsed = value
+                        .split(',')
+                        .map(property => property.trim())
+                        .filter(Boolean);
+
+                    this.plugin.settings.frontmatterImageSourceProperties = Array.from(new Set(parsed));
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        // Media link format
+        new Setting(frontmatterSettingsEl)
+            .setName(strings.settings.items.mediaLinkFormat.name)
+            .setDesc(strings.settings.items.mediaLinkFormat.desc)
+            .addDropdown(dropdown =>
+                dropdown
+                    .addOption('plain', `${this.plugin.settings.frontmatterProperty}: image.png`)
+                    .addOption('wiki', `${this.plugin.settings.frontmatterProperty}: [[image.png]]`)
+                    .addOption('embed', `${this.plugin.settings.frontmatterProperty}: ![[image.png]]`)
+                    .setValue(this.plugin.settings.mediaLinkFormat)
+                    .onChange(async value => {
+                        this.plugin.settings.mediaLinkFormat = value as 'plain' | 'wiki' | 'embed';
+                        this.plugin.settings.useMediaLinks = value !== 'plain'; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        // Only update existing fields toggle
+        new Setting(frontmatterSettingsEl)
+            .setName(strings.settings.items.onlyUpdateExisting.name)
+            .setDesc(strings.settings.items.onlyUpdateExisting.desc)
+            .addToggle(toggle => {
+                toggle.setValue(this.plugin.settings.onlyUpdateExisting).onChange(async value => {
+                    this.plugin.settings.onlyUpdateExisting = value;
+                    await this.plugin.saveSettings();
+                });
+            });
+
+        // Keep empty property
+        new Setting(frontmatterSettingsEl)
+            .setName(strings.settings.items.keepEmptyProperty.name)
+            .setDesc(strings.settings.items.keepEmptyProperty.desc)
+            .addToggle(toggle => {
+                toggle.setValue(this.plugin.settings.keepEmptyProperty).onChange(async value => {
+                    this.plugin.settings.keepEmptyProperty = value;
+                    await this.plugin.saveSettings();
+                });
+            });
+
+        // Preserve template images
+        new Setting(frontmatterSettingsEl)
+            .setName(strings.settings.items.preserveTemplateImages.name)
+            .setDesc(strings.settings.items.preserveTemplateImages.desc)
+            .addToggle(toggle => {
+                toggle.setValue(this.plugin.settings.preserveTemplateImages).onChange(async value => {
+                    this.plugin.settings.preserveTemplateImages = value;
+                    await this.plugin.saveSettings();
+                });
+            });
+
         // External media heading
         new Setting(containerEl).setName(strings.settings.headings.externalMedia).setHeading();
 
         const externalMediaSettingsEl = containerEl.createDiv('external-media-settings');
-        externalMediaSettingsEl.addClass('thumbnail-settings');
 
         // Download external images
         new Setting(externalMediaSettingsEl)
@@ -225,25 +282,13 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 })
             );
 
-        // Advanced Settings Toggle
-        new Setting(containerEl).setName(strings.settings.headings.advanced).setHeading();
+        // Resize thumbnail heading
+        new Setting(containerEl).setName(strings.settings.headings.resizeThumbnail).setHeading();
 
-        new Setting(containerEl)
-            .setName(strings.settings.items.showAdvancedSettings.name)
-            .setDesc(strings.settings.items.showAdvancedSettings.desc)
-            .addToggle(toggle =>
-                toggle.setValue(this.plugin.settings.showAdvancedSettings).onChange(async value => {
-                    this.plugin.settings.showAdvancedSettings = value;
-                    await this.plugin.saveSettings();
-                    updateAdvancedSettingsVisibility(value);
-                })
-            );
-
-        // Advanced Settings Container
-        const advancedSettingsEl = containerEl.createDiv('advanced-settings');
+        const resizeThumbnailSettingsEl = containerEl.createDiv('resize-thumbnail-settings');
 
         // Resize feature image
-        new Setting(advancedSettingsEl)
+        new Setting(resizeThumbnailSettingsEl)
             .setName(strings.settings.items.resizeFeatureImage.name)
             .setDesc(strings.settings.items.resizeFeatureImage.desc)
             .addToggle(toggle =>
@@ -255,7 +300,20 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 })
             );
 
-        const thumbnailSettingsEl = advancedSettingsEl.createDiv('thumbnail-settings');
+        const thumbnailSettingsEl = resizeThumbnailSettingsEl.createDiv('thumbnail-settings');
+
+        const resizedThumbnailSetting = new Setting(thumbnailSettingsEl)
+            .setName(strings.settings.items.resizedThumbnailProperty.name)
+            .setDesc(strings.settings.items.resizedThumbnailProperty.desc)
+            .addText(text =>
+                text
+                    .setPlaceholder(strings.settings.items.resizedThumbnailProperty.placeholder)
+                    .setValue(this.plugin.settings.resizedFrontmatterProperty)
+                    .onChange(async value => {
+                        this.plugin.settings.resizedFrontmatterProperty = value || 'thumbnail';
+                        await this.plugin.saveSettings();
+                    })
+            );
 
         // Max resized width
         new Setting(thumbnailSettingsEl)
@@ -344,55 +402,11 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             cls: 'setting-item-description'
         });
 
-        // Media link format
-        new Setting(advancedSettingsEl)
-            .setName(strings.settings.items.mediaLinkFormat.name)
-            .setDesc(strings.settings.items.mediaLinkFormat.desc)
-            .addDropdown(dropdown =>
-                dropdown
-                    .addOption('plain', `${this.plugin.settings.frontmatterProperty}: image.png`)
-                    .addOption('wiki', `${this.plugin.settings.frontmatterProperty}: [[image.png]]`)
-                    .addOption('embed', `${this.plugin.settings.frontmatterProperty}: ![[image.png]]`)
-                    .setValue(this.plugin.settings.mediaLinkFormat)
-                    .onChange(async value => {
-                        this.plugin.settings.mediaLinkFormat = value as 'plain' | 'wiki' | 'embed';
-                        this.plugin.settings.useMediaLinks = value !== 'plain'; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
-                        await this.plugin.saveSettings();
-                    })
-            );
+        // Advanced Settings
+        new Setting(containerEl).setName(strings.settings.headings.advanced).setHeading();
 
-        // Only update existing fields toggle
-        new Setting(advancedSettingsEl)
-            .setName(strings.settings.items.onlyUpdateExisting.name)
-            .setDesc(strings.settings.items.onlyUpdateExisting.desc)
-            .addToggle(toggle => {
-                toggle.setValue(this.plugin.settings.onlyUpdateExisting).onChange(async value => {
-                    this.plugin.settings.onlyUpdateExisting = value;
-                    await this.plugin.saveSettings();
-                });
-            });
-
-        // Keep empty property
-        new Setting(advancedSettingsEl)
-            .setName(strings.settings.items.keepEmptyProperty.name)
-            .setDesc(strings.settings.items.keepEmptyProperty.desc)
-            .addToggle(toggle => {
-                toggle.setValue(this.plugin.settings.keepEmptyProperty).onChange(async value => {
-                    this.plugin.settings.keepEmptyProperty = value;
-                    await this.plugin.saveSettings();
-                });
-            });
-
-        // Preserve template images
-        new Setting(advancedSettingsEl)
-            .setName(strings.settings.items.preserveTemplateImages.name)
-            .setDesc(strings.settings.items.preserveTemplateImages.desc)
-            .addToggle(toggle => {
-                toggle.setValue(this.plugin.settings.preserveTemplateImages).onChange(async value => {
-                    this.plugin.settings.preserveTemplateImages = value;
-                    await this.plugin.saveSettings();
-                });
-            });
+        // Advanced Settings Container
+        const advancedSettingsEl = containerEl.createDiv('advanced-settings');
 
         // Debug mode
         new Setting(advancedSettingsEl)
@@ -428,10 +442,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         };
 
         // Visibility control functions
-        const updateAdvancedSettingsVisibility = (show: boolean) => {
-            advancedSettingsEl.style.display = show ? 'block' : 'none';
-        };
-
         const updateThumbnailSettingsVisibility = (show: boolean) => {
             resizedThumbnailSetting.settingEl.style.display = show ? '' : 'none';
             thumbnailSettingsEl.style.display = show ? 'block' : 'none';
@@ -450,7 +460,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         };
 
         // Initial visibility based on current settings
-        updateAdvancedSettingsVisibility(this.plugin.settings.showAdvancedSettings);
         updateThumbnailSettingsVisibility(this.plugin.settings.createResizedThumbnail);
         updateAlignmentSettingsVisibility(this.plugin.settings.createResizedThumbnail && this.plugin.settings.fillResizedDimensions);
         updateNotebookNavigatorVisibility();

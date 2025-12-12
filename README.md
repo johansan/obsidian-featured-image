@@ -78,53 +78,52 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 2. **Frontmatter property** - The name of the frontmatter property to update with the featured image.
 
-3. **Resized thumbnail property name** - The name of the frontmatter property to store the resized thumbnail path.
+3. **Thumbnails folder** - Folder for downloaded thumbnails and resized images. Subfolders will be created automatically for different image types.
 
-4. **Thumbnails folder** - Folder for downloaded thumbnails and resized images. Subfolders will be created automatically for different image types.
-
-5. **Excluded folders** - Comma separated list of folders to exclude from the featured image plugin.
+4. **Excluded folders** - Comma separated list of folders to exclude from the featured image plugin.
 
 ### Notebook Navigator
 
-6. **Optimize settings for Notebook Navigator** - Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.
+5. **Optimize settings for Notebook Navigator** - Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.
+
+### Frontmatter
+
+6. **Frontmatter image source properties** - Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Supports strings and YAML lists.
+
+7. **Media link format** - Choose how to format the featured image property in frontmatter:
+   - Plain text: `path/to/image.png`
+   - Wiki link: `[[path/to/image.png]]`
+   - Embedded link: `![[path/to/image.png]]`
+
+8. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
+
+9. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
+
+10. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
 
 ### External Media
 
-7. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
+11. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
 
-8. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
+12. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
 
-9. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
+13. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
 
-### Advanced Settings
+### Resize thumbnail
 
-10. **Show advanced settings** - Toggle to show or hide advanced configuration options.
-
-When enabled, the following additional settings are available:
-
-11. **Resize feature image** - Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.
+14. **Resize feature image** - Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.
+    - **Resized thumbnail property name** - The name of the frontmatter property to store the resized thumbnail path.
     - **Max resized width** - Maximum width of the resized thumbnail in pixels. Use 0 for no width restriction.
     - **Max resized height** - Maximum height of the resized thumbnail in pixels. Use 0 for no height restriction.
     - **Fill resized dimensions** - When enabled, resized thumbnails will be exactly the size specified by max width and height, maintaining aspect ratio and cropping to fill the dimensions.
       - **Vertical alignment** - Choose the vertical alignment for cropped images (top, center, or bottom).
       - **Horizontal alignment** - Choose the horizontal alignment for cropped images (left, center, or right).
 
-12. **Media link format** - Choose how to format the featured image property in frontmatter:
-    - Plain text: `path/to/image.png`
-    - Wiki link: `[[path/to/image.png]]`
-    - Embedded link: `![[path/to/image.png]]`
+### Advanced Settings
 
-13. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
+15. **Debug mode** - Enable debug mode to log detailed information to the console.
 
-14. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
-
-15. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
-
-16. **Local image extensions** - Comma-separated list of image file extensions to search for in documents.
-
-17. **Debug mode** - Enable debug mode to log detailed information to the console.
-
-18. **Dry run** - Enable dry run to prevent any changes from being made to your files.
+16. **Dry run** - Enable dry run to prevent any changes from being made to your files.
 
 ## Technical Details
 

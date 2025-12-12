@@ -18,7 +18,9 @@ export const STRINGS_EN = {
     settings: {
         headings: {
             advanced: 'Advanced',
+            frontmatter: 'Frontmatter',
             localMedia: 'Local media',
+            resizeThumbnail: 'Resize thumbnail',
             externalMedia: 'External media',
             notebookNavigator: 'Notebook Navigator'
         },
@@ -81,13 +83,13 @@ export const STRINGS_EN = {
                     right: 'Right'
                 }
             },
-            showAdvancedSettings: {
-                name: 'Show advanced settings',
-                desc: 'Toggle to show or hide advanced configuration options'
-            },
             mediaLinkFormat: {
                 name: 'Media link format',
                 desc: 'Choose how to format the featured image property in frontmatter.'
+            },
+            frontmatterImageSourceProperties: {
+                name: 'Frontmatter image source properties',
+                desc: 'Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Supports strings and YAML lists.'
             },
             onlyUpdateExisting: {
                 name: 'Only update if frontmatter property exists',

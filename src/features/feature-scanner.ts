@@ -14,6 +14,8 @@ interface FrontmatterImageInfo {
     isResolved: boolean; // Whether the path was successfully resolved
 }
 
+type FrontmatterImageTarget = { kind: 'wiki' | 'md' | 'plain'; target: string };
+
 /**
  * External dependencies required by the feature scanner.
  */
@@ -41,6 +43,7 @@ export class FeatureScanner {
     private combinedLineGlobalRegex: RegExp;
     private autoCardImageRegex: RegExp;
     private codeBlockStartRegex: RegExp;
+    private markdownImageRegex: RegExp;
 
     constructor(
         private readonly app: App,
@@ -58,6 +61,43 @@ export class FeatureScanner {
     setSettings(settings: FeaturedImageSettings): void {
         this.settings = settings;
         this.compileRegexPatterns();
+    }
+
+    /**
+     * Finds the featured image in configured frontmatter source properties.
+     * If a valid image is found, document scanning can be skipped.
+     */
+    async getFeatureFromFrontmatterSources(file: TFile): Promise<string | undefined> {
+        const properties = this.getFrontmatterSourceProperties();
+
+        if (properties.length === 0) {
+            return undefined;
+        }
+
+        const cache = this.app.metadataCache.getFileCache(file);
+        const frontmatter = cache?.frontmatter;
+        if (!frontmatter) {
+            return undefined;
+        }
+
+        for (const property of properties) {
+            const rawValue = frontmatter[property];
+            const candidates = this.extractFrontmatterStringValues(rawValue);
+
+            for (const candidate of candidates) {
+                const extracted = this.extractFrontmatterImageTarget(candidate);
+                if (!extracted) {
+                    continue;
+                }
+
+                const resolved = await this.resolveFrontmatterImageTarget(extracted, file, property);
+                if (resolved) {
+                    return resolved;
+                }
+            }
+        }
+
+        return undefined;
     }
 
     /**
@@ -205,6 +245,11 @@ export class FeatureScanner {
                         this.addNormalizedPath(thumbnail, usedFiles, file);
                     }
                 }
+
+                for (const property of this.getFrontmatterSourceProperties()) {
+                    const rawValue = cache.frontmatter[property];
+                    this.collectFrontmatterSourceReferences(rawValue, usedFiles, file);
+                }
             }
 
             const content = await this.app.vault.cachedRead(file);
@@ -257,22 +302,38 @@ export class FeatureScanner {
      * @returns {FrontmatterImageInfo | undefined} Parsed frontmatter information.
      */
     private parseFrontmatterImage(value: unknown, contextFile: TFile): FrontmatterImageInfo | undefined {
-        if (typeof value !== 'string') {
-            return undefined;
+        const candidates = this.extractFrontmatterStringValues(value);
+        for (const candidate of candidates) {
+            const info = this.parseFrontmatterImageString(candidate, contextFile);
+            if (info) {
+                return info;
+            }
+        }
+        return undefined;
+    }
+
+    private extractFrontmatterStringValues(value: unknown): string[] {
+        if (typeof value === 'string') {
+            return [value];
         }
 
+        if (Array.isArray(value)) {
+            return value.filter((item): item is string => typeof item === 'string');
+        }
+
+        return [];
+    }
+
+    private parseFrontmatterImageString(value: string, contextFile: TFile): FrontmatterImageInfo | undefined {
         const rawValue = value.trim();
         if (!rawValue) {
             return undefined;
         }
 
-        const embedMatch = rawValue.match(/!?\[\[(.*?)\]\]/);
-        let rawPath = rawValue;
-        if (embedMatch) {
-            rawPath = embedMatch[1];
-        }
+        const extractedWikiTarget = this.extractWikiLinkTarget(rawValue);
+        let rawPath = extractedWikiTarget ?? rawValue;
 
-        rawPath = rawPath.split('|')[0].split('#')[0].trim();
+        rawPath = this.stripLinkMetadata(rawPath);
 
         let resolvedPath = rawPath;
         let isResolved = false;
@@ -307,6 +368,87 @@ export class FeatureScanner {
             resolvedPath,
             isResolved
         };
+    }
+
+    private extractFrontmatterImageTarget(rawValue: string): FrontmatterImageTarget | undefined {
+        const trimmedValue = rawValue.trim();
+        if (!trimmedValue) {
+            return undefined;
+        }
+
+        const wikiTarget = this.extractWikiLinkTarget(trimmedValue);
+        if (wikiTarget) {
+            return { kind: 'wiki', target: wikiTarget };
+        }
+
+        this.markdownImageRegex.lastIndex = 0;
+        const mdMatch = this.markdownImageRegex.exec(trimmedValue);
+        if (mdMatch?.groups?.mdImage) {
+            return { kind: 'md', target: mdMatch.groups.mdImage };
+        }
+
+        return { kind: 'plain', target: trimmedValue };
+    }
+
+    private async resolveFrontmatterImageTarget(
+        extracted: FrontmatterImageTarget,
+        contextFile: TFile,
+        sourceProperty?: string
+    ): Promise<string | undefined> {
+        const path = this.normalizeFrontmatterImageTarget(extracted);
+
+        if (!path) {
+            return undefined;
+        }
+
+        if (this.isHttpUrl(path)) {
+            const sourceDescription = sourceProperty ? `frontmatter:${sourceProperty}` : undefined;
+            this.logHttpImageWarning(contextFile.path, path, sourceDescription);
+            return undefined;
+        }
+
+        if (isValidHttpsUrl(path)) {
+            // Intentionally allow the `.failed.png` marker path to be treated as a "resolved" result:
+            // storing it prevents repeated network attempts until the user clears the frontmatter.
+            const downloaded = await this.deps.downloadExternalImage(path);
+            if (!downloaded) {
+                return undefined;
+            }
+            return downloaded;
+        }
+
+        const resolvedLocalPath = resolveLocalImagePath(this.app, path, contextFile);
+        if (resolvedLocalPath) {
+            if (!this.isSupportedImagePath(resolvedLocalPath)) {
+                const sourceDescription = sourceProperty ? ` (from ${sourceProperty})` : '';
+                this.deps.debugLog(
+                    `Frontmatter source resolved to a non-image: ${resolvedLocalPath} (referenced in ${contextFile.path})${sourceDescription}`
+                );
+                return undefined;
+            }
+            return resolvedLocalPath;
+        }
+
+        const sourceDescription = sourceProperty ? ` (from ${sourceProperty})` : '';
+        this.deps.debugLog(`Local image not found for featured image: ${path} (referenced in ${contextFile.path})${sourceDescription}`);
+        return undefined;
+    }
+
+    private collectFrontmatterSourceReferences(value: unknown, usedFiles: Set<string>, contextFile: TFile): void {
+        const candidates = this.extractFrontmatterStringValues(value);
+        for (const candidate of candidates) {
+            const extracted = this.extractFrontmatterImageTarget(candidate);
+            if (!extracted) {
+                continue;
+            }
+
+            const path = this.normalizeFrontmatterImageTarget(extracted);
+            if (!path || this.isHttpUrl(path) || isValidHttpsUrl(path)) {
+                continue;
+            }
+
+            this.addNormalizedPath(path, usedFiles, contextFile);
+        }
     }
 
     /**
@@ -364,21 +506,59 @@ export class FeatureScanner {
      * @param {TFile} contextFile - File used for relative resolution.
      */
     private addNormalizedPath(path: string, usedFiles: Set<string>, contextFile: TFile): void {
-        let normalizedPath = path;
-        const match = path.match(/!?\[\[(.*?)\]\]/);
-        if (match) {
-            normalizedPath = match[1];
-        }
+        const extractedWikiTarget = this.extractWikiLinkTarget(path);
+        const normalizedTarget = this.stripLinkMetadata(extractedWikiTarget ?? path);
+        const decodedTarget = this.safeDecodeLinkComponent(normalizedTarget).trim();
 
-        normalizedPath = normalizedPath.split('|')[0].split('#')[0];
-
-        const resolvedPath = resolveLocalImagePath(this.app, normalizedPath, contextFile);
-        if (resolvedPath) {
-            usedFiles.add(normalizePath(resolvedPath));
+        if (!decodedTarget || this.isHttpUrl(decodedTarget) || isValidHttpsUrl(decodedTarget)) {
             return;
         }
 
-        usedFiles.add(normalizePath(normalizedPath));
+        const resolvedPath = resolveLocalImagePath(this.app, decodedTarget, contextFile);
+        if (resolvedPath) {
+            if (this.isSupportedImagePath(resolvedPath)) {
+                usedFiles.add(normalizePath(resolvedPath));
+            }
+            return;
+        }
+
+        if (this.isSupportedImagePath(decodedTarget)) {
+            usedFiles.add(normalizePath(decodedTarget));
+        }
+    }
+
+    private getFrontmatterSourceProperties(): string[] {
+        const trimmed = this.settings.frontmatterImageSourceProperties.map(property => property.trim()).filter(Boolean);
+        return Array.from(new Set(trimmed));
+    }
+
+    private extractWikiLinkTarget(value: string): string | undefined {
+        const wikiMatch = value.match(/!?\[\[(.*?)\]\]/);
+        return wikiMatch ? wikiMatch[1] : undefined;
+    }
+
+    private stripLinkMetadata(value: string): string {
+        return value.split('|')[0].split('#')[0].trim();
+    }
+
+    private normalizeFrontmatterImageTarget(extracted: FrontmatterImageTarget): string {
+        let path = this.stripLinkMetadata(extracted.target);
+        path = this.safeDecodeLinkComponent(path);
+
+        if (extracted.kind === 'md') {
+            path = this.stripMarkdownImageTitle(path).trim();
+        }
+
+        return path;
+    }
+
+    private isSupportedImagePath(path: string): boolean {
+        const withoutQuery = path.split('?')[0];
+        const extension = withoutQuery.split('.').pop()?.toLowerCase();
+        if (!extension) {
+            return false;
+        }
+        return (SUPPORTED_IMAGE_EXTENSIONS as readonly string[]).includes(extension);
     }
 
     /**
@@ -397,6 +577,7 @@ export class FeatureScanner {
 
         this.combinedLineRegex = new RegExp(combinedRegexString, 'i');
         this.combinedLineGlobalRegex = new RegExp(combinedRegexString, 'gi');
+        this.markdownImageRegex = new RegExp(mdImagePattern, 'i');
         this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
         this.codeBlockStartRegex = /^[\s]*```[\s]*(\w+)?[\s]*$/;
     }

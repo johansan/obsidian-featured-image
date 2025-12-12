@@ -18,7 +18,9 @@ export const STRINGS_JA = {
     settings: {
         headings: {
             advanced: '詳細設定',
+            frontmatter: 'フロントマター',
             localMedia: 'ローカルメディア',
+            resizeThumbnail: 'サムネイルのリサイズ',
             externalMedia: '外部メディア',
             notebookNavigator: 'Notebook Navigator'
         },
@@ -81,13 +83,13 @@ export const STRINGS_JA = {
                     right: '右'
                 }
             },
-            showAdvancedSettings: {
-                name: '詳細設定を表示',
-                desc: '詳細な設定オプションの表示/非表示を切り替え'
-            },
             mediaLinkFormat: {
                 name: 'メディアリンク形式',
                 desc: 'フロントマターでアイキャッチ画像プロパティをフォーマットする方法を選択します。'
+            },
+            frontmatterImageSourceProperties: {
+                name: 'フロントマター画像ソースプロパティ',
+                desc: 'ドキュメントをスキャンする前に、画像パス/URL をチェックするフロントマタープロパティ名（カンマ区切り）。文字列と YAML リストに対応。'
             },
             onlyUpdateExisting: {
                 name: 'フロントマタープロパティが存在する場合のみ更新',

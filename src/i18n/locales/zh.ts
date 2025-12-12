@@ -18,7 +18,9 @@ export const STRINGS_ZH = {
     settings: {
         headings: {
             advanced: '高级',
+            frontmatter: 'Frontmatter',
             localMedia: '本地媒体',
+            resizeThumbnail: '调整缩略图大小',
             externalMedia: '外部媒体',
             notebookNavigator: 'Notebook Navigator'
         },
@@ -81,13 +83,13 @@ export const STRINGS_ZH = {
                     right: '右'
                 }
             },
-            showAdvancedSettings: {
-                name: '显示高级设置',
-                desc: '切换以显示或隐藏高级配置选项'
-            },
             mediaLinkFormat: {
                 name: '媒体链接格式',
                 desc: '选择如何在 frontmatter 中格式化特色图片属性。'
+            },
+            frontmatterImageSourceProperties: {
+                name: 'Frontmatter 图片来源属性',
+                desc: '在扫描文档之前，用于检查图片路径/URL 的 frontmatter 属性名称（逗号分隔）。支持字符串和 YAML 列表。'
             },
             onlyUpdateExisting: {
                 name: '仅在 frontmatter 属性存在时更新',
