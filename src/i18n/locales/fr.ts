@@ -127,6 +127,11 @@ export const STRINGS_FR = {
             dryRun: {
                 name: 'Exécution à blanc',
                 desc: "Activer l'exécution à blanc pour empêcher toute modification de vos fichiers."
+            },
+            whatsNew: {
+                name: 'Nouveautés de Featured Image {version}',
+                desc: 'Voir les dernières modifications et améliorations.',
+                buttonText: 'Voir les mises à jour récentes'
             }
         },
 
@@ -160,6 +165,20 @@ export const STRINGS_FR = {
     modals: {
         mtimeOffsetNote:
             "Remarque : les horodatages des fichiers sont avancés d'environ 1,5 seconde afin que les services de synchronisation détectent la modification."
+    },
+
+    // What's new
+    whatsNew: {
+        title: 'Nouveautés de Featured Image',
+        categories: {
+            new: 'Nouveau',
+            improved: 'Amélioré',
+            changed: 'Modifié',
+            fixed: 'Corrigé'
+        },
+        supportMessage: 'Si Featured Image vous est utile, pensez à soutenir son développement.',
+        supportButton: 'Soutenir',
+        thanksButton: 'Merci !'
     },
 
     // Errors

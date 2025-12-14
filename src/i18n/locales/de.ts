@@ -127,6 +127,11 @@ export const STRINGS_DE = {
             dryRun: {
                 name: 'Testlauf',
                 desc: 'Testlauf aktivieren, um zu verhindern, dass Änderungen an Ihren Dateien vorgenommen werden.'
+            },
+            whatsNew: {
+                name: 'Was ist neu in Featured Image {version}',
+                desc: 'Sieh dir die neuesten Änderungen und Verbesserungen an.',
+                buttonText: 'Neueste Updates anzeigen'
             }
         },
 
@@ -160,6 +165,20 @@ export const STRINGS_DE = {
     modals: {
         mtimeOffsetNote:
             'Hinweis: Die Dateizeitstempel werden um etwa 1,5 Sekunden nach vorne verschoben, damit Synchronisierungsdienste die Änderung erkennen.'
+    },
+
+    // What's new
+    whatsNew: {
+        title: 'Was ist neu in Featured Image',
+        categories: {
+            new: 'Neu',
+            improved: 'Verbessert',
+            changed: 'Geändert',
+            fixed: 'Behoben'
+        },
+        supportMessage: 'Wenn du Featured Image nützlich findest, erwäge bitte eine Unterstützung der Entwicklung.',
+        supportButton: 'Unterstützen',
+        thanksButton: 'Danke!'
     },
 
     // Errors

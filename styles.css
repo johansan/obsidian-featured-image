@@ -13,6 +13,212 @@
 
 .thumbnail-settings {
     padding-left: 1em;
-    border-left: 2px solid var(--background-modifier-border);
+    border-left: 1px solid var(--background-modifier-border);
     margin-left: 1em;
+}
+
+/* ========================================================================
+   What's New Modal
+   ======================================================================== */
+
+/* What's new modal width */
+.modal.fi-whats-new-modal {
+    width: 600px;
+    max-width: calc(100vw - 40px);
+}
+
+/* What's new content layout */
+.modal.fi-whats-new-modal .modal-content {
+    padding: 16px;
+}
+
+.modal.fi-whats-new-modal .modal-close-button {
+    z-index: 10;
+    pointer-events: auto;
+}
+
+/* What's new header */
+.fi-whats-new-header {
+    margin-bottom: 16px;
+}
+
+/* What's new scrollable container */
+.fi-whats-new-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 0;
+    padding-right: 8px;
+    padding-bottom: 16px;
+}
+
+/* Version container */
+.fi-whats-new-version {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Version container - last child no border */
+.fi-whats-new-version:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Version header */
+.fi-whats-new-version h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-normal);
+    margin: 0 0 4px 0;
+}
+
+/* Feature list */
+.fi-whats-new-features {
+    margin-left: 16px;
+}
+
+/* Category headers */
+.fi-whats-new-category {
+    font-weight: bold;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+/* Info text */
+.fi-whats-new-info {
+    margin-bottom: 12px;
+    color: var(--text-normal);
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+/* What's new divider */
+.fi-whats-new-divider {
+    border-top: 1px solid var(--background-modifier-border);
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+/* Version date */
+.fi-whats-new-date {
+    color: var(--text-muted);
+    font-size: 12px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* Feature list */
+.fi-whats-new-version ul {
+    list-style: disc;
+    margin: 0;
+    padding-left: 16px;
+}
+
+/* Feature list item */
+.fi-whats-new-version li {
+    margin-bottom: 4px;
+    color: var(--text-normal);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Highlight emphasis */
+.fi-highlight {
+    background-color: var(--text-highlight-bg);
+    color: var(--text-normal);
+    padding: 0 2px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+/* Support container */
+.fi-whats-new-support {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+/* Support text */
+.fi-whats-new-support-text {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+/* Button container */
+.fi-whats-new-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: center;
+}
+
+/* Support button styling */
+.fi-support-button-small {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.fi-support-button-icon {
+    display: inline-flex;
+    font-size: 14px;
+    line-height: 1;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .modal.fi-whats-new-modal {
+        width: calc(100vw - 40px);
+        max-width: calc(100vw - 40px);
+        margin: 0 auto;
+    }
+
+    .modal.fi-whats-new-modal .modal-content {
+        padding: 12px;
+    }
+
+    .fi-whats-new-scroll {
+        max-height: 300px;
+        padding-right: 4px;
+    }
+
+    .fi-whats-new-info,
+    .fi-whats-new-version li,
+    .fi-whats-new-category {
+        font-size: 15px;
+        line-height: 1.6;
+    }
+
+    .fi-whats-new-header {
+        font-size: 16px;
+    }
+
+    .fi-whats-new-version h3 {
+        font-size: 15px;
+    }
+
+    .fi-whats-new-date {
+        font-size: 14px;
+    }
+}
+
+/* Obsidian mobile app adjustments */
+.is-mobile .fi-whats-new-header {
+    font-size: 16px;
+}
+
+.is-mobile .fi-whats-new-info,
+.is-mobile .fi-whats-new-version li,
+.is-mobile .fi-whats-new-category {
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.is-mobile .fi-whats-new-version h3 {
+    font-size: 15px;
+}
+
+.is-mobile .fi-whats-new-date {
+    font-size: 14px;
 }

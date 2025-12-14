@@ -127,6 +127,11 @@ export const STRINGS_ZH = {
             dryRun: {
                 name: '试运行',
                 desc: '启用试运行以防止对文件进行任何更改。'
+            },
+            whatsNew: {
+                name: 'Featured Image {version} 更新内容',
+                desc: '查看最新的变更和改进。',
+                buttonText: '查看最近更新'
             }
         },
 
@@ -158,6 +163,20 @@ export const STRINGS_ZH = {
     // Modals
     modals: {
         mtimeOffsetNote: '提示：为确保同步服务检测到更改，文件的修改时间会向前推进约 1.5 秒。'
+    },
+
+    // What's new
+    whatsNew: {
+        title: 'Featured Image 更新内容',
+        categories: {
+            new: '新增',
+            improved: '改进',
+            changed: '变更',
+            fixed: '修复'
+        },
+        supportMessage: '如果你觉得 Featured Image 很有用，欢迎支持它的开发。',
+        supportButton: '支持',
+        thanksButton: '谢谢！'
     },
 
     // Errors

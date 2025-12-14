@@ -127,6 +127,11 @@ export const STRINGS_JA = {
             dryRun: {
                 name: 'ドライラン',
                 desc: 'ドライランを有効にして、ファイルへの変更を防ぎます。'
+            },
+            whatsNew: {
+                name: 'Featured Image {version} の更新内容',
+                desc: '最新の変更点と改善点を確認します。',
+                buttonText: '最近の更新を表示'
             }
         },
 
@@ -159,6 +164,20 @@ export const STRINGS_JA = {
     // Modals
     modals: {
         mtimeOffsetNote: '注意: 同期サービスが変更を検出できるように、ファイルの更新時刻を約1.5秒先にずらします。'
+    },
+
+    // What's new
+    whatsNew: {
+        title: 'Featured Image の更新内容',
+        categories: {
+            new: '新規',
+            improved: '改善',
+            changed: '変更',
+            fixed: '修正'
+        },
+        supportMessage: 'Featured Image が役立つ場合は、開発の支援をご検討ください。',
+        supportButton: '支援する',
+        thanksButton: 'ありがとう！'
     },
 
     // Errors

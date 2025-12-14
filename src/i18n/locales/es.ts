@@ -127,6 +127,11 @@ export const STRINGS_ES = {
             dryRun: {
                 name: 'Ejecución de prueba',
                 desc: 'Habilitar la ejecución de prueba para evitar que se realicen cambios en sus archivos.'
+            },
+            whatsNew: {
+                name: 'Novedades en Featured Image {version}',
+                desc: 'Consulta los últimos cambios y mejoras.',
+                buttonText: 'Ver actualizaciones recientes'
             }
         },
 
@@ -160,6 +165,20 @@ export const STRINGS_ES = {
     modals: {
         mtimeOffsetNote:
             'Nota: Las marcas de tiempo de los archivos se adelantan unos 1,5 segundos para que los servicios de sincronización registren el cambio.'
+    },
+
+    // What's new
+    whatsNew: {
+        title: 'Novedades en Featured Image',
+        categories: {
+            new: 'Nuevo',
+            improved: 'Mejorado',
+            changed: 'Cambiado',
+            fixed: 'Corregido'
+        },
+        supportMessage: 'Si te resulta útil Featured Image, considera apoyar su desarrollo.',
+        supportButton: 'Apoyar',
+        thanksButton: '¡Gracias!'
     },
 
     // Errors

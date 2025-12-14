@@ -127,6 +127,11 @@ export const STRINGS_EN = {
             dryRun: {
                 name: 'Dry run',
                 desc: 'Enable dry run to prevent any changes from being made to your files.'
+            },
+            whatsNew: {
+                name: "What's new in Featured Image {version}",
+                desc: 'See the latest changes and improvements.',
+                buttonText: 'View recent updates'
             }
         },
 
@@ -159,6 +164,20 @@ export const STRINGS_EN = {
     // Modals
     modals: {
         mtimeOffsetNote: 'Note: File modification times shift forward by about 1.5 seconds so sync providers register the change.'
+    },
+
+    // What's new
+    whatsNew: {
+        title: "What's new in Featured Image",
+        categories: {
+            new: 'New',
+            improved: 'Improved',
+            changed: 'Changed',
+            fixed: 'Fixed'
+        },
+        supportMessage: 'If you find Featured Image useful, consider supporting its development.',
+        supportButton: 'Support',
+        thanksButton: 'Thanks!'
     },
 
     // Errors

@@ -31,6 +31,7 @@ export default class FeaturedImage extends Plugin {
     private updatingFiles: Set<string> = new Set();
     private debugLogger: Logger = createDebugLogger(false);
     private errorLogger: Logger = createErrorLogger();
+    private isFirstInstall: boolean = false;
 
     private featureScanner: FeatureScanner;
     private thumbnailService: ThumbnailService;
@@ -59,7 +60,8 @@ export default class FeaturedImage extends Plugin {
      * Loads the plugin, initializes settings, and sets up event listeners.
      */
     async onload() {
-        await this.loadSettings();
+        const settingsLoadResult = await this.loadSettings();
+        this.isFirstInstall = settingsLoadResult.isFirstInstall;
         this.debugLog('Plugin loaded, debug mode:', this.settings.debugMode, 'dry run:', this.settings.dryRun);
 
         this.thumbnailService = new ThumbnailService(this.app, this.settings, {
@@ -136,6 +138,11 @@ export default class FeaturedImage extends Plugin {
         );
 
         this.addSettingTab(new FeaturedImageSettingsTab(this.app, this));
+
+        // Defer "What's new" modal until the layout is ready to avoid blocking startup UI
+        this.app.workspace.onLayoutReady(() => {
+            void this.checkForVersionUpdate();
+        });
     }
 
     /**
@@ -173,8 +180,12 @@ export default class FeaturedImage extends Plugin {
     /**
      * Loads the plugin settings.
      */
-    async loadSettings() {
-        this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+    async loadSettings(): Promise<{ isFirstInstall: boolean }> {
+        const storedData = await this.loadData();
+        const storedSettings = storedData && typeof storedData === 'object' ? (storedData as Partial<FeaturedImageSettings>) : null;
+        const isFirstInstall = storedSettings === null;
+
+        this.settings = { ...DEFAULT_SETTINGS, ...(storedSettings ?? {}) };
         this.debugLogger = createDebugLogger(this.settings.debugMode);
         if (this.featureScanner) {
             this.featureScanner.setSettings(this.settings);
@@ -192,6 +203,65 @@ export default class FeaturedImage extends Plugin {
         if (this.settings.useMediaLinks && this.settings.mediaLinkFormat === 'plain') {
             this.settings.mediaLinkFormat = 'embed'; // Since the old version used embedded links
             await this.saveData(this.settings);
+        }
+
+        // First install: initialize lastShownVersion to current to avoid showing "What's new"
+        if (isFirstInstall) {
+            this.settings.lastShownVersion = this.manifest.version;
+            await this.saveData(this.settings);
+        }
+
+        return { isFirstInstall };
+    }
+
+    /**
+     * Checks if the plugin has been updated and shows release notes if needed.
+     */
+    private async checkForVersionUpdate(): Promise<void> {
+        if (this.isFirstInstall) {
+            return;
+        }
+
+        const currentVersion = this.manifest.version;
+        const lastShownVersion = this.settings.lastShownVersion;
+
+        // Existing users before version tracking: show latest notes once
+        const shouldShowForExistingInstallWithoutTracking = !lastShownVersion;
+
+        if (!shouldShowForExistingInstallWithoutTracking && lastShownVersion === currentVersion) {
+            return;
+        }
+
+        // Import release notes and modal dynamically to keep startup lightweight
+        const { compareVersions, getLatestReleaseNotes, getReleaseNotesBetweenVersions, isReleaseAutoDisplayEnabled } = await import(
+            './releaseNotes'
+        );
+
+        if (!isReleaseAutoDisplayEnabled(currentVersion)) {
+            return;
+        }
+
+        const { WhatsNewModal } = await import('./modals/WhatsNewModal');
+
+        const releaseNotes =
+            lastShownVersion && compareVersions(currentVersion, lastShownVersion) > 0
+                ? getReleaseNotesBetweenVersions(lastShownVersion, currentVersion)
+                : getLatestReleaseNotes();
+
+        new WhatsNewModal(this.app, releaseNotes, (this.manifest as unknown as { fundingUrl?: string }).fundingUrl, () => {
+            // Save version after a short delay when user closes the modal
+            setTimeout(() => {
+                void this.persistLastShownVersion(currentVersion);
+            }, 1000);
+        }).open();
+    }
+
+    private async persistLastShownVersion(version: string): Promise<void> {
+        try {
+            this.settings.lastShownVersion = version;
+            await this.saveSettings();
+        } catch (error) {
+            this.errorLog('Failed to persist lastShownVersion:', error);
         }
     }
 
