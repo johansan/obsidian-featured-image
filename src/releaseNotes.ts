@@ -20,14 +20,14 @@ export interface ReleaseNote {
 const RELEASE_NOTES: ReleaseNote[] = [
     {
         version: '1.2.3',
-        date: '2025-12-15',
+        date: '2025-12-16',
         showOnUpdate: true,
         new: [
             'New setting: ==Frontmatter image source properties==. Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Use this setting if you have links to external images in one of your properties and want to use that in Notebook Navigator.',
             '==AVIF support==: Featured Image will now properly read and process AVIF images.',
             '==SVG support==: Featured Image will now properly read and process SVG images.'
         ],
-        improved: [],
+        improved: ['Settings now support the new ==SettingGroup API== introduced with Obsidian 1.11. It just looks better.'],
         changed: [],
         fixed: []
     }
