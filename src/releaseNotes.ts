@@ -28,6 +28,9 @@ const RELEASE_NOTES: ReleaseNote[] = [
             '==SVG support==: Featured Image will now properly read and process SVG images.'
         ],
         improved: ['Settings now support the new ==SettingGroup API== introduced with Obsidian 1.11. It just looks better.'],
+        improved: [
+            'Settings now support the new ==SettingGroup API== in Obsidian 1.11 and later. Settings groups are now clearly outlined.'
+        ],
         changed: [],
         fixed: []
     }
