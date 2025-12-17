@@ -553,12 +553,10 @@ function performRelease(releaseType, manifest, currentVersion, newVersion) {
             console.log(`\n🔍 DRY RUN COMPLETE - Version ${newVersion} would be released`);
         } else {
             console.log(`\n🎉 Successfully released version ${newVersion}`);
-            console.log('GitHub Actions will now create the release draft.');
+            console.log('GitHub Actions will now build and publish the GitHub release.');
             console.log('\nNext steps:');
             console.log('1. Wait for GitHub Actions to complete');
-            console.log('2. Go to GitHub releases page');
-            console.log('3. Add release notes');
-            console.log('4. Publish the release\n');
+            console.log('2. Verify the release on GitHub\n');
         }
     } catch (error) {
         // If git operations fail, rollback file changes
@@ -676,9 +674,6 @@ process.on('exit', () => {
 // Check prerequisites
 checkGitAvailable();
 
-// Acquire lock before any operations
-acquireLock();
-
 // Parse command line arguments
 const args = process.argv.slice(2);
 let releaseTypeArg = null;
@@ -704,6 +699,11 @@ if (releaseTypeArg && !hasValidArg) {
     console.error('   Use one of: patch, minor, major');
     console.error('\n   Usage: node release.js [patch|minor|major] [--dry-run]');
     process.exit(1);
+}
+
+// Acquire lock before any operations (but never in --dry-run mode)
+if (!isDryRun) {
+    acquireLock();
 }
 
 // Read and validate manifest
