@@ -9,9 +9,7 @@ const releaseNotesPath = path.join(__dirname, '..', 'src', 'releaseNotes.ts');
 const content = fs.readFileSync(releaseNotesPath, 'utf8');
 
 // Find the RELEASE_NOTES array declaration
-const releaseNotesMatch = content.match(
-    /(?:export\s+)?const\s+RELEASE_NOTES[\s\S]*?=\s*(\[[\s\S]*?\]);/
-);
+const releaseNotesMatch = content.match(/(?:export\s+)?const\s+RELEASE_NOTES[\s\S]*?=\s*(\[[\s\S]*?\]);/);
 if (!releaseNotesMatch) {
     console.error('Could not find RELEASE_NOTES in file');
     process.exit(1);
@@ -38,9 +36,7 @@ const versionArg = process.argv.slice(2).find(arg => arg && !arg.startsWith('-')
 const normalizedVersion = versionArg ? versionArg.replace(/^v/, '') : null;
 
 // Get the requested release, or default to the first (latest)
-const release = normalizedVersion
-    ? releases.find(entry => entry && entry.version === normalizedVersion)
-    : releases[0];
+const release = normalizedVersion ? releases.find(entry => entry && entry.version === normalizedVersion) : releases[0];
 
 if (!release) {
     console.error(`No release notes found for version: ${normalizedVersion}`);
