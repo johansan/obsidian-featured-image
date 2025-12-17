@@ -3,6 +3,9 @@
   "version": "1.2.2",
   "description": "Automatically sets a featured image property in your notes based on the first image, YouTube link, or Auto Card Link image found in your document.",
   "main": "main.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
@@ -22,7 +25,7 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@types/node": "^18.19.120",
+    "@types/node": "^20.19.0",
     "builtin-modules": "^5.0.0",
     "esbuild": "^0.25.8",
     "eslint": "^9.32.0",
