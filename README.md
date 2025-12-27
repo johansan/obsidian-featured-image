@@ -2,11 +2,9 @@
 
 **Available in:** English • Deutsch • Español • Français • 日本語 • 中文
 
-Featured Image is a complementary plugin for [Notebook Navigator](https://github.com/johansan/notebook-navigator) that automatically finds and sets thumbnail images for your notes. It detects the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) in each document, downloads external images locally for instant loading, and creates optimized resized thumbnails.
+Featured Image is an Obsidian plugin that automatically finds and sets thumbnail images for your notes. It detects the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) in each document, downloads external images locally for instant loading, and creates optimized resized thumbnails.
 
-When used with Notebook Navigator, your notes display with beautiful thumbnail previews in the file list, creating a rich visual browsing experience similar to Apple Notes, Evernote, and Bear. The resized thumbnails ensure smooth scrolling even with thousands of notes.
-
-![Set featured images in all files](images/notebook-navigator.png)
+Before Notebook Navigator version 2.0 this was the preferred way to generate image thumbnails for Notebook Navigator. However as of version 2.0 thumbnail-generation is now built into Notebook Navigator and saved to a dedicated database separate from the vault.
 
 If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan) or [Sponsor on GitHub ❤️](https://github.com/sponsors/johansan).
 
