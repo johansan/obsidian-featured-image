@@ -490,10 +490,14 @@ export default class FeaturedImage extends Plugin {
             });
 
             // Determine the file extension from Content-Type
-            const contentType = response.headers['content-type'];
+            // HTTP header names are case-insensitive, but `requestUrl()` returns headers as a plain object
+            // whose keys are not guaranteed to be normalized. Observed on iOS: the response includes `Content-Type`
+            // (capitalized) rather than `content-type` (lowercase), so a direct `headers['content-type']` lookup
+            // can return `undefined`.
+            const contentType = this.getHeaderValue(response.headers, 'content-type');
             const extension = this.getExtensionFromContentType(contentType);
             if (!extension) {
-                throw new Error(`Unknown Content-Type for image: ${contentType}`);
+                throw new Error(`Unknown Content-Type for image: ${contentType ?? 'missing'}`);
             }
 
             const downloadPath = `${downloadFolder}/${hashedFilename}.${extension}`;
@@ -554,10 +558,14 @@ export default class FeaturedImage extends Plugin {
 
     /**
      * Maps the Content-Type to a file extension.
-     * @param {string} contentType - The Content-Type header value.
+     * @param {string | undefined} contentType - The Content-Type header value.
      * @returns {string | undefined} The file extension without the dot.
      */
-    private getExtensionFromContentType(contentType: string): string | undefined {
+    private getExtensionFromContentType(contentType: string | undefined): string | undefined {
+        if (!contentType) {
+            return undefined;
+        }
+
         const mimeTypes: { [key: string]: string } = {
             'image/jpeg': 'jpg',
             'image/png': 'png',
@@ -571,6 +579,28 @@ export default class FeaturedImage extends Plugin {
         const mimeType = contentType.split(';')[0].trim().toLowerCase();
 
         return mimeTypes[mimeType];
+    }
+
+    /**
+     * Returns a response header value using a case-insensitive lookup.
+     *
+     * HTTP header names are case-insensitive, but `requestUrl()` returns headers as a plain object
+     * whose keys are not guaranteed to be normalized.
+     */
+    private getHeaderValue(headers: Record<string, string>, headerName: string): string | undefined {
+        const direct = headers[headerName];
+        if (direct !== undefined) {
+            return direct;
+        }
+
+        const needle = headerName.toLowerCase();
+        for (const [key, value] of Object.entries(headers)) {
+            if (key.toLowerCase() === needle) {
+                return value;
+            }
+        }
+
+        return undefined;
     }
 
     /**
