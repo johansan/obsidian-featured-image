@@ -4,7 +4,11 @@
 
 Featured Image is an Obsidian plugin that automatically finds and sets thumbnail images for your notes. It detects the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) in each document, downloads external images locally for instant loading, and creates optimized resized thumbnails.
 
-Before Notebook Navigator version 2.0 this was the preferred way to generate image thumbnails for Notebook Navigator. However as of version 2.0 thumbnail-generation is now built into Notebook Navigator and saved to a dedicated database separate from the vault.
+Main use case for Featured Image is when you want a property with an image in each markdown file, typically for bases or Dataviews.
+
+**Important! Before Notebook Navigator version 2.0 was released this was the preferred way to generate image thumbnails for Notebook Navigator. However, as of version 2.0 the thumbnail-generation is now built into Notebook Navigator and saved to a dedicated database separate from the vault.**
+
+**This means Featured Image is no longer needed for Notebook Navigator.**
 
 If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan) or [Sponsor on GitHub ❤️](https://github.com/sponsors/johansan).
 
@@ -35,7 +39,6 @@ If you enjoy using Featured Image, please consider [buying me a coffee](https://
 
 ### Works With Your Favorite Plugins
 
-- **Notebook Navigator** - Display beautiful thumbnails with instant loading from local cache
 - **Obsidian Bases** - Show image previews in database table views without network delays (Obsidian 1.9+)
 - **Dataview** - Include thumbnails in custom queries with fast local image access
 - Runs on desktop and mobile
@@ -80,36 +83,32 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 4. **Excluded folders** - Comma separated list of folders to exclude from the featured image plugin.
 
-### Notebook Navigator
-
-5. **Optimize settings for Notebook Navigator** - Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.
-
 ### Frontmatter
 
-6. **Frontmatter image source properties** - Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Supports strings and YAML lists.
+5. **Frontmatter image source properties** - Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Supports strings and YAML lists.
 
-7. **Media link format** - Choose how to format the featured image property in frontmatter:
+6. **Media link format** - Choose how to format the featured image property in frontmatter:
    - Plain text: `path/to/image.png`
    - Wiki link: `[[path/to/image.png]]`
    - Embedded link: `![[path/to/image.png]]`
 
-8. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
+7. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
 
-9. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
+8. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
 
-10. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
+9. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
 
 ### External Media
 
-11. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
+10. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
 
-12. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
+11. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
 
-13. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
+12. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
 
 ### Resize thumbnail
 
-14. **Resize feature image** - Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.
+13. **Resize feature image** - Resize feature image for better performance in scrolling lists.
     - **Resized thumbnail property name** - The name of the frontmatter property to store the resized thumbnail path.
     - **Max resized width** - Maximum width of the resized thumbnail in pixels. Use 0 for no width restriction.
     - **Max resized height** - Maximum height of the resized thumbnail in pixels. Use 0 for no height restriction.
@@ -119,9 +118,9 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 ### Advanced Settings
 
-15. **Debug mode** - Enable debug mode to log detailed information to the console.
+14. **Debug mode** - Enable debug mode to log detailed information to the console.
 
-16. **Dry run** - Enable dry run to prevent any changes from being made to your files.
+15. **Dry run** - Enable dry run to prevent any changes from being made to your files.
 
 ## Technical Details
 

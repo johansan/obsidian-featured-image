@@ -2,9 +2,6 @@ import {
     App,
     PluginSettingTab,
     Setting,
-    DropdownComponent,
-    TextComponent,
-    ToggleComponent,
     SettingGroup,
     requireApiVersion
 } from 'obsidian';
@@ -85,6 +82,11 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
     constructor(app: App, plugin: FeaturedImage) {
         super(app, plugin);
         this.plugin = plugin;
+
+        // Settings sidebar icon (Obsidian 1.11.0+)
+        if (this.supportsSettingGroups()) {
+            this.icon = 'wallpaper';
+        }
     }
 
     display(): void {
@@ -96,13 +98,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
         // We want to use SettingGroup when available (native look/spacing and cleaner structure),
         // while still supporting older Obsidian versions via a small compatibility layer.
         const useSettingGroups = this.supportsSettingGroups();
-
-        let resizeToggle!: ToggleComponent;
-        let maxResizedWidthInput!: TextComponent;
-        let maxResizedHeightInput!: TextComponent;
-        let fillResizedToggle!: ToggleComponent;
-        let verticalAlignmentDropdown!: DropdownComponent;
-        let horizontalAlignmentDropdown!: DropdownComponent;
 
         type GroupController = {
             // Wrapper element for this section's settings. This exists in both modes:
@@ -244,40 +239,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 );
         });
 
-        // Notebook Navigator section (hidden unless thumbnail settings differ from defaults)
-        const notebookNavigatorGroup = createGroup(strings.settings.headings.notebookNavigator);
-        const notebookNavigatorSetting = notebookNavigatorGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.optimizeNotebookNavigator.name)
-                .setDesc(strings.settings.items.optimizeNotebookNavigator.desc)
-                .addButton(button =>
-                    button
-                        .setButtonText(strings.settings.items.optimizeNotebookNavigator.action)
-                        .setCta()
-                        .onClick(async () => {
-                            this.plugin.settings.createResizedThumbnail = DEFAULT_SETTINGS.createResizedThumbnail;
-                            this.plugin.settings.maxResizedWidth = DEFAULT_SETTINGS.maxResizedWidth;
-                            this.plugin.settings.maxResizedHeight = DEFAULT_SETTINGS.maxResizedHeight;
-                            this.plugin.settings.fillResizedDimensions = DEFAULT_SETTINGS.fillResizedDimensions;
-                            this.plugin.settings.resizedVerticalAlign = DEFAULT_SETTINGS.resizedVerticalAlign;
-                            this.plugin.settings.resizedHorizontalAlign = DEFAULT_SETTINGS.resizedHorizontalAlign;
-
-                            await this.plugin.saveSettings();
-
-                            resizeToggle.setValue(this.plugin.settings.createResizedThumbnail);
-                            maxResizedWidthInput.setValue(String(this.plugin.settings.maxResizedWidth));
-                            maxResizedHeightInput.setValue(String(this.plugin.settings.maxResizedHeight));
-                            fillResizedToggle.setValue(this.plugin.settings.fillResizedDimensions);
-                            verticalAlignmentDropdown.setValue(this.plugin.settings.resizedVerticalAlign);
-                            horizontalAlignmentDropdown.setValue(this.plugin.settings.resizedHorizontalAlign);
-
-                            updateThumbnailSettingsVisibility(this.plugin.settings.createResizedThumbnail);
-                            updateNotebookNavigatorVisibility();
-                            await this.plugin.rerenderAllResizedThumbnails();
-                        })
-                );
-        });
-
         const frontmatterGroup = createGroup(strings.settings.headings.frontmatter);
 
         // Frontmatter image source properties
@@ -405,11 +366,10 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 .setName(strings.settings.items.resizeFeatureImage.name)
                 .setDesc(strings.settings.items.resizeFeatureImage.desc)
                 .addToggle(toggle =>
-                    (resizeToggle = toggle).setValue(this.plugin.settings.createResizedThumbnail).onChange(async value => {
+                    toggle.setValue(this.plugin.settings.createResizedThumbnail).onChange(async value => {
                         this.plugin.settings.createResizedThumbnail = value;
                         await this.plugin.saveSettings();
                         updateThumbnailSettingsVisibility(value);
-                        updateNotebookNavigatorVisibility();
                     })
                 );
         });
@@ -435,14 +395,12 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             .setName(strings.settings.items.maxResizedWidth.name)
             .setDesc(strings.settings.items.maxResizedWidth.desc)
             .addText(text =>
-                (maxResizedWidthInput = text)
-                    .setPlaceholder(String(DEFAULT_SETTINGS.maxResizedWidth))
+                text.setPlaceholder(String(DEFAULT_SETTINGS.maxResizedWidth))
                     .setValue(String(this.plugin.settings.maxResizedWidth))
                     .onChange(async value => {
                         const width = parseInt(value, 10);
                         this.plugin.settings.maxResizedWidth = Number.isNaN(width) ? DEFAULT_SETTINGS.maxResizedWidth : width;
                         await this.plugin.saveSettings();
-                        updateNotebookNavigatorVisibility();
                     })
             );
 
@@ -451,14 +409,12 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             .setName(strings.settings.items.maxResizedHeight.name)
             .setDesc(strings.settings.items.maxResizedHeight.desc)
             .addText(text =>
-                (maxResizedHeightInput = text)
-                    .setPlaceholder(String(DEFAULT_SETTINGS.maxResizedHeight))
+                text.setPlaceholder(String(DEFAULT_SETTINGS.maxResizedHeight))
                     .setValue(String(this.plugin.settings.maxResizedHeight))
                     .onChange(async value => {
                         const height = parseInt(value, 10);
                         this.plugin.settings.maxResizedHeight = Number.isNaN(height) ? DEFAULT_SETTINGS.maxResizedHeight : height;
                         await this.plugin.saveSettings();
-                        updateNotebookNavigatorVisibility();
                     })
             );
 
@@ -467,11 +423,10 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             .setName(strings.settings.items.fillResizedDimensions.name)
             .setDesc(strings.settings.items.fillResizedDimensions.desc)
             .addToggle(toggle =>
-                (fillResizedToggle = toggle).setValue(this.plugin.settings.fillResizedDimensions).onChange(async value => {
+                toggle.setValue(this.plugin.settings.fillResizedDimensions).onChange(async value => {
                     this.plugin.settings.fillResizedDimensions = value;
                     await this.plugin.saveSettings();
                     updateAlignmentSettingsVisibility(value);
-                    updateNotebookNavigatorVisibility();
                 })
             );
 
@@ -482,7 +437,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             .setName(strings.settings.items.verticalAlignment.name)
             .setDesc(strings.settings.items.verticalAlignment.desc)
             .addDropdown(dropdown =>
-                (verticalAlignmentDropdown = dropdown)
+                dropdown
                     .addOption('top', strings.settings.items.verticalAlignment.options.top)
                     .addOption('center', strings.settings.items.verticalAlignment.options.center)
                     .addOption('bottom', strings.settings.items.verticalAlignment.options.bottom)
@@ -490,7 +445,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                     .onChange(async value => {
                         this.plugin.settings.resizedVerticalAlign = value as 'top' | 'center' | 'bottom';
                         await this.plugin.saveSettings();
-                        updateNotebookNavigatorVisibility();
                     })
             );
 
@@ -499,7 +453,7 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             .setName(strings.settings.items.horizontalAlignment.name)
             .setDesc(strings.settings.items.horizontalAlignment.desc)
             .addDropdown(dropdown =>
-                (horizontalAlignmentDropdown = dropdown)
+                dropdown
                     .addOption('left', strings.settings.items.horizontalAlignment.options.left)
                     .addOption('center', strings.settings.items.horizontalAlignment.options.center)
                     .addOption('right', strings.settings.items.horizontalAlignment.options.right)
@@ -507,7 +461,6 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                     .onChange(async value => {
                         this.plugin.settings.resizedHorizontalAlign = value as 'left' | 'center' | 'right';
                         await this.plugin.saveSettings();
-                        updateNotebookNavigatorVisibility();
                     })
             );
 
@@ -545,42 +498,20 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 );
         });
 
-        const isResizeSettingsDefault = (): boolean => {
-            return (
-                this.plugin.settings.createResizedThumbnail === DEFAULT_SETTINGS.createResizedThumbnail &&
-                this.plugin.settings.maxResizedWidth === DEFAULT_SETTINGS.maxResizedWidth &&
-                this.plugin.settings.maxResizedHeight === DEFAULT_SETTINGS.maxResizedHeight &&
-                this.plugin.settings.fillResizedDimensions === DEFAULT_SETTINGS.fillResizedDimensions &&
-                this.plugin.settings.resizedVerticalAlign === DEFAULT_SETTINGS.resizedVerticalAlign &&
-                this.plugin.settings.resizedHorizontalAlign === DEFAULT_SETTINGS.resizedHorizontalAlign
-            );
-        };
-
         // Visibility control functions
         const updateThumbnailSettingsVisibility = (show: boolean) => {
             resizedThumbnailSetting.settingEl.style.display = show ? '' : 'none';
             thumbnailSettingsEl.style.display = show ? 'block' : 'none';
             updateAlignmentSettingsVisibility(show && this.plugin.settings.fillResizedDimensions);
-            updateNotebookNavigatorVisibility();
         };
 
         const updateAlignmentSettingsVisibility = (show: boolean) => {
             alignmentSettingsEl.style.display = show ? 'block' : 'none';
         };
 
-        const updateNotebookNavigatorVisibility = () => {
-            const shouldShow = !isResizeSettingsDefault();
-            notebookNavigatorGroup.rootEl.style.display = shouldShow ? '' : 'none';
-            notebookNavigatorSetting.settingEl.style.display = shouldShow ? '' : 'none';
-            if (notebookNavigatorGroup.headingEl) {
-                notebookNavigatorGroup.headingEl.style.display = shouldShow ? '' : 'none';
-            }
-        };
-
         // Initial visibility based on current settings
         updateThumbnailSettingsVisibility(this.plugin.settings.createResizedThumbnail);
         updateAlignmentSettingsVisibility(this.plugin.settings.createResizedThumbnail && this.plugin.settings.fillResizedDimensions);
-        updateNotebookNavigatorVisibility();
     }
 
     private supportsSettingGroups(): boolean {

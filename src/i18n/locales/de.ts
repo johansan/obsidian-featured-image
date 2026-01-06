@@ -21,8 +21,7 @@ export const STRINGS_DE = {
             frontmatter: 'Frontmatter',
             localMedia: 'Lokale Medien',
             resizeThumbnail: 'Vorschaubild-Größenanpassung',
-            externalMedia: 'Externe Medien',
-            notebookNavigator: 'Notebook Navigator'
+            externalMedia: 'Externe Medien'
         },
 
         items: {
@@ -44,7 +43,7 @@ export const STRINGS_DE = {
             },
             resizeFeatureImage: {
                 name: 'Feature-Bild verkleinern',
-                desc: 'Feature-Bild für bessere Leistung in scrollenden Listen oder Plugins wie Notebook Navigator verkleinern.'
+                desc: 'Feature-Bild für bessere Leistung in scrollenden Listen verkleinern.'
             },
             resizedThumbnailProperty: {
                 name: 'Name der verkleinerten Vorschaubild-Eigenschaft',
@@ -114,11 +113,6 @@ export const STRINGS_DE = {
             downloadYoutubeThumbnails: {
                 name: 'YouTube-Vorschaubilder herunterladen',
                 desc: 'YouTube-Vorschaubilder lokal speichern. Deaktivieren, um YouTube-Links bei der Auswahl eines Featured Image zu überspringen.'
-            },
-            optimizeNotebookNavigator: {
-                name: 'Einstellungen für Notebook Navigator optimieren',
-                desc: 'Optimiert die Thumbnail-Einstellungen für Notebook Navigator und rendert alle verkleinerten Vorschaubilder neu.',
-                action: 'Optimieren'
             },
             debugMode: {
                 name: 'Debug-Modus',

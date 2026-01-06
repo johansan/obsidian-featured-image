@@ -21,8 +21,7 @@ export const STRINGS_JA = {
             frontmatter: 'フロントマター',
             localMedia: 'ローカルメディア',
             resizeThumbnail: 'サムネイルのリサイズ',
-            externalMedia: '外部メディア',
-            notebookNavigator: 'Notebook Navigator'
+            externalMedia: '外部メディア'
         },
 
         items: {
@@ -44,7 +43,7 @@ export const STRINGS_JA = {
             },
             resizeFeatureImage: {
                 name: 'アイキャッチ画像をリサイズ',
-                desc: 'スクロールリストやNotebook Navigatorなどのプラグインでのパフォーマンス向上のため、アイキャッチ画像をリサイズします。'
+                desc: 'スクロールリストでのパフォーマンス向上のため、アイキャッチ画像をリサイズします。'
             },
             resizedThumbnailProperty: {
                 name: 'リサイズされたサムネイルプロパティ名',
@@ -114,11 +113,6 @@ export const STRINGS_JA = {
             downloadYoutubeThumbnails: {
                 name: 'YouTubeサムネイルをダウンロード',
                 desc: 'YouTubeサムネイルをローカルに保存します。無効にすると、アイキャッチ画像の選択時にYouTubeリンクをスキップします。'
-            },
-            optimizeNotebookNavigator: {
-                name: 'Notebook Navigator向けに最適化',
-                desc: 'Notebook Navigator向けにサムネイル設定を最適化し、すべてのリサイズ済みサムネイルを再レンダリングします。',
-                action: '最適化'
             },
             debugMode: {
                 name: 'デバッグモード',

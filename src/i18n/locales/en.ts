@@ -21,8 +21,7 @@ export const STRINGS_EN = {
             frontmatter: 'Frontmatter',
             localMedia: 'Local media',
             resizeThumbnail: 'Resize thumbnail',
-            externalMedia: 'External media',
-            notebookNavigator: 'Notebook Navigator'
+            externalMedia: 'External media'
         },
 
         items: {
@@ -44,7 +43,7 @@ export const STRINGS_EN = {
             },
             resizeFeatureImage: {
                 name: 'Resize feature image',
-                desc: 'Resize feature image for better performance in scrolling lists or plugins like Notebook Navigator.'
+                desc: 'Resize feature image for better performance in scrolling lists.'
             },
             resizedThumbnailProperty: {
                 name: 'Resized thumbnail property name',
@@ -114,11 +113,6 @@ export const STRINGS_EN = {
             downloadYoutubeThumbnails: {
                 name: 'Download YouTube thumbnails',
                 desc: 'Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.'
-            },
-            optimizeNotebookNavigator: {
-                name: 'Optimize settings for Notebook Navigator',
-                desc: 'Optimizes thumbnail settings for Notebook Navigator and re-renders all resized thumbnails.',
-                action: 'Optimize'
             },
             debugMode: {
                 name: 'Debug mode',

@@ -23,6 +23,17 @@ const RELEASE_NOTES: ReleaseNote[] = [
         date: '2025-12-16',
         showOnUpdate: true,
         new: [
+        ],
+        improved: [
+        ],
+        changed: ["Removed the setting 'Optimize settings for Notebook Navigator' since this plugin is no longer needed for Notebook Navigator."],
+        fixed: []
+    },
+    {
+        version: '1.2.3',
+        date: '2025-12-16',
+        showOnUpdate: true,
+        new: [
             'New setting: ==Frontmatter image source properties==. Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Use this setting if you have links to external images in one of your properties and want to use that in Notebook Navigator.',
             '==AVIF support==: Featured Image will now properly read and process AVIF images.',
             '==SVG support==: Featured Image will now properly read and process SVG images.'

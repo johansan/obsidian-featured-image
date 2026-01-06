@@ -21,8 +21,7 @@ export const STRINGS_ZH = {
             frontmatter: 'Frontmatter',
             localMedia: '本地媒体',
             resizeThumbnail: '调整缩略图大小',
-            externalMedia: '外部媒体',
-            notebookNavigator: 'Notebook Navigator'
+            externalMedia: '外部媒体'
         },
 
         items: {
@@ -44,7 +43,7 @@ export const STRINGS_ZH = {
             },
             resizeFeatureImage: {
                 name: '调整特色图片大小',
-                desc: '调整特色图片大小以获得更好的滚动列表或 Notebook Navigator 等插件的性能。'
+                desc: '调整特色图片大小以获得更好的滚动列表性能。'
             },
             resizedThumbnailProperty: {
                 name: '调整大小的缩略图属性名称',
@@ -114,11 +113,6 @@ export const STRINGS_ZH = {
             downloadYoutubeThumbnails: {
                 name: '下载 YouTube 缩略图',
                 desc: '将 YouTube 缩略图存储在本地。禁用后，在选择特色图片时跳过 YouTube 链接。'
-            },
-            optimizeNotebookNavigator: {
-                name: '为 Notebook Navigator 优化设置',
-                desc: '为 Notebook Navigator 优化缩略图设置，并重新渲染所有已调整大小的缩略图。',
-                action: '优化'
             },
             debugMode: {
                 name: '调试模式',

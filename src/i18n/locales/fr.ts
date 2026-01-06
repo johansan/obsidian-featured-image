@@ -21,8 +21,7 @@ export const STRINGS_FR = {
             frontmatter: 'Frontmatter',
             localMedia: 'Médias locaux',
             resizeThumbnail: 'Redimensionner la miniature',
-            externalMedia: 'Médias externes',
-            notebookNavigator: 'Notebook Navigator'
+            externalMedia: 'Médias externes'
         },
 
         items: {
@@ -44,7 +43,7 @@ export const STRINGS_FR = {
             },
             resizeFeatureImage: {
                 name: "Redimensionner l'image vedette",
-                desc: "Redimensionner l'image vedette pour de meilleures performances dans les listes défilantes ou les plugins comme Notebook Navigator."
+                desc: "Redimensionner l'image vedette pour de meilleures performances dans les listes défilantes."
             },
             resizedThumbnailProperty: {
                 name: 'Nom de la propriété de miniature redimensionnée',
@@ -114,11 +113,6 @@ export const STRINGS_FR = {
             downloadYoutubeThumbnails: {
                 name: 'Télécharger les miniatures YouTube',
                 desc: 'Stocker les miniatures YouTube localement. Désactivez pour ignorer les liens YouTube lors de la sélection de l’image vedette.'
-            },
-            optimizeNotebookNavigator: {
-                name: 'Optimiser pour Notebook Navigator',
-                desc: 'Optimise les paramètres de miniature pour Notebook Navigator et re-génère toutes les miniatures redimensionnées.',
-                action: 'Optimiser'
             },
             debugMode: {
                 name: 'Mode débogage',
