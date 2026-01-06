@@ -1,10 +1,4 @@
-import {
-    App,
-    PluginSettingTab,
-    Setting,
-    SettingGroup,
-    requireApiVersion
-} from 'obsidian';
+import { App, PluginSettingTab, Setting, SettingGroup, requireApiVersion } from 'obsidian';
 import FeaturedImage from './main';
 import { strings } from './i18n';
 
@@ -395,7 +389,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             .setName(strings.settings.items.maxResizedWidth.name)
             .setDesc(strings.settings.items.maxResizedWidth.desc)
             .addText(text =>
-                text.setPlaceholder(String(DEFAULT_SETTINGS.maxResizedWidth))
+                text
+                    .setPlaceholder(String(DEFAULT_SETTINGS.maxResizedWidth))
                     .setValue(String(this.plugin.settings.maxResizedWidth))
                     .onChange(async value => {
                         const width = parseInt(value, 10);
@@ -409,7 +404,8 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
             .setName(strings.settings.items.maxResizedHeight.name)
             .setDesc(strings.settings.items.maxResizedHeight.desc)
             .addText(text =>
-                text.setPlaceholder(String(DEFAULT_SETTINGS.maxResizedHeight))
+                text
+                    .setPlaceholder(String(DEFAULT_SETTINGS.maxResizedHeight))
                     .setValue(String(this.plugin.settings.maxResizedHeight))
                     .onChange(async value => {
                         const height = parseInt(value, 10);
