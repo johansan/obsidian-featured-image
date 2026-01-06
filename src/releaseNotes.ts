@@ -22,11 +22,11 @@ const RELEASE_NOTES: ReleaseNote[] = [
         version: '1.2.3',
         date: '2025-12-16',
         showOnUpdate: true,
-        new: [
+        new: [],
+        improved: [],
+        changed: [
+            "Removed the setting 'Optimize settings for Notebook Navigator' since this plugin is no longer needed for Notebook Navigator."
         ],
-        improved: [
-        ],
-        changed: ["Removed the setting 'Optimize settings for Notebook Navigator' since this plugin is no longer needed for Notebook Navigator."],
         fixed: []
     },
     {
