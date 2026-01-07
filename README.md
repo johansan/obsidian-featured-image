@@ -4,15 +4,15 @@
 
 Featured Image is an Obsidian plugin that automatically finds and sets thumbnail images for your notes. It detects the first image, YouTube link, or [Auto Card Link](https://github.com/nekoshita/obsidian-auto-card-link) in each document, downloads external images locally for instant loading, and creates optimized resized thumbnails.
 
-Main use case for Featured Image is when you want a property with an image in each markdown file, typically for bases or Dataviews.
+The main use case for Featured Image is when you want a property with an image in each markdown file, typically for Bases or Dataviews.
 
-**Important! Before Notebook Navigator version 2.0 was released this was the preferred way to generate image thumbnails for Notebook Navigator. However, as of version 2.0 the thumbnail-generation is now built into Notebook Navigator and saved to a dedicated database separate from the vault.**
+**Important!**
+
+> Before Notebook Navigator version 2.0 was released this was the preferred way to generate image thumbnails for Notebook Navigator. However, as of version 2.0 the thumbnail-generation is now built into Notebook Navigator and saved to a dedicated database separate from the vault.
 
 **This means Featured Image is no longer needed for Notebook Navigator.**
 
 If you enjoy using Featured Image, please consider [buying me a coffee](https://buymeacoffee.com/johansan) or [Sponsor on GitHub ❤️](https://github.com/sponsors/johansan).
-
-<a href="https://www.buymeacoffee.com/johansan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Key Features
 
