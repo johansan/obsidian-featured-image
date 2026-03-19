@@ -19,6 +19,17 @@ export interface ReleaseNote {
  */
 const RELEASE_NOTES: ReleaseNote[] = [
     {
+        version: '1.2.5',
+        date: '2026-03-19',
+        showOnUpdate: true,
+        new: [],
+        improved: [],
+        changed: [],
+        fixed: [
+            'Fixed a bug where "Set featured images in..." could fail on notes with Link Embed or Auto Card Link cards. External card images now use a mobile-safe hashing method instead of a Node-only API, so the featured image property is added correctly on both desktop and mobile.'
+        ]
+    },
+    {
         version: '1.2.4',
         date: '2026-01-07',
         showOnUpdate: true,
