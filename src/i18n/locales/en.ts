@@ -8,6 +8,7 @@ export const STRINGS_EN = {
         updateAllNoThumbnail: 'Set featured images in all files (add or update)',
         updateFolder: 'Set feature properties in current folder (add or update)',
         updateFolderNoThumbnail: 'Set featured images in current folder (add or update)',
+        updateCurrent: 'Update featured image in current file',
         removeAll: 'Remove feature properties in all files',
         removeAllNoThumbnail: 'Remove featured images in all files',
         cleanupUnused: 'Remove unused downloaded images and thumbnails',
@@ -28,6 +29,10 @@ export const STRINGS_EN = {
             showNotifications: {
                 name: 'Show notifications',
                 desc: 'Show notifications when the featured image is set, updated or removed.'
+            },
+            runAutomaticallyWhileEditing: {
+                name: 'Run automatically while editing',
+                desc: 'Automatically update the featured image when a note changes. Disable this to use the "Update featured image in current file" command manually.'
             },
             frontmatterProperty: {
                 name: 'Frontmatter property',
@@ -144,6 +149,7 @@ export const STRINGS_EN = {
         rerenderingThumbnails: 'Re-rendering all thumbnails...',
         completed: 'Completed',
         noActiveFile: 'No active file',
+        activeFileMustBeMarkdown: 'The active file must be a Markdown note',
         errorOccurred: 'An error occurred',
         featureSet: 'Feature image set',
         featureUpdated: 'Feature image updated',

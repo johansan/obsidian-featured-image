@@ -8,6 +8,7 @@ export const STRINGS_FR = {
         updateAllNoThumbnail: 'Définir les images vedettes dans tous les fichiers (ajouter ou mettre à jour)',
         updateFolder: "Définir les propriétés d'image vedette dans le dossier actuel (ajouter ou mettre à jour)",
         updateFolderNoThumbnail: 'Définir les images vedettes dans le dossier actuel (ajouter ou mettre à jour)',
+        updateCurrent: 'Mettre à jour l’image vedette dans le fichier actuel',
         removeAll: "Supprimer les propriétés d'image vedette dans tous les fichiers",
         removeAllNoThumbnail: 'Supprimer les images vedettes dans tous les fichiers',
         cleanupUnused: 'Supprimer les images téléchargées et miniatures inutilisées',
@@ -28,6 +29,10 @@ export const STRINGS_FR = {
             showNotifications: {
                 name: 'Afficher les notifications',
                 desc: "Afficher les notifications lorsque l'image vedette est définie, mise à jour ou supprimée."
+            },
+            runAutomaticallyWhileEditing: {
+                name: 'Exécuter automatiquement pendant l’édition',
+                desc: 'Met à jour automatiquement l’image vedette lorsqu’une note change. Désactivez ceci si vous préférez utiliser manuellement la commande "Mettre à jour l’image vedette dans le fichier actuel".'
             },
             frontmatterProperty: {
                 name: 'Propriété frontmatter',
@@ -144,6 +149,7 @@ export const STRINGS_FR = {
         rerenderingThumbnails: 'Re-génération de toutes les miniatures...',
         completed: 'Terminé',
         noActiveFile: 'Aucun fichier actif',
+        activeFileMustBeMarkdown: 'Le fichier actif doit être une note Markdown',
         errorOccurred: "Une erreur s'est produite",
         featureSet: 'Image vedette définie',
         featureUpdated: 'Image vedette mise à jour',

@@ -8,6 +8,7 @@ export const STRINGS_JA = {
         updateAllNoThumbnail: 'すべてのファイルにアイキャッチ画像を設定（追加または更新）',
         updateFolder: '現在のフォルダにアイキャッチ画像プロパティを設定（追加または更新）',
         updateFolderNoThumbnail: '現在のフォルダにアイキャッチ画像を設定（追加または更新）',
+        updateCurrent: '現在のファイルのアイキャッチ画像を更新',
         removeAll: 'すべてのファイルからアイキャッチ画像プロパティを削除',
         removeAllNoThumbnail: 'すべてのファイルからアイキャッチ画像を削除',
         cleanupUnused: '未使用のダウンロード画像とサムネイルを削除',
@@ -28,6 +29,10 @@ export const STRINGS_JA = {
             showNotifications: {
                 name: '通知を表示',
                 desc: 'アイキャッチ画像が設定、更新、削除されたときに通知を表示します。'
+            },
+            runAutomaticallyWhileEditing: {
+                name: '編集中に自動実行',
+                desc: 'ノートが変更されたときにアイキャッチ画像を自動で更新します。手動で「現在のファイルのアイキャッチ画像を更新」コマンドを使いたい場合は無効にしてください。'
             },
             frontmatterProperty: {
                 name: 'フロントマタープロパティ',
@@ -144,6 +149,7 @@ export const STRINGS_JA = {
         rerenderingThumbnails: 'すべてのサムネイルを再レンダリング中...',
         completed: '完了',
         noActiveFile: 'アクティブなファイルがありません',
+        activeFileMustBeMarkdown: 'アクティブなファイルは Markdown ノートである必要があります',
         errorOccurred: 'エラーが発生しました',
         featureSet: 'アイキャッチ画像を設定しました',
         featureUpdated: 'アイキャッチ画像を更新しました',

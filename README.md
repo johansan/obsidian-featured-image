@@ -21,7 +21,7 @@ If you enjoy using Featured Image, please consider [buying me a coffee](https://
 - Finds the first image in each note (local files, external URLs, YouTube videos, or Auto Card Links)
 - Sets a frontmatter property with the image path for use by other plugins
 - Handles complex Wiki link syntax including captions and dimensions
-- Works automatically as you edit notes - no manual intervention needed
+- Works automatically as you edit notes, or manually via command palette
 
 ### Smart Thumbnail Generation
 
@@ -60,13 +60,16 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 2. **Set featured images in current folder**  
    Same as above but only processes the current folder and its subfolders.
 
-3. **Remove featured images from all files**  
+3. **Update featured image in current file**  
+   Updates only the active note. Useful if you disable automatic updates and want to run the plugin manually.
+
+4. **Remove featured images from all files**  
    Clears all featured image properties from your vault while preserving file modification dates.
 
-4. **Remove unused downloaded images and thumbnails**  
+5. **Remove unused downloaded images and thumbnails**  
    Deletes downloaded images that are no longer referenced by any notes to free up disk space.
 
-5. **Re-render all resized thumbnails**  
+6. **Re-render all resized thumbnails**  
    Regenerates thumbnails with your current size and alignment settings.
 
 ![Set featured images in all files](images/bulk-update-1.png)
@@ -77,38 +80,40 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 1. **Show notifications** - Show notifications when the featured image is set, updated or removed.
 
-2. **Frontmatter property** - The name of the frontmatter property to update with the featured image.
+2. **Run automatically while editing** - Automatically updates the featured image when a note changes. Disable this if you prefer to use the **Update featured image in current file** command manually.
 
-3. **Thumbnails folder** - Folder for downloaded thumbnails and resized images. Subfolders will be created automatically for different image types.
+3. **Frontmatter property** - The name of the frontmatter property to update with the featured image.
 
-4. **Excluded folders** - Comma separated list of folders to exclude from the featured image plugin.
+4. **Thumbnails folder** - Folder for downloaded thumbnails and resized images. Subfolders will be created automatically for different image types.
+
+5. **Excluded folders** - Comma separated list of folders to exclude from the featured image plugin.
 
 ### Frontmatter
 
-5. **Frontmatter image source properties** - Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Supports strings and YAML lists.
+6. **Frontmatter image source properties** - Comma-separated list of frontmatter properties to check for image paths/URLs before scanning the document. Supports strings and YAML lists.
 
-6. **Media link format** - Choose how to format the featured image property in frontmatter:
+7. **Media link format** - Choose how to format the featured image property in frontmatter:
    - Plain text: `path/to/image.png`
    - Wiki link: `[[path/to/image.png]]`
    - Embedded link: `![[path/to/image.png]]`
 
-7. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
+8. **Only update if frontmatter property exists** - Enable this to only update the frontmatter property if it already exists.
 
-8. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
+9. **Keep empty property** - When enabled, the frontmatter property will be kept but set to an empty string if no featured image is found. When disabled, the property will be removed.
 
-9. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
+10. **Don't clear existing property** - When enabled, keeps the existing featured image property if no image is found in the document. When disabled, clears or removes the property when no image is detected (depending on the 'Keep empty property' setting).
 
 ### External Media
 
-10. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
+11. **Download external images to thumbnails folder** - Store external image links locally. Disable to skip remote images when selecting a featured image.
 
-11. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
+12. **Download YouTube thumbnails** - Store YouTube thumbnails locally. Disable to skip YouTube links when selecting a featured image.
 
-12. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
+13. **Require exclamation mark for YouTube thumbnails** - If enabled, only YouTube links prefixed with an exclamation mark will be considered for thumbnail download.
 
 ### Resize thumbnail
 
-13. **Resize feature image** - Resize feature image for better performance in scrolling lists.
+14. **Resize feature image** - Resize feature image for better performance in scrolling lists.
     - **Resized thumbnail property name** - The name of the frontmatter property to store the resized thumbnail path.
     - **Max resized width** - Maximum width of the resized thumbnail in pixels. Use 0 for no width restriction.
     - **Max resized height** - Maximum height of the resized thumbnail in pixels. Use 0 for no height restriction.
@@ -118,9 +123,9 @@ Access these commands via Command Palette (Ctrl/Cmd + P):
 
 ### Advanced Settings
 
-14. **Debug mode** - Enable debug mode to log detailed information to the console.
+15. **Debug mode** - Enable debug mode to log detailed information to the console.
 
-15. **Dry run** - Enable dry run to prevent any changes from being made to your files.
+16. **Dry run** - Enable dry run to prevent any changes from being made to your files.
 
 ## Technical Details
 

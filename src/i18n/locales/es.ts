@@ -8,6 +8,7 @@ export const STRINGS_ES = {
         updateAllNoThumbnail: 'Establecer imágenes destacadas en todos los archivos (agregar o actualizar)',
         updateFolder: 'Establecer propiedades de imagen destacada en la carpeta actual (agregar o actualizar)',
         updateFolderNoThumbnail: 'Establecer imágenes destacadas en la carpeta actual (agregar o actualizar)',
+        updateCurrent: 'Actualizar imagen destacada en el archivo actual',
         removeAll: 'Eliminar propiedades de imagen destacada en todos los archivos',
         removeAllNoThumbnail: 'Eliminar imágenes destacadas en todos los archivos',
         cleanupUnused: 'Eliminar imágenes descargadas y miniaturas no utilizadas',
@@ -28,6 +29,10 @@ export const STRINGS_ES = {
             showNotifications: {
                 name: 'Mostrar notificaciones',
                 desc: 'Mostrar notificaciones cuando la imagen destacada se establece, actualiza o elimina.'
+            },
+            runAutomaticallyWhileEditing: {
+                name: 'Ejecutar automáticamente al editar',
+                desc: 'Actualiza automáticamente la imagen destacada cuando cambia una nota. Desactívelo si prefiere usar manualmente el comando "Actualizar imagen destacada en el archivo actual".'
             },
             frontmatterProperty: {
                 name: 'Propiedad de frontmatter',
@@ -144,6 +149,7 @@ export const STRINGS_ES = {
         rerenderingThumbnails: 'Volviendo a renderizar todas las miniaturas...',
         completed: 'Completado',
         noActiveFile: 'Sin archivo activo',
+        activeFileMustBeMarkdown: 'El archivo activo debe ser una nota Markdown',
         errorOccurred: 'Ocurrió un error',
         featureSet: 'Imagen destacada establecida',
         featureUpdated: 'Imagen destacada actualizada',

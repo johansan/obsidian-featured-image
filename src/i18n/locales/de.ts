@@ -8,6 +8,7 @@ export const STRINGS_DE = {
         updateAllNoThumbnail: 'Featured Images in allen Dateien setzen (hinzufügen oder aktualisieren)',
         updateFolder: 'Feature-Eigenschaften im aktuellen Ordner setzen (hinzufügen oder aktualisieren)',
         updateFolderNoThumbnail: 'Featured Images im aktuellen Ordner setzen (hinzufügen oder aktualisieren)',
+        updateCurrent: 'Featured Image in aktueller Datei aktualisieren',
         removeAll: 'Feature-Eigenschaften in allen Dateien entfernen',
         removeAllNoThumbnail: 'Featured Images in allen Dateien entfernen',
         cleanupUnused: 'Ungenutzte heruntergeladene Bilder und Vorschaubilder entfernen',
@@ -28,6 +29,10 @@ export const STRINGS_DE = {
             showNotifications: {
                 name: 'Benachrichtigungen anzeigen',
                 desc: 'Benachrichtigungen anzeigen, wenn das Featured Image gesetzt, aktualisiert oder entfernt wird.'
+            },
+            runAutomaticallyWhileEditing: {
+                name: 'Beim Bearbeiten automatisch ausführen',
+                desc: 'Aktualisiert das Featured Image automatisch, wenn sich eine Notiz ändert. Deaktiviere dies, wenn du stattdessen den Befehl "Featured Image in aktueller Datei aktualisieren" manuell verwenden möchtest.'
             },
             frontmatterProperty: {
                 name: 'Frontmatter-Eigenschaft',
@@ -144,6 +149,7 @@ export const STRINGS_DE = {
         rerenderingThumbnails: 'Alle Vorschaubilder werden neu gerendert...',
         completed: 'Abgeschlossen',
         noActiveFile: 'Keine aktive Datei',
+        activeFileMustBeMarkdown: 'Die aktive Datei muss eine Markdown-Notiz sein',
         errorOccurred: 'Ein Fehler ist aufgetreten',
         featureSet: 'Feature-Bild gesetzt',
         featureUpdated: 'Feature-Bild aktualisiert',

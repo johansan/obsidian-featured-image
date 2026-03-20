@@ -8,6 +8,7 @@ export const STRINGS_ZH = {
         updateAllNoThumbnail: '在所有文件中设置特色图片（添加或更新）',
         updateFolder: '在当前文件夹中设置特色图片属性（添加或更新）',
         updateFolderNoThumbnail: '在当前文件夹中设置特色图片（添加或更新）',
+        updateCurrent: '更新当前文件中的特色图片',
         removeAll: '从所有文件中删除特色图片属性',
         removeAllNoThumbnail: '从所有文件中删除特色图片',
         cleanupUnused: '删除未使用的下载图片和缩略图',
@@ -28,6 +29,10 @@ export const STRINGS_ZH = {
             showNotifications: {
                 name: '显示通知',
                 desc: '当特色图片被设置、更新或删除时显示通知。'
+            },
+            runAutomaticallyWhileEditing: {
+                name: '编辑时自动运行',
+                desc: '当笔记发生变化时自动更新特色图片。如果你更想手动运行“更新当前文件中的特色图片”命令，请关闭此选项。'
             },
             frontmatterProperty: {
                 name: 'Frontmatter 属性',
@@ -143,6 +148,7 @@ export const STRINGS_ZH = {
         rerenderingThumbnails: '正在重新渲染所有缩略图...',
         completed: '已完成',
         noActiveFile: '没有活动文件',
+        activeFileMustBeMarkdown: '当前活动文件必须是 Markdown 笔记',
         errorOccurred: '发生错误',
         featureSet: '特色图片已设置',
         featureUpdated: '特色图片已更新',

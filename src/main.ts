@@ -104,6 +104,12 @@ export default class FeaturedImage extends Plugin {
             callback: () => this.updateFolderFeaturedImages()
         });
 
+        this.addCommand({
+            id: 'update-current',
+            name: strings.commands.updateCurrent,
+            callback: () => this.updateCurrentFileFeaturedImage()
+        });
+
         // Add command for removing all featured images
         this.addCommand({
             id: 'remove-all',
@@ -131,7 +137,13 @@ export default class FeaturedImage extends Plugin {
         // Watch for metadata changes and update the featured image if the file is a markdown file
         this.registerEvent(
             this.app.metadataCache.on('changed', file => {
-                if (file instanceof TFile && file.extension === 'md' && !this.updatingFiles.has(file.path) && !this.isRunningBulkUpdate) {
+                if (
+                    this.settings.runAutomaticallyWhileEditing &&
+                    file instanceof TFile &&
+                    file.extension === 'md' &&
+                    !this.updatingFiles.has(file.path) &&
+                    !this.isRunningBulkUpdate
+                ) {
                     this.setFeaturedImage(file);
                 }
             })
@@ -783,7 +795,7 @@ export default class FeaturedImage extends Plugin {
     async updateFolderFeaturedImages() {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) {
-            new Notice('No file is currently active');
+            new Notice(strings.notices.noActiveFile);
             return;
         }
 
@@ -805,6 +817,27 @@ export default class FeaturedImage extends Plugin {
         });
 
         await this.processFilesWithProgress(folderFiles, 'bulk update of featured images in folder', 'updating featured images');
+    }
+
+    /**
+     * Updates the featured image for the active markdown file.
+     */
+    async updateCurrentFileFeaturedImage() {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) {
+            new Notice(strings.notices.noActiveFile);
+            return;
+        }
+
+        if (activeFile.extension !== 'md') {
+            new Notice(strings.notices.activeFileMustBeMarkdown);
+            return;
+        }
+
+        const wasUpdated = await this.setFeaturedImage(activeFile);
+        if (!wasUpdated) {
+            new Notice(strings.notices.featureUnchanged);
+        }
     }
 
     /**

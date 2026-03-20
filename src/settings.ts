@@ -5,6 +5,7 @@ import { strings } from './i18n';
 export interface FeaturedImageSettings {
     // Basic settings (always visible)
     showNotificationsOnUpdate: boolean;
+    runAutomaticallyWhileEditing: boolean;
     frontmatterProperty: string;
     thumbnailsFolder: string;
     excludedFolders: string[];
@@ -40,6 +41,7 @@ export const SUPPORTED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 
 export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     // Basic settings (always visible)
     showNotificationsOnUpdate: true,
+    runAutomaticallyWhileEditing: true,
     frontmatterProperty: 'feature',
     thumbnailsFolder: 'thumbnails',
     excludedFolders: [],
@@ -178,6 +180,18 @@ export class FeaturedImageSettingsTab extends PluginSettingTab {
                 .addToggle(toggle => {
                     toggle.setValue(this.plugin.settings.showNotificationsOnUpdate).onChange(async value => {
                         this.plugin.settings.showNotificationsOnUpdate = value;
+                        await this.plugin.saveSettings();
+                    });
+                });
+        });
+
+        topGroup.addSetting(setting => {
+            setting
+                .setName(strings.settings.items.runAutomaticallyWhileEditing.name)
+                .setDesc(strings.settings.items.runAutomaticallyWhileEditing.desc)
+                .addToggle(toggle => {
+                    toggle.setValue(this.plugin.settings.runAutomaticallyWhileEditing).onChange(async value => {
+                        this.plugin.settings.runAutomaticallyWhileEditing = value;
                         await this.plugin.saveSettings();
                     });
                 });

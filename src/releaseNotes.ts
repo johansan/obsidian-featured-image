@@ -19,6 +19,18 @@ export interface ReleaseNote {
  */
 const RELEASE_NOTES: ReleaseNote[] = [
     {
+        version: '1.2.6',
+        date: '2026-03-20',
+        showOnUpdate: true,
+        new: [
+            'New setting: ==Run automatically while editing==. Enable to update the featured image automatically when a note changes. Default: true.',
+            'New command: ==Update featured image in current file==. Refresh the feature image in the active note from the command palette.'
+        ],
+        improved: [],
+        changed: [],
+        fixed: []
+    },
+    {
         version: '1.2.5',
         date: '2026-03-19',
         showOnUpdate: true,
