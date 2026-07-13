@@ -201,7 +201,7 @@ export class WhatsNewModal extends Modal {
     open(): void {
         super.open();
         if (this.thanksButton) {
-            activeWindow.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
                 this.thanksButton?.focus();
             });
         }

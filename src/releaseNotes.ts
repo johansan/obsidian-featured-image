@@ -19,13 +19,20 @@ export interface ReleaseNote {
  */
 const RELEASE_NOTES: ReleaseNote[] = [
     {
+        version: '1.2.8',
+        date: '2026-07-13',
+        showOnUpdate: true,
+        new: [],
+        improved: [],
+        changed: [],
+        fixed: ['Updated timer usage to meet the Obsidian community plugin review requirements.']
+    },
+    {
         version: '1.2.7',
         date: '2026-07-13',
         showOnUpdate: true,
         new: [],
-        improved: [
-            'Settings are now indexed by Obsidian settings search on Obsidian 1.13 and later.'
-        ],
+        improved: ['Settings are now indexed by Obsidian settings search on Obsidian 1.13 and later.'],
         changed: ['The minimum supported Obsidian version is now 1.11.0.'],
         fixed: [
             'Updated timer and canvas handling for pop-out windows.',

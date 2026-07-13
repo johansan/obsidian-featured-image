@@ -252,7 +252,7 @@ export default class FeaturedImage extends Plugin {
 
         new WhatsNewModal(this.app, releaseNotes, (this.manifest as unknown as { fundingUrl?: string }).fundingUrl, () => {
             // Save version after a short delay when user closes the modal
-            activeWindow.setTimeout(() => {
+            window.setTimeout(() => {
                 void this.persistLastShownVersion(currentVersion);
             }, 1000);
         }).open();
@@ -674,7 +674,7 @@ export default class FeaturedImage extends Plugin {
             }
         } finally {
             if (!this.isRunningBulkUpdate) {
-                activeWindow.setTimeout(() => {
+                window.setTimeout(() => {
                     this.updatingFiles.delete(file.path);
                 }, 100); // Allow time for metadata cache to fully update
             }
@@ -939,7 +939,7 @@ export default class FeaturedImage extends Plugin {
             try {
                 await this.thumbnailService?.endBulkReferenceTracking();
             } finally {
-                activeWindow.setTimeout(() => {
+                window.setTimeout(() => {
                     this.endBulkUpdate();
                     let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files`;
                     if (errorCount > 0) {
@@ -1000,7 +1000,7 @@ export default class FeaturedImage extends Plugin {
             try {
                 await this.thumbnailService?.endBulkReferenceTracking();
             } finally {
-                activeWindow.setTimeout(() => {
+                window.setTimeout(() => {
                     this.endBulkUpdate();
                     const completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`;
                     new Notice(completionMessage);
