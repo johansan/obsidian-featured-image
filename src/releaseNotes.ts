@@ -19,6 +19,21 @@ export interface ReleaseNote {
  */
 const RELEASE_NOTES: ReleaseNote[] = [
     {
+        version: '1.2.7',
+        date: '2026-07-13',
+        showOnUpdate: true,
+        new: [],
+        improved: [
+            'Settings are now indexed by Obsidian settings search on Obsidian 1.13 and later.'
+        ],
+        changed: ['The minimum supported Obsidian version is now 1.11.0.'],
+        fixed: [
+            'Updated timer and canvas handling for pop-out windows.',
+            'Protected shared thumbnails referenced by list properties or aliased wiki links during orphan cleanup.',
+            'Prevented overlapping bulk commands from interfering with thumbnail cleanup.'
+        ]
+    },
+    {
         version: '1.2.6',
         date: '2026-03-20',
         showOnUpdate: true,

@@ -1,6 +1,7 @@
 import { App, TFile, normalizePath } from 'obsidian';
 import { FeaturedImageSettings, SUPPORTED_IMAGE_EXTENSIONS } from '../settings';
 import { strings } from '../i18n';
+import { extractFrontmatterStringValues, extractWikiLinkTarget, stripLinkMetadata } from '../utils/frontmatter';
 import { resolveLocalImagePath } from '../utils/obsidian';
 import { isValidHttpsUrl } from '../utils/urls';
 
@@ -15,6 +16,14 @@ interface FrontmatterImageInfo {
 }
 
 type FrontmatterImageTarget = { kind: 'wiki' | 'md' | 'plain'; target: string };
+
+interface FeatureRegexPatterns {
+    combinedLine: RegExp;
+    combinedLineGlobal: RegExp;
+    autoCardImage: RegExp;
+    codeBlockStart: RegExp;
+    markdownImage: RegExp;
+}
 
 /**
  * External dependencies required by the feature scanner.
@@ -39,11 +48,7 @@ interface CardLinkProcessResult<T> {
  */
 export class FeatureScanner {
     private settings: FeaturedImageSettings;
-    private combinedLineRegex: RegExp;
-    private combinedLineGlobalRegex: RegExp;
-    private autoCardImageRegex: RegExp;
-    private codeBlockStartRegex: RegExp;
-    private markdownImageRegex: RegExp;
+    private regexPatterns: FeatureRegexPatterns;
 
     constructor(
         private readonly app: App,
@@ -51,7 +56,7 @@ export class FeatureScanner {
         private readonly deps: FeatureScannerDeps
     ) {
         this.settings = settings;
-        this.compileRegexPatterns();
+        this.regexPatterns = this.compileRegexPatterns();
     }
 
     /**
@@ -60,7 +65,7 @@ export class FeatureScanner {
      */
     setSettings(settings: FeaturedImageSettings): void {
         this.settings = settings;
-        this.compileRegexPatterns();
+        this.regexPatterns = this.compileRegexPatterns();
     }
 
     /**
@@ -79,10 +84,11 @@ export class FeatureScanner {
         if (!frontmatter) {
             return undefined;
         }
+        const frontmatterValues: Record<string, unknown> = frontmatter;
 
         for (const property of properties) {
-            const rawValue = frontmatter[property];
-            const candidates = this.extractFrontmatterStringValues(rawValue);
+            const rawValue = frontmatterValues[property];
+            const candidates = extractFrontmatterStringValues(rawValue);
 
             for (const candidate of candidates) {
                 const extracted = this.extractFrontmatterImageTarget(candidate);
@@ -108,7 +114,8 @@ export class FeatureScanner {
      */
     getFrontmatterImageInfo(file: TFile, property: string): FrontmatterImageInfo | undefined {
         const cache = this.app.metadataCache.getFileCache(file);
-        const value = cache?.frontmatter?.[property];
+        const frontmatter: Record<string, unknown> | undefined = cache?.frontmatter;
+        const value = frontmatter?.[property];
         return this.parseFrontmatterImage(value, file);
     }
 
@@ -165,7 +172,7 @@ export class FeatureScanner {
             }
 
             // Check for other images (local or external)
-            const match = this.combinedLineRegex.exec(line);
+            const match = this.regexPatterns.combinedLine.exec(line);
 
             if (match) {
                 // Check for YouTube links, e.g. ![Movie title](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
@@ -234,20 +241,21 @@ export class FeatureScanner {
         try {
             const cache = this.app.metadataCache.getFileCache(file);
             if (cache?.frontmatter) {
-                const feature = cache.frontmatter[this.settings.frontmatterProperty];
-                if (feature) {
-                    this.addNormalizedPath(feature, usedFiles, file);
+                const frontmatter: Record<string, unknown> = cache.frontmatter;
+                const feature = frontmatter[this.settings.frontmatterProperty];
+                for (const candidate of extractFrontmatterStringValues(feature)) {
+                    this.addNormalizedPath(candidate, usedFiles, file);
                 }
 
                 if (this.settings.createResizedThumbnail) {
-                    const thumbnail = cache.frontmatter[this.settings.resizedFrontmatterProperty];
-                    if (thumbnail) {
-                        this.addNormalizedPath(thumbnail, usedFiles, file);
+                    const thumbnail = frontmatter[this.settings.resizedFrontmatterProperty];
+                    for (const candidate of extractFrontmatterStringValues(thumbnail)) {
+                        this.addNormalizedPath(candidate, usedFiles, file);
                     }
                 }
 
                 for (const property of this.getFrontmatterSourceProperties()) {
-                    const rawValue = cache.frontmatter[property];
+                    const rawValue = frontmatter[property];
                     this.collectFrontmatterSourceReferences(rawValue, usedFiles, file);
                 }
             }
@@ -269,9 +277,9 @@ export class FeatureScanner {
                     continue;
                 }
 
-                this.combinedLineGlobalRegex.lastIndex = 0;
+                this.regexPatterns.combinedLineGlobal.lastIndex = 0;
                 let match: RegExpExecArray | null;
-                while ((match = this.combinedLineGlobalRegex.exec(line)) !== null) {
+                while ((match = this.regexPatterns.combinedLineGlobal.exec(line)) !== null) {
                     if (match.groups?.wikiImage) {
                         this.addNormalizedPath(match.groups.wikiImage, usedFiles, file);
                     }
@@ -302,7 +310,7 @@ export class FeatureScanner {
      * @returns {FrontmatterImageInfo | undefined} Parsed frontmatter information.
      */
     private parseFrontmatterImage(value: unknown, contextFile: TFile): FrontmatterImageInfo | undefined {
-        const candidates = this.extractFrontmatterStringValues(value);
+        const candidates = extractFrontmatterStringValues(value);
         for (const candidate of candidates) {
             const info = this.parseFrontmatterImageString(candidate, contextFile);
             if (info) {
@@ -312,28 +320,16 @@ export class FeatureScanner {
         return undefined;
     }
 
-    private extractFrontmatterStringValues(value: unknown): string[] {
-        if (typeof value === 'string') {
-            return [value];
-        }
-
-        if (Array.isArray(value)) {
-            return value.filter((item): item is string => typeof item === 'string');
-        }
-
-        return [];
-    }
-
     private parseFrontmatterImageString(value: string, contextFile: TFile): FrontmatterImageInfo | undefined {
         const rawValue = value.trim();
         if (!rawValue) {
             return undefined;
         }
 
-        const extractedWikiTarget = this.extractWikiLinkTarget(rawValue);
+        const extractedWikiTarget = extractWikiLinkTarget(rawValue);
         let rawPath = extractedWikiTarget ?? rawValue;
 
-        rawPath = this.stripLinkMetadata(rawPath);
+        rawPath = stripLinkMetadata(rawPath);
 
         let resolvedPath = rawPath;
         let isResolved = false;
@@ -376,13 +372,13 @@ export class FeatureScanner {
             return undefined;
         }
 
-        const wikiTarget = this.extractWikiLinkTarget(trimmedValue);
+        const wikiTarget = extractWikiLinkTarget(trimmedValue);
         if (wikiTarget) {
             return { kind: 'wiki', target: wikiTarget };
         }
 
-        this.markdownImageRegex.lastIndex = 0;
-        const mdMatch = this.markdownImageRegex.exec(trimmedValue);
+        this.regexPatterns.markdownImage.lastIndex = 0;
+        const mdMatch = this.regexPatterns.markdownImage.exec(trimmedValue);
         if (mdMatch?.groups?.mdImage) {
             return { kind: 'md', target: mdMatch.groups.mdImage };
         }
@@ -435,7 +431,7 @@ export class FeatureScanner {
     }
 
     private collectFrontmatterSourceReferences(value: unknown, usedFiles: Set<string>, contextFile: TFile): void {
-        const candidates = this.extractFrontmatterStringValues(value);
+        const candidates = extractFrontmatterStringValues(value);
         for (const candidate of candidates) {
             const extracted = this.extractFrontmatterImageTarget(candidate);
             if (!extracted) {
@@ -506,8 +502,8 @@ export class FeatureScanner {
      * @param {TFile} contextFile - File used for relative resolution.
      */
     private addNormalizedPath(path: string, usedFiles: Set<string>, contextFile: TFile): void {
-        const extractedWikiTarget = this.extractWikiLinkTarget(path);
-        const normalizedTarget = this.stripLinkMetadata(extractedWikiTarget ?? path);
+        const extractedWikiTarget = extractWikiLinkTarget(path);
+        const normalizedTarget = stripLinkMetadata(extractedWikiTarget ?? path);
         const decodedTarget = this.safeDecodeLinkComponent(normalizedTarget).trim();
 
         if (!decodedTarget || this.isHttpUrl(decodedTarget) || isValidHttpsUrl(decodedTarget)) {
@@ -532,17 +528,8 @@ export class FeatureScanner {
         return Array.from(new Set(trimmed));
     }
 
-    private extractWikiLinkTarget(value: string): string | undefined {
-        const wikiMatch = value.match(/!?\[\[(.*?)\]\]/);
-        return wikiMatch ? wikiMatch[1] : undefined;
-    }
-
-    private stripLinkMetadata(value: string): string {
-        return value.split('|')[0].split('#')[0].trim();
-    }
-
     private normalizeFrontmatterImageTarget(extracted: FrontmatterImageTarget): string {
-        let path = this.stripLinkMetadata(extracted.target);
+        let path = stripLinkMetadata(extracted.target);
         path = this.safeDecodeLinkComponent(path);
 
         if (extracted.kind === 'md') {
@@ -564,7 +551,7 @@ export class FeatureScanner {
     /**
      * Compiles the regular expressions used for feature detection.
      */
-    private compileRegexPatterns(): void {
+    private compileRegexPatterns(): FeatureRegexPatterns {
         const imageExtensionsPattern = SUPPORTED_IMAGE_EXTENSIONS.join('|');
 
         const wikiImagePattern = `!\\[\\[(?<wikiImage>[^\\]|#]+\\.(${imageExtensionsPattern}))(?:[#|][^\\]]*)?\\]\\]`;
@@ -575,11 +562,13 @@ export class FeatureScanner {
 
         const combinedRegexString = [youtubePattern, wikiImagePattern, mdImagePattern].join('|');
 
-        this.combinedLineRegex = new RegExp(combinedRegexString, 'i');
-        this.combinedLineGlobalRegex = new RegExp(combinedRegexString, 'gi');
-        this.markdownImageRegex = new RegExp(mdImagePattern, 'i');
-        this.autoCardImageRegex = /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i;
-        this.codeBlockStartRegex = /^[\s]*```[\s]*(\w+)?[\s]*$/;
+        return {
+            combinedLine: new RegExp(combinedRegexString, 'i'),
+            combinedLineGlobal: new RegExp(combinedRegexString, 'gi'),
+            markdownImage: new RegExp(mdImagePattern, 'i'),
+            autoCardImage: /image:\s*(?<autoCardImage>.+?)(?:\n|$)/i,
+            codeBlockStart: /^[\s]*```[\s]*(\w+)?[\s]*$/
+        };
     }
 
     /**
@@ -631,7 +620,7 @@ export class FeatureScanner {
             return trimmedValue;
         }
 
-        const candidate = trimmedValue.slice(0, match.index).trimEnd();
+        const candidate = trimmedValue.slice(0, match.index).trim();
         return candidate || trimmedValue;
     }
 
@@ -687,7 +676,7 @@ export class FeatureScanner {
 
         return {
             consume: async (line: string): Promise<CardLinkProcessResult<T>> => {
-                const codeBlockMatch = this.codeBlockStartRegex.exec(line);
+                const codeBlockMatch = this.regexPatterns.codeBlockStart.exec(line);
                 if (codeBlockMatch) {
                     if (!inCodeBlock) {
                         inCodeBlock = true;
@@ -697,7 +686,7 @@ export class FeatureScanner {
                     }
 
                     if (codeBlockLanguage === 'cardlink') {
-                        const imageMatch = this.autoCardImageRegex.exec(codeBlockBuffer);
+                        const imageMatch = this.regexPatterns.autoCardImage.exec(codeBlockBuffer);
                         const imagePath = imageMatch?.groups?.autoCardImage?.trim();
                         inCodeBlock = false;
                         codeBlockLanguage = '';

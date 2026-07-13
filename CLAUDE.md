@@ -27,6 +27,24 @@
 - Only update version information in `src/releaseNotes.ts` when adding release
   notes
 
+## Release Workflow
+
+1. Build with `./scripts/build.sh` and test the intended release.
+2. Commit the tested changes and push the branch to GitHub.
+3. From a clean `main` or `master` branch that exactly matches its remote, run
+   `npm run release` (equivalent to `node scripts/release.js`) and select the
+   version bump. The maintainer performs this step.
+4. The release script updates `manifest.json`, `package.json`, and
+   `versions.json`; commits the version bump; creates an annotated version tag;
+   and pushes both the commit and tag.
+5. Pushing the tag triggers `.github/workflows/release.yml`, which builds the
+   plugin and creates the GitHub release with `main.js`, `manifest.json`, and
+   `styles.css`.
+
+Do not manually bump the version, commit release-managed files, or create and
+push a release tag outside this workflow unless the maintainer explicitly asks
+for it. The release script owns those operations.
+
 ## Code structure - IMPORTANT
 
 When creating new classes or adding imports, member variables and functions,

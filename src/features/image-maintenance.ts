@@ -18,10 +18,10 @@ interface ImageMaintenanceDeps {
 
 interface RerenderThumbnailsOptions {
     confirm: ConfirmFunction;
-    startBulkUpdate: () => void;
+    startBulkUpdate: () => boolean;
     endBulkUpdate: () => void;
     getFeatureFromFrontmatter: (file: TFile) => string | undefined;
-    updateFrontmatter: (file: TFile, newFeature: string | undefined, newThumbnail?: string | undefined) => Promise<void>;
+    updateFrontmatter: (file: TFile, newFeature: string | undefined, newThumbnail?: string) => Promise<void>;
 }
 
 /**
@@ -159,7 +159,9 @@ export class ImageMaintenanceService {
             return;
         }
 
-        options.startBulkUpdate();
+        if (!options.startBulkUpdate()) {
+            return;
+        }
         new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}re-rendering of all resized thumbnails...`);
 
         const files = this.app.vault.getMarkdownFiles();

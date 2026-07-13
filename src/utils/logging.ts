@@ -14,7 +14,7 @@ export const createDebugLogger = (enabled: boolean): Logger => {
     }
     return (...args: unknown[]) => {
         const timestamp = new Date().toTimeString().split(' ')[0];
-        console.log(`${timestamp}`, ...args);
+        console.debug(`${timestamp}`, ...args);
     };
 };
 

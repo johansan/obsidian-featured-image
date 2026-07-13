@@ -2,11 +2,11 @@ import { App, Modal, Setting } from 'obsidian';
 import { strings } from './i18n';
 
 export class ConfirmationModal extends Modal {
-    result: boolean;
     onSubmit: (result: boolean) => void;
     title: string;
     message: string;
     showPreservationNote: boolean;
+    private submitted = false;
 
     constructor(app: App, title: string, message: string, onSubmit: (result: boolean) => void, showPreservationNote: boolean = true) {
         super(app);
@@ -24,7 +24,7 @@ export class ConfirmationModal extends Modal {
         contentEl.createEl('p', { text: this.message });
 
         if (this.showPreservationNote) {
-            const infoEl = contentEl.createEl('div', {
+            const infoEl = contentEl.createDiv({
                 cls: 'featured-image-info'
             });
             infoEl.createEl('p', {
@@ -36,8 +36,9 @@ export class ConfirmationModal extends Modal {
         new Setting(contentEl)
             .addButton(btn =>
                 btn.setButtonText('Cancel').onClick(() => {
-                    this.close();
+                    this.submitted = true;
                     this.onSubmit(false);
+                    this.close();
                 })
             )
             .addButton(btn =>
@@ -45,8 +46,9 @@ export class ConfirmationModal extends Modal {
                     .setButtonText('Proceed')
                     .setCta()
                     .onClick(() => {
-                        this.close();
+                        this.submitted = true;
                         this.onSubmit(true);
+                        this.close();
                     })
             );
     }
@@ -54,5 +56,10 @@ export class ConfirmationModal extends Modal {
     onClose() {
         const { contentEl } = this;
         contentEl.empty();
+
+        if (!this.submitted) {
+            this.submitted = true;
+            this.onSubmit(false);
+        }
     }
 }

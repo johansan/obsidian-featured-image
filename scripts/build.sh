@@ -41,6 +41,9 @@ if [ -n "$ESLINT_SUMMARY" ]; then
         echo "⚠️  ESLint found $ESLINT_WARNING_COUNT warnings"
         BUILD_WARNINGS=$((BUILD_WARNINGS + 1))
     fi
+elif [ $ESLINT_STATUS -ne 0 ]; then
+    echo "❌ ESLint failed"
+    BUILD_ERRORS=$((BUILD_ERRORS + 1))
 else
     echo "✅ ESLint passed"
 fi
@@ -147,8 +150,8 @@ else
     BUILD_ERRORS=$((BUILD_ERRORS + 1))
 fi
 
-# Only run the build if there are zero errors (warnings are OK for build)
-if [ $BUILD_ERRORS -eq 0 ]; then
+# Only run the build if there are zero errors and zero warnings
+if [ $BUILD_ERRORS -eq 0 ] && [ $BUILD_WARNINGS -eq 0 ]; then
     # Run the standard npm build
     echo -e "\nBuilding obsidian-featured-image..."
     npm run build

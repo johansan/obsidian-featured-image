@@ -1,6 +1,8 @@
 import { App, TFile, normalizePath } from 'obsidian';
 import { FeaturedImageSettings } from '../settings';
+import { extractFrontmatterStringValues, extractWikiLinkTarget, stripLinkMetadata } from '../utils/frontmatter';
 import { md5 } from '../utils/hash';
+import { resolveLocalImagePath } from '../utils/obsidian';
 
 interface ThumbnailServiceDeps {
     debugLog: (...args: unknown[]) => void;
@@ -13,6 +15,8 @@ interface ThumbnailServiceDeps {
 export class ThumbnailService {
     private settings: FeaturedImageSettings;
     private canvas: HTMLCanvasElement | null;
+    private bulkThumbnailReferenceOverrides: Map<string, string | undefined> | null = null;
+    private pendingBulkThumbnailDeletions = new Set<string>();
 
     constructor(
         private readonly app: App,
@@ -20,7 +24,7 @@ export class ThumbnailService {
         private readonly deps: ThumbnailServiceDeps
     ) {
         this.settings = settings;
-        this.canvas = settings.createResizedThumbnail ? document.createElement('canvas') : null;
+        this.canvas = settings.createResizedThumbnail ? createEl('canvas') : null;
     }
 
     /**
@@ -31,9 +35,81 @@ export class ThumbnailService {
         this.settings = settings;
 
         if (settings.createResizedThumbnail && !this.canvas) {
-            this.canvas = document.createElement('canvas');
+            this.canvas = createEl('canvas');
         } else if (!settings.createResizedThumbnail) {
             this.canvas = null;
+        }
+    }
+
+    /**
+     * Starts tracking thumbnail reference changes during a bulk update.
+     */
+    beginBulkReferenceTracking(): void {
+        this.pendingBulkThumbnailDeletions.clear();
+
+        if (this.settings.dryRun || !this.settings.createResizedThumbnail) {
+            this.bulkThumbnailReferenceOverrides = null;
+            return;
+        }
+
+        this.bulkThumbnailReferenceOverrides = new Map<string, string | undefined>();
+    }
+
+    /**
+     * Records a file's final thumbnail reference during a bulk update.
+     * @param {TFile} file - File whose thumbnail property changed.
+     * @param {string | undefined} nextThumbnail - Thumbnail path after the update.
+     */
+    recordThumbnailReferenceChange(file: TFile, nextThumbnail: string | undefined): void {
+        const overrides = this.bulkThumbnailReferenceOverrides;
+        if (!overrides) {
+            return;
+        }
+
+        overrides.set(file.path, this.normalizeThumbnailReference(nextThumbnail, file));
+    }
+
+    /**
+     * Deletes queued thumbnails that have no references after a bulk update.
+     */
+    async endBulkReferenceTracking(): Promise<void> {
+        const overrides = this.bulkThumbnailReferenceOverrides;
+        const pendingDeletions = Array.from(this.pendingBulkThumbnailDeletions);
+
+        this.bulkThumbnailReferenceOverrides = null;
+        this.pendingBulkThumbnailDeletions.clear();
+
+        if (!overrides || pendingDeletions.length === 0) {
+            return;
+        }
+
+        const referencedThumbnails = new Set<string>();
+        for (const file of this.app.vault.getMarkdownFiles()) {
+            if (overrides.has(file.path)) {
+                const thumbnailPath = overrides.get(file.path);
+                if (thumbnailPath) {
+                    referencedThumbnails.add(thumbnailPath);
+                }
+                continue;
+            }
+
+            for (const thumbnailPath of this.getThumbnailReferences(file)) {
+                referencedThumbnails.add(thumbnailPath);
+            }
+        }
+
+        for (const thumbnailPath of pendingDeletions) {
+            if (referencedThumbnails.has(thumbnailPath)) {
+                continue;
+            }
+
+            try {
+                if (await this.app.vault.adapter.exists(thumbnailPath)) {
+                    await this.trashThumbnail(thumbnailPath);
+                }
+            } catch (error) {
+                this.deps.errorLog('Failed to delete orphaned thumbnail:', thumbnailPath, error);
+            }
         }
     }
 
@@ -123,31 +199,26 @@ export class ThumbnailService {
      * @param {TFile} currentFile - File currently being updated.
      */
     async deleteOrphanedThumbnail(thumbnailPath: string, currentFile: TFile): Promise<void> {
-        if (!thumbnailPath) return;
+        if (!thumbnailPath || this.settings.dryRun) return;
 
         const normalizedPath = normalizePath(thumbnailPath);
         const resizedFolder = normalizePath(`${this.settings.thumbnailsFolder}/resized`);
-        if (!normalizedPath.startsWith(resizedFolder)) {
+        if (!normalizedPath.startsWith(`${resizedFolder}/`)) {
             return;
         }
 
-        if (!(await this.app.vault.adapter.exists(thumbnailPath))) {
+        if (this.bulkThumbnailReferenceOverrides) {
+            this.pendingBulkThumbnailDeletions.add(normalizedPath);
             return;
         }
 
-        const isUsedElsewhere = await this.isThumbnailUsedElsewhere(thumbnailPath, currentFile);
+        if (!(await this.app.vault.adapter.exists(normalizedPath))) {
+            return;
+        }
+
+        const isUsedElsewhere = await this.isThumbnailUsedElsewhere(normalizedPath, currentFile);
         if (!isUsedElsewhere) {
-            const abstractFile = this.app.vault.getAbstractFileByPath(normalizePath(thumbnailPath));
-            if (abstractFile instanceof TFile) {
-                try {
-                    await this.app.fileManager.trashFile(abstractFile);
-                    this.deps.debugLog('Deleted orphaned thumbnail:', thumbnailPath);
-                } catch (error) {
-                    this.deps.errorLog('Failed to delete orphaned thumbnail:', thumbnailPath, error);
-                }
-            } else {
-                this.deps.debugLog('Thumbnail not found when attempting to trash:', thumbnailPath);
-            }
+            await this.trashThumbnail(normalizedPath);
         }
     }
 
@@ -160,7 +231,7 @@ export class ThumbnailService {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(img);
-            img.onerror = e => reject(e);
+            img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
             img.src = url;
         });
     }
@@ -317,9 +388,55 @@ export class ThumbnailService {
      */
     private ensureCanvas(): HTMLCanvasElement {
         if (!this.canvas) {
-            this.canvas = document.createElement('canvas');
+            this.canvas = createEl('canvas');
         }
         return this.canvas;
+    }
+
+    private getThumbnailReferences(file: TFile): Set<string> {
+        const cache = this.app.metadataCache.getFileCache(file);
+        const frontmatter: Record<string, unknown> | undefined = cache?.frontmatter;
+        const thumbnail = frontmatter?.[this.settings.resizedFrontmatterProperty];
+        const references = new Set<string>();
+
+        for (const candidate of extractFrontmatterStringValues(thumbnail)) {
+            const normalizedReference = this.normalizeThumbnailReference(candidate, file);
+            if (normalizedReference) {
+                references.add(normalizedReference);
+            }
+        }
+
+        return references;
+    }
+
+    private normalizeThumbnailReference(thumbnailPath: string | undefined, contextFile?: TFile): string | undefined {
+        if (!thumbnailPath) {
+            return undefined;
+        }
+
+        const wikiTarget = extractWikiLinkTarget(thumbnailPath);
+        const path = stripLinkMetadata(wikiTarget ?? thumbnailPath);
+        if (!path) {
+            return undefined;
+        }
+
+        const resolvedPath = contextFile ? resolveLocalImagePath(this.app, path, contextFile) : undefined;
+        return normalizePath(resolvedPath ?? path);
+    }
+
+    private async trashThumbnail(thumbnailPath: string): Promise<void> {
+        const abstractFile = this.app.vault.getAbstractFileByPath(thumbnailPath);
+        if (!(abstractFile instanceof TFile)) {
+            this.deps.debugLog('Thumbnail not found when attempting to trash:', thumbnailPath);
+            return;
+        }
+
+        try {
+            await this.app.fileManager.trashFile(abstractFile);
+            this.deps.debugLog('Deleted orphaned thumbnail:', thumbnailPath);
+        } catch (error) {
+            this.deps.errorLog('Failed to delete orphaned thumbnail:', thumbnailPath, error);
+        }
     }
 
     /**
@@ -337,17 +454,8 @@ export class ThumbnailService {
         for (const file of files) {
             if (excludeFile && file.path === excludeFile.path) continue;
 
-            const cache = this.app.metadataCache.getFileCache(file);
-            if (cache?.frontmatter) {
-                const thumbnail = cache.frontmatter[this.settings.resizedFrontmatterProperty];
-                if (thumbnail) {
-                    const match = thumbnail.match(/!?\[\[(.*?)\]\]/);
-                    const path = match ? match[1] : thumbnail;
-
-                    if (normalizePath(path) === normalizedThumbnailPath) {
-                        return true;
-                    }
-                }
+            if (this.getThumbnailReferences(file).has(normalizedThumbnailPath)) {
+                return true;
             }
         }
         return false;

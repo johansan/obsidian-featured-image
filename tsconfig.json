@@ -1,26 +1,20 @@
 {
   "compilerOptions": {
-    "baseUrl": "src",
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
     "allowJs": true,
     "noImplicitAny": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "importHelpers": true,
     "isolatedModules": true,
     "strictNullChecks": true,
-    "lib": [
-      "DOM",
-      "ES5",
-      "ES6",
-      "ES7",
-      "ES2018" // Added
-    ],
-    // Changed from to default plugin settings
-    // "target": "ES6",
-    "target": "ES2018",
-    "allowSyntheticDefaultImports": true
+    "lib": ["DOM", "ES2022"],
+    "target": "ES2022",
+    "allowSyntheticDefaultImports": true,
+    "types": [],
+    "skipLibCheck": true
   },
-  "include": ["**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "build", "main.js"]
 }

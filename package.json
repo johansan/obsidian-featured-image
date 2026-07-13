@@ -4,14 +4,14 @@
   "description": "Automatically sets a featured image property in your notes based on the first image, YouTube link, or Auto Card Link image found in your document.",
   "main": "main.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
+    "lint": "eslint src --ext .ts --max-warnings=0",
+    "lint:fix": "eslint src --ext .ts --fix --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "release:notes": "node scripts/mdReleaseNotes.js",
@@ -24,18 +24,20 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@eslint/js": "^9.32.0",
-    "@types/node": "^20.19.0",
-    "builtin-modules": "^5.0.0",
-    "esbuild": "^0.25.8",
-    "eslint": "^9.32.0",
-    "eslint-plugin-obsidianmd": "^0.1.4",
-    "globals": "^15.14.0",
-    "knip": "^5.64.3",
-    "obsidian": "^1.11.0",
-    "prettier": "^3.6.2",
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^26.1.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-obsidianmd": "^0.4.1",
+    "globals": "^17.7.0",
+    "knip": "^6.24.0",
+    "obsidian": "^1.13.1",
+    "prettier": "^3.9.4",
     "tslib": "^2.8.1",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.39.0"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }

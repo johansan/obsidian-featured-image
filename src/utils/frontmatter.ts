@@ -3,6 +3,37 @@ import type { FeaturedImageSettings } from '../settings';
 type MediaLinkFormat = FeaturedImageSettings['mediaLinkFormat'];
 
 /**
+ * Returns the string entries stored in a frontmatter property.
+ * Obsidian properties may expose either a scalar string or a list of strings.
+ */
+export const extractFrontmatterStringValues = (value: unknown): string[] => {
+    if (typeof value === 'string') {
+        return [value];
+    }
+
+    if (Array.isArray(value)) {
+        return value.filter((item): item is string => typeof item === 'string');
+    }
+
+    return [];
+};
+
+/**
+ * Extracts the target from a wiki link or embed.
+ */
+export const extractWikiLinkTarget = (value: string): string | undefined => {
+    const wikiMatch = value.match(/!?\[\[(.*?)\]\]/);
+    return wikiMatch?.[1];
+};
+
+/**
+ * Removes wiki-link aliases and subpaths from a media target.
+ */
+export const stripLinkMetadata = (value: string): string => {
+    return value.split('|')[0].split('#')[0].trim();
+};
+
+/**
  * Configuration for updating a media-related frontmatter property.
  */
 interface MediaPropertyOptions {

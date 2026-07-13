@@ -1,9 +1,6 @@
 // Obsidian imports
 import { normalizePath, Plugin, Notice, TAbstractFile, TFile, requestUrl, RequestUrlResponse } from 'obsidian';
 
-// Styles
-import '../styles.css';
-
 // Internal imports
 import { DEFAULT_SETTINGS, FeaturedImageSettings, FeaturedImageSettingsTab, SUPPORTED_IMAGE_EXTENSIONS } from './settings';
 import { ConfirmationModal } from './modals';
@@ -26,16 +23,16 @@ import { isValidHttpsUrl } from './utils/urls';
  * This plugin automatically sets featured images for markdown files based on their content.
  */
 export default class FeaturedImage extends Plugin {
-    settings: FeaturedImageSettings;
+    declare settings: FeaturedImageSettings;
     private isRunningBulkUpdate: boolean = false;
     private updatingFiles: Set<string> = new Set();
     private debugLogger: Logger = createDebugLogger(false);
     private errorLogger: Logger = createErrorLogger();
     private isFirstInstall: boolean = false;
 
-    private featureScanner: FeatureScanner;
-    private thumbnailService: ThumbnailService;
-    private imageMaintenance: ImageMaintenanceService;
+    private featureScanner: FeatureScanner | null = null;
+    private thumbnailService: ThumbnailService | null = null;
+    private imageMaintenance: ImageMaintenanceService | null = null;
 
     // Placeholder image data for failed downloads (1x1 transparent PNG)
     // prettier-ignore
@@ -144,7 +141,9 @@ export default class FeaturedImage extends Plugin {
                     !this.updatingFiles.has(file.path) &&
                     !this.isRunningBulkUpdate
                 ) {
-                    this.setFeaturedImage(file);
+                    void this.setFeaturedImage(file).catch(error => {
+                        this.errorLog(`Failed to update featured image for ${file.path}:`, error);
+                    });
                 }
             })
         );
@@ -193,7 +192,7 @@ export default class FeaturedImage extends Plugin {
      * Loads the plugin settings.
      */
     async loadSettings(): Promise<{ isFirstInstall: boolean }> {
-        const storedData = await this.loadData();
+        const storedData: unknown = await this.loadData();
         const storedSettings = storedData && typeof storedData === 'object' ? (storedData as Partial<FeaturedImageSettings>) : null;
         const isFirstInstall = storedSettings === null;
 
@@ -207,14 +206,6 @@ export default class FeaturedImage extends Plugin {
         }
         if (this.imageMaintenance) {
             this.imageMaintenance.setSettings(this.settings);
-        }
-
-        // Migration: Set initial mediaLinkFormat based on legacy useMediaLinks setting
-        // The only time useMediaLinks is true and mediaLinkFormat is 'plain' is when the plugin was updated to the new format
-        // TODO: Remove this code March 1, 2025
-        if (this.settings.useMediaLinks && this.settings.mediaLinkFormat === 'plain') {
-            this.settings.mediaLinkFormat = 'embed'; // Since the old version used embedded links
-            await this.saveData(this.settings);
         }
 
         // First install: initialize lastShownVersion to current to avoid showing "What's new"
@@ -245,9 +236,8 @@ export default class FeaturedImage extends Plugin {
         }
 
         // Import release notes and modal dynamically to keep startup lightweight
-        const { compareVersions, getLatestReleaseNotes, getReleaseNotesBetweenVersions, isReleaseAutoDisplayEnabled } = await import(
-            './releaseNotes'
-        );
+        const { compareVersions, getLatestReleaseNotes, getReleaseNotesBetweenVersions, isReleaseAutoDisplayEnabled } =
+            await import('./releaseNotes');
 
         if (!isReleaseAutoDisplayEnabled(currentVersion)) {
             return;
@@ -262,7 +252,7 @@ export default class FeaturedImage extends Plugin {
 
         new WhatsNewModal(this.app, releaseNotes, (this.manifest as unknown as { fundingUrl?: string }).fundingUrl, () => {
             // Save version after a short delay when user closes the modal
-            setTimeout(() => {
+            activeWindow.setTimeout(() => {
                 void this.persistLastShownVersion(currentVersion);
             }, 1000);
         }).open();
@@ -367,6 +357,10 @@ export default class FeaturedImage extends Plugin {
         if (featureChanged || thumbnailChanged) {
             await this.updateFrontmatter(file, finalNewFeature, newThumbnail);
 
+            if (!this.settings.dryRun && thumbnailChanged) {
+                this.thumbnailService.recordThumbnailReferenceChange(file, newThumbnail);
+            }
+
             // Delete orphaned thumbnail after updating frontmatter
             if (oldThumbnailToDelete) {
                 await this.thumbnailService.deleteOrphanedThumbnail(oldThumbnailToDelete, file);
@@ -419,10 +413,11 @@ export default class FeaturedImage extends Plugin {
      */
     private shouldSkipProcessing(file: TFile): boolean {
         const cache = this.app.metadataCache.getFileCache(file);
-        const tags = cache?.frontmatter?.tags ?? [];
+        const frontmatter: Record<string, unknown> | undefined = cache?.frontmatter;
+        const tags = frontmatter?.tags;
 
         // Skip processing if the file has the 'excalidraw' tag
-        if (tags.includes('excalidraw')) {
+        if ((typeof tags === 'string' && tags.includes('excalidraw')) || (Array.isArray(tags) && tags.some(tag => tag === 'excalidraw'))) {
             return true;
         }
 
@@ -639,7 +634,7 @@ export default class FeaturedImage extends Plugin {
      * @param {string | undefined} newFeature - The new featured image.
      * @param {string | undefined} newThumbnail - The new thumbnail image.
      */
-    private async updateFrontmatter(file: TFile, newFeature: string | undefined, newThumbnail: string | undefined = undefined) {
+    private async updateFrontmatter(file: TFile, newFeature: string | undefined, newThumbnail?: string) {
         if (!this.isRunningBulkUpdate) {
             this.updatingFiles.add(file.path);
         }
@@ -654,7 +649,7 @@ export default class FeaturedImage extends Plugin {
                     new Notice(message);
                 }
             } else {
-                await this.app.fileManager.processFrontMatter(file, frontmatter => {
+                await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
                     applyMediaProperty(frontmatter, {
                         property: this.settings.frontmatterProperty,
                         value: newFeature,
@@ -679,7 +674,7 @@ export default class FeaturedImage extends Plugin {
             }
         } finally {
             if (!this.isRunningBulkUpdate) {
-                setTimeout(() => {
+                activeWindow.setTimeout(() => {
                     this.updatingFiles.delete(file.path);
                 }, 100); // Allow time for metadata cache to fully update
             }
@@ -823,6 +818,11 @@ export default class FeaturedImage extends Plugin {
      * Updates the featured image for the active markdown file.
      */
     async updateCurrentFileFeaturedImage() {
+        if (this.isRunningBulkUpdate) {
+            this.showBulkUpdateInProgressNotice();
+            return;
+        }
+
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) {
             new Notice(strings.notices.noActiveFile);
@@ -841,13 +841,41 @@ export default class FeaturedImage extends Plugin {
     }
 
     /**
+     * Starts an exclusive bulk operation.
+     * @returns {boolean} True when the operation acquired the bulk-update lock.
+     */
+    private startBulkUpdate(): boolean {
+        if (this.isRunningBulkUpdate) {
+            this.showBulkUpdateInProgressNotice();
+            return false;
+        }
+
+        this.isRunningBulkUpdate = true;
+        return true;
+    }
+
+    /**
+     * Releases the bulk-operation lock.
+     */
+    private endBulkUpdate(): void {
+        this.isRunningBulkUpdate = false;
+    }
+
+    private showBulkUpdateInProgressNotice(): void {
+        new Notice('Another bulk operation is already running. Please wait for it to finish.');
+    }
+
+    /**
      * Process a list of files with progress notifications.
      * @param {TFile[]} files - The files to process.
      * @param {string} operationName - Name of the operation for notifications.
      * @param {string} progressText - Text to show in progress notifications.
      */
     private async processFilesWithProgress(files: TFile[], operationName: string, progressText: string) {
-        this.isRunningBulkUpdate = true;
+        if (!this.startBulkUpdate()) {
+            return;
+        }
+
         const batchSize = 5;
         new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}${operationName}...`);
 
@@ -857,6 +885,8 @@ export default class FeaturedImage extends Plugin {
         let lastNotificationTime = Date.now();
 
         try {
+            this.thumbnailService?.beginBulkReferenceTracking();
+
             for (let i = 0; i < files.length; i += batchSize) {
                 const batch = files.slice(i, i + batchSize);
                 const results = await Promise.all(
@@ -906,14 +936,18 @@ export default class FeaturedImage extends Plugin {
                 }
             }
         } finally {
-            setTimeout(() => {
-                this.isRunningBulkUpdate = false;
-                let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files`;
-                if (errorCount > 0) {
-                    completionMessage += `. Errors: ${errorCount}`;
-                }
-                new Notice(completionMessage);
-            }, 100);
+            try {
+                await this.thumbnailService?.endBulkReferenceTracking();
+            } finally {
+                activeWindow.setTimeout(() => {
+                    this.endBulkUpdate();
+                    let completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}${progressText}. Updated: ${updatedCount} files`;
+                    if (errorCount > 0) {
+                        completionMessage += `. Errors: ${errorCount}`;
+                    }
+                    new Notice(completionMessage);
+                }, 100);
+            }
         }
     }
 
@@ -930,38 +964,49 @@ export default class FeaturedImage extends Plugin {
         const confirmation = await this.showConfirmationModal('Remove all featured images', modalMessage);
         if (!confirmation) return;
 
-        this.isRunningBulkUpdate = true;
+        if (!this.startBulkUpdate()) {
+            return;
+        }
+
         new Notice(`Starting ${this.settings.dryRun ? 'dry run of ' : ''}removal of featured images from all files...`);
 
         const files = this.app.vault.getMarkdownFiles();
         let removedCount = 0;
 
-        for (const file of files) {
-            const currentFeature = this.getFeatureFromFrontmatter(file);
+        try {
+            this.thumbnailService?.beginBulkReferenceTracking();
 
-            // Store original mtime before modification
-            const originalMtime = file.stat.mtime;
-            const wasRemoved = await this.removeFeaturedImage(file, currentFeature);
+            for (const file of files) {
+                const currentFeature = this.getFeatureFromFrontmatter(file);
 
-            // If file was modified, gently restore mtime (original + 1.5s offset) to preserve ordering
-            if (wasRemoved) {
-                await restoreMtimeWithOffset(this.app, file, originalMtime, {
-                    dryRun: this.settings.dryRun,
-                    errorLog: this.errorLog.bind(this),
-                    context: 'Failed to adjust modification time during cleanup'
-                });
+                // Store original mtime before modification
+                const originalMtime = file.stat.mtime;
+                const wasRemoved = await this.removeFeaturedImage(file, currentFeature);
+
+                // If file was modified, gently restore mtime (original + 1.5s offset) to preserve ordering
+                if (wasRemoved) {
+                    await restoreMtimeWithOffset(this.app, file, originalMtime, {
+                        dryRun: this.settings.dryRun,
+                        errorLog: this.errorLog.bind(this),
+                        context: 'Failed to adjust modification time during cleanup'
+                    });
+                }
+
+                if (wasRemoved) {
+                    removedCount++;
+                }
             }
-
-            if (wasRemoved) {
-                removedCount++;
+        } finally {
+            try {
+                await this.thumbnailService?.endBulkReferenceTracking();
+            } finally {
+                activeWindow.setTimeout(() => {
+                    this.endBulkUpdate();
+                    const completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`;
+                    new Notice(completionMessage);
+                }, 100);
             }
         }
-
-        setTimeout(() => {
-            this.isRunningBulkUpdate = false;
-            const completionMessage = `Finished ${this.settings.dryRun ? 'dry run of ' : ''}removing featured images from ${removedCount} files.`;
-            new Notice(completionMessage);
-        }, 100);
     }
 
     /**
@@ -986,6 +1031,10 @@ export default class FeaturedImage extends Plugin {
 
         this.debugLog('FEATURE REMOVED\n- File: ', file.path);
         await this.updateFrontmatter(file, undefined, undefined);
+
+        if (!this.settings.dryRun && currentThumbnail && this.thumbnailService) {
+            this.thumbnailService.recordThumbnailReferenceChange(file, undefined);
+        }
 
         // Delete orphaned thumbnail after removing from frontmatter
         if (currentThumbnail) {
@@ -1027,7 +1076,15 @@ export default class FeaturedImage extends Plugin {
             return;
         }
 
-        await this.imageMaintenance.cleanupUnusedImages(this.showConfirmationModal.bind(this));
+        if (!this.startBulkUpdate()) {
+            return;
+        }
+
+        try {
+            await this.imageMaintenance.cleanupUnusedImages(this.showConfirmationModal.bind(this));
+        } finally {
+            this.endBulkUpdate();
+        }
     }
 
     /**
@@ -1042,12 +1099,8 @@ export default class FeaturedImage extends Plugin {
 
         await this.imageMaintenance.rerenderAllResizedThumbnails({
             confirm: this.showConfirmationModal.bind(this),
-            startBulkUpdate: () => {
-                this.isRunningBulkUpdate = true;
-            },
-            endBulkUpdate: () => {
-                this.isRunningBulkUpdate = false;
-            },
+            startBulkUpdate: this.startBulkUpdate.bind(this),
+            endBulkUpdate: this.endBulkUpdate.bind(this),
             getFeatureFromFrontmatter: this.getFeatureFromFrontmatter.bind(this),
             updateFrontmatter: this.updateFrontmatter.bind(this)
         });

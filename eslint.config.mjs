@@ -7,6 +7,11 @@ export default tseslint.config(
     {
         ignores: ['node_modules/**', 'dist/**', 'build/**', 'main.js', '*.min.js']
     },
+    {
+        linterOptions: {
+            reportUnusedDisableDirectives: 'error'
+        }
+    },
     js.configs.recommended,
     ...tseslint.configs.recommended,
     ...obsidianmd.configs.recommended,
@@ -37,9 +42,8 @@ export default tseslint.config(
             'no-var': 'error',
             // Upgrade obsidianmd rules from warn to error
             'obsidianmd/prefer-file-manager-trash-file': 'error',
-            // Allow Node.js modules in Obsidian plugins (Electron environment)
-            'import/no-nodejs-modules': 'off',
-
+            // Obsidian's current popout guidance uses activeWindow; version 0.4.1 still prefers the main window.
+            'obsidianmd/prefer-window-timers': 'off',
             // Type assertions
             '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
             '@typescript-eslint/prefer-as-const': 'warn',

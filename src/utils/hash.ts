@@ -85,9 +85,9 @@ const utf8ToBytes = (input: string): Uint8Array => {
 };
 
 const bytesToHex = (bytes: Uint8Array): string => {
-    const hex: string[] = new Array(bytes.length);
+    const hex: string[] = [];
     for (let i = 0; i < bytes.length; i++) {
-        hex[i] = bytes[i].toString(16).padStart(2, '0');
+        hex.push(bytes[i].toString(16).padStart(2, '0'));
     }
     return hex.join('');
 };

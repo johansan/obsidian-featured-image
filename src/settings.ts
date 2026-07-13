@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, SettingGroup, requireApiVersion } from 'obsidian';
+import { App, PluginSettingTab, Setting, SettingGroup, requireApiVersion, type SettingDefinitionItem } from 'obsidian';
 import FeaturedImage from './main';
 import { strings } from './i18n';
 
@@ -22,7 +22,6 @@ export interface FeaturedImageSettings {
     // Advanced settings
     frontmatterImageSourceProperties: string[];
     mediaLinkFormat: 'plain' | 'wiki' | 'embed';
-    useMediaLinks: boolean; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
     onlyUpdateExisting: boolean;
     keepEmptyProperty: boolean;
     preserveTemplateImages: boolean;
@@ -58,7 +57,6 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     // Advanced settings
     frontmatterImageSourceProperties: [],
     mediaLinkFormat: 'plain',
-    useMediaLinks: false, // TODO: Remove in the future, it has been replaced by mediaLinkFormat
     onlyUpdateExisting: false,
     keepEmptyProperty: false,
     preserveTemplateImages: false,
@@ -72,462 +70,595 @@ export const DEFAULT_SETTINGS: FeaturedImageSettings = {
     lastShownVersion: ''
 };
 
+type SettingsControlKey = Exclude<keyof FeaturedImageSettings, 'lastShownVersion'>;
+
+type SupportedSettingControl =
+    | { type: 'toggle'; key: SettingsControlKey }
+    | { type: 'dropdown'; key: SettingsControlKey; options: Record<string, string> }
+    | { type: 'text'; key: SettingsControlKey; placeholder?: string }
+    | { type: 'textarea'; key: SettingsControlKey; placeholder?: string; rows?: number }
+    | {
+          type: 'number';
+          key: SettingsControlKey;
+          defaultValue?: number;
+          placeholder?: string;
+          min?: number;
+          max?: number;
+          step?: number | 'any';
+      };
+
+interface FeaturedImageSettingBase {
+    name: string;
+    desc?: string;
+    searchable?: boolean | (() => boolean);
+    visible?: boolean | (() => boolean);
+}
+
+type FeaturedImageSettingDefinition = FeaturedImageSettingBase &
+    (
+        | { control: SupportedSettingControl; render?: never }
+        | { render: (setting: Setting) => void; control?: never }
+        | { control?: never; render?: never }
+    );
+
+interface FeaturedImageSettingGroup {
+    type: 'group';
+    heading?: string;
+    cls?: string;
+    items: FeaturedImageSettingDefinition[];
+}
+
+type FeaturedImageSettingItem = FeaturedImageSettingDefinition | FeaturedImageSettingGroup;
+
+interface LegacyGroupController {
+    rootEl: HTMLElement;
+    addSetting: (configure: (setting: Setting) => void) => Setting;
+}
+
 export class FeaturedImageSettingsTab extends PluginSettingTab {
     plugin: FeaturedImage;
+    private legacyVisibilityUpdaters: (() => void)[] = [];
 
     constructor(app: App, plugin: FeaturedImage) {
         super(app, plugin);
         this.plugin = plugin;
+        this.icon = 'wallpaper';
+    }
 
-        // Settings sidebar icon (Obsidian 1.11.0+)
-        if (this.supportsSettingGroups()) {
-            this.icon = 'wallpaper';
+    getSettingDefinitions(): SettingDefinitionItem[] {
+        if (!requireApiVersion('1.13.0')) {
+            return [];
         }
+
+        return this.createSettingDefinitions();
+    }
+
+    private createSettingDefinitions(): FeaturedImageSettingItem[] {
+        const resizedSettingsVisible = () => this.plugin.settings.createResizedThumbnail;
+        const alignmentSettingsVisible = () => this.plugin.settings.createResizedThumbnail && this.plugin.settings.fillResizedDimensions;
+
+        return [
+            {
+                name: strings.settings.items.whatsNew.name.replace('{version}', this.plugin.manifest.version),
+                desc: strings.settings.items.whatsNew.desc,
+                render: setting => {
+                    setting.addButton(button =>
+                        button.setButtonText(strings.settings.items.whatsNew.buttonText).onClick(() => {
+                            void this.openWhatsNewModal();
+                        })
+                    );
+                }
+            },
+            {
+                name: strings.settings.items.showNotifications.name,
+                desc: strings.settings.items.showNotifications.desc,
+                control: { type: 'toggle', key: 'showNotificationsOnUpdate' }
+            },
+            {
+                name: strings.settings.items.runAutomaticallyWhileEditing.name,
+                desc: strings.settings.items.runAutomaticallyWhileEditing.desc,
+                control: { type: 'toggle', key: 'runAutomaticallyWhileEditing' }
+            },
+            {
+                name: strings.settings.items.frontmatterProperty.name,
+                desc: strings.settings.items.frontmatterProperty.desc,
+                control: {
+                    type: 'text',
+                    key: 'frontmatterProperty',
+                    placeholder: DEFAULT_SETTINGS.frontmatterProperty
+                }
+            },
+            {
+                name: strings.settings.items.thumbnailsFolder.name,
+                desc: strings.settings.items.thumbnailsFolder.desc,
+                control: {
+                    type: 'text',
+                    key: 'thumbnailsFolder',
+                    placeholder: DEFAULT_SETTINGS.thumbnailsFolder
+                }
+            },
+            {
+                name: strings.settings.items.excludedFolders.name,
+                desc: strings.settings.items.excludedFolders.desc,
+                control: { type: 'textarea', key: 'excludedFolders', rows: 2 }
+            },
+            {
+                type: 'group',
+                heading: strings.settings.headings.frontmatter,
+                items: [
+                    {
+                        name: strings.settings.items.frontmatterImageSourceProperties.name,
+                        desc: strings.settings.items.frontmatterImageSourceProperties.desc,
+                        control: { type: 'textarea', key: 'frontmatterImageSourceProperties', rows: 2 }
+                    },
+                    {
+                        name: strings.settings.items.mediaLinkFormat.name,
+                        desc: strings.settings.items.mediaLinkFormat.desc,
+                        control: {
+                            type: 'dropdown',
+                            key: 'mediaLinkFormat',
+                            options: {
+                                plain: 'image.png',
+                                wiki: '[[image.png]]',
+                                embed: '![[image.png]]'
+                            }
+                        }
+                    },
+                    {
+                        name: strings.settings.items.onlyUpdateExisting.name,
+                        desc: strings.settings.items.onlyUpdateExisting.desc,
+                        control: { type: 'toggle', key: 'onlyUpdateExisting' }
+                    },
+                    {
+                        name: strings.settings.items.keepEmptyProperty.name,
+                        desc: strings.settings.items.keepEmptyProperty.desc,
+                        control: { type: 'toggle', key: 'keepEmptyProperty' }
+                    },
+                    {
+                        name: strings.settings.items.preserveTemplateImages.name,
+                        desc: strings.settings.items.preserveTemplateImages.desc,
+                        control: { type: 'toggle', key: 'preserveTemplateImages' }
+                    }
+                ]
+            },
+            {
+                type: 'group',
+                heading: strings.settings.headings.externalMedia,
+                items: [
+                    {
+                        name: strings.settings.items.downloadExternalImages.name,
+                        desc: strings.settings.items.downloadExternalImages.desc,
+                        control: { type: 'toggle', key: 'downloadExternalImages' }
+                    },
+                    {
+                        name: strings.settings.items.downloadYoutubeThumbnails.name,
+                        desc: strings.settings.items.downloadYoutubeThumbnails.desc,
+                        control: { type: 'toggle', key: 'downloadYoutubeThumbnails' }
+                    },
+                    {
+                        name: strings.settings.items.requireExclamationForYouTube.name,
+                        desc: strings.settings.items.requireExclamationForYouTube.desc,
+                        control: { type: 'toggle', key: 'requireExclamationForYouTube' }
+                    }
+                ]
+            },
+            {
+                type: 'group',
+                heading: strings.settings.headings.resizeThumbnail,
+                cls: 'resize-thumbnail-settings',
+                items: [
+                    {
+                        name: strings.settings.items.resizeFeatureImage.name,
+                        desc: strings.settings.items.resizeFeatureImage.desc,
+                        control: { type: 'toggle', key: 'createResizedThumbnail' }
+                    },
+                    {
+                        name: strings.settings.items.resizedThumbnailProperty.name,
+                        desc: strings.settings.items.resizedThumbnailProperty.desc,
+                        visible: resizedSettingsVisible,
+                        control: {
+                            type: 'text',
+                            key: 'resizedFrontmatterProperty',
+                            placeholder: strings.settings.items.resizedThumbnailProperty.placeholder
+                        }
+                    },
+                    {
+                        name: strings.settings.items.maxResizedWidth.name,
+                        desc: strings.settings.items.maxResizedWidth.desc,
+                        visible: resizedSettingsVisible,
+                        control: {
+                            type: 'number',
+                            key: 'maxResizedWidth',
+                            defaultValue: DEFAULT_SETTINGS.maxResizedWidth,
+                            placeholder: String(DEFAULT_SETTINGS.maxResizedWidth)
+                        }
+                    },
+                    {
+                        name: strings.settings.items.maxResizedHeight.name,
+                        desc: strings.settings.items.maxResizedHeight.desc,
+                        visible: resizedSettingsVisible,
+                        control: {
+                            type: 'number',
+                            key: 'maxResizedHeight',
+                            defaultValue: DEFAULT_SETTINGS.maxResizedHeight,
+                            placeholder: String(DEFAULT_SETTINGS.maxResizedHeight)
+                        }
+                    },
+                    {
+                        name: strings.settings.items.fillResizedDimensions.name,
+                        desc: strings.settings.items.fillResizedDimensions.desc,
+                        visible: resizedSettingsVisible,
+                        control: { type: 'toggle', key: 'fillResizedDimensions' }
+                    },
+                    {
+                        name: strings.settings.items.verticalAlignment.name,
+                        desc: strings.settings.items.verticalAlignment.desc,
+                        visible: alignmentSettingsVisible,
+                        control: {
+                            type: 'dropdown',
+                            key: 'resizedVerticalAlign',
+                            options: strings.settings.items.verticalAlignment.options
+                        }
+                    },
+                    {
+                        name: strings.settings.items.horizontalAlignment.name,
+                        desc: strings.settings.items.horizontalAlignment.desc,
+                        visible: alignmentSettingsVisible,
+                        control: {
+                            type: 'dropdown',
+                            key: 'resizedHorizontalAlign',
+                            options: strings.settings.items.horizontalAlignment.options
+                        }
+                    },
+                    {
+                        name: '',
+                        desc: strings.settings.info.rerenderTip,
+                        searchable: false,
+                        visible: resizedSettingsVisible
+                    }
+                ]
+            },
+            {
+                type: 'group',
+                heading: strings.settings.headings.advanced,
+                cls: 'advanced-settings',
+                items: [
+                    {
+                        name: strings.settings.items.debugMode.name,
+                        desc: strings.settings.items.debugMode.desc,
+                        control: { type: 'toggle', key: 'debugMode' }
+                    },
+                    {
+                        name: strings.settings.items.dryRun.name,
+                        desc: strings.settings.items.dryRun.desc,
+                        control: { type: 'toggle', key: 'dryRun' }
+                    }
+                ]
+            }
+        ];
+    }
+
+    getControlValue(key: string): unknown {
+        switch (key) {
+            case 'excludedFolders':
+                return this.plugin.settings.excludedFolders.join(',');
+            case 'frontmatterImageSourceProperties':
+                return this.plugin.settings.frontmatterImageSourceProperties.join(',');
+            case 'showNotificationsOnUpdate':
+            case 'runAutomaticallyWhileEditing':
+            case 'frontmatterProperty':
+            case 'thumbnailsFolder':
+            case 'mediaLinkFormat':
+            case 'onlyUpdateExisting':
+            case 'keepEmptyProperty':
+            case 'preserveTemplateImages':
+            case 'downloadExternalImages':
+            case 'downloadYoutubeThumbnails':
+            case 'requireExclamationForYouTube':
+            case 'createResizedThumbnail':
+            case 'resizedFrontmatterProperty':
+            case 'maxResizedWidth':
+            case 'maxResizedHeight':
+            case 'fillResizedDimensions':
+            case 'resizedVerticalAlign':
+            case 'resizedHorizontalAlign':
+            case 'debugMode':
+            case 'dryRun':
+                return this.plugin.settings[key];
+            default:
+                return undefined;
+        }
+    }
+
+    async setControlValue(key: string, value: unknown): Promise<void> {
+        const settings = this.plugin.settings;
+
+        switch (key) {
+            case 'showNotificationsOnUpdate':
+            case 'runAutomaticallyWhileEditing':
+            case 'onlyUpdateExisting':
+            case 'keepEmptyProperty':
+            case 'preserveTemplateImages':
+            case 'downloadExternalImages':
+            case 'downloadYoutubeThumbnails':
+            case 'requireExclamationForYouTube':
+            case 'createResizedThumbnail':
+            case 'fillResizedDimensions':
+            case 'debugMode':
+            case 'dryRun':
+                if (typeof value !== 'boolean') {
+                    return;
+                }
+                settings[key] = value;
+                break;
+            case 'frontmatterProperty':
+                if (typeof value !== 'string') {
+                    return;
+                }
+                settings.frontmatterProperty = value;
+                break;
+            case 'thumbnailsFolder': {
+                if (typeof value !== 'string') {
+                    return;
+                }
+                const sanitizedValue = value.trim();
+                settings.thumbnailsFolder = sanitizedValue ? sanitizedValue.replace(/\/$/, '') : DEFAULT_SETTINGS.thumbnailsFolder;
+                break;
+            }
+            case 'excludedFolders':
+                if (typeof value !== 'string') {
+                    return;
+                }
+                settings.excludedFolders = value
+                    .split(',')
+                    .map(folder => folder.trim().replace(/\/$/, ''))
+                    .filter(Boolean);
+                break;
+            case 'frontmatterImageSourceProperties': {
+                if (typeof value !== 'string') {
+                    return;
+                }
+                const properties = value
+                    .split(',')
+                    .map(property => property.trim())
+                    .filter(Boolean);
+                settings.frontmatterImageSourceProperties = Array.from(new Set(properties));
+                break;
+            }
+            case 'mediaLinkFormat':
+                if (value !== 'plain' && value !== 'wiki' && value !== 'embed') {
+                    return;
+                }
+                settings.mediaLinkFormat = value;
+                break;
+            case 'resizedFrontmatterProperty':
+                if (typeof value !== 'string') {
+                    return;
+                }
+                settings.resizedFrontmatterProperty = value || DEFAULT_SETTINGS.resizedFrontmatterProperty;
+                break;
+            case 'maxResizedWidth':
+            case 'maxResizedHeight': {
+                const parsedValue = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value, 10) : Number.NaN;
+                settings[key] = Number.isFinite(parsedValue) ? Math.trunc(parsedValue) : DEFAULT_SETTINGS[key];
+                break;
+            }
+            case 'resizedVerticalAlign':
+                if (value !== 'top' && value !== 'center' && value !== 'bottom') {
+                    return;
+                }
+                settings.resizedVerticalAlign = value;
+                break;
+            case 'resizedHorizontalAlign':
+                if (value !== 'left' && value !== 'center' && value !== 'right') {
+                    return;
+                }
+                settings.resizedHorizontalAlign = value;
+                break;
+            default:
+                return;
+        }
+
+        await this.plugin.saveSettings();
+        this.refreshSettingsDomState();
     }
 
     display(): void {
         const { containerEl } = this;
 
         containerEl.empty();
+        this.legacyVisibilityUpdaters = [];
 
-        // Obsidian 1.11.0 introduced `SettingGroup` (and the `requireApiVersion()` helper).
-        // We want to use SettingGroup when available (native look/spacing and cleaner structure),
-        // while still supporting older Obsidian versions via a small compatibility layer.
-        const useSettingGroups = this.supportsSettingGroups();
-
-        type GroupController = {
-            // Wrapper element for this section's settings. This exists in both modes:
-            // - On 1.11+: it's the container passed into SettingGroup
-            // - Pre-1.11: it's just a plain wrapper div that we append Setting items into
-            rootEl: HTMLElement;
-            // Pre-1.11: headings are rendered as their own Setting (a sibling of rootEl) to
-            // keep Obsidian's default "space before headings" styling. When we hide/show a
-            // group, we need to hide/show this heading too (otherwise you'd see a floating
-            // heading with no content).
-            headingEl?: HTMLElement;
-            addSetting: (cb: (setting: Setting) => void) => Setting;
-        };
-
-        const createGroup = (heading?: string, cls?: string): GroupController => {
-            let headingEl: HTMLElement | undefined;
-            if (!useSettingGroups && heading) {
-                // Render heading as a direct sibling in the settings container so Obsidian's
-                // built-in spacing rules apply (instead of being the first child in a wrapper div).
-                const headingSetting = new Setting(containerEl).setName(heading).setHeading();
-                headingEl = headingSetting.settingEl;
+        const topGroup = this.createLegacyGroup(containerEl);
+        for (const item of this.createSettingDefinitions()) {
+            if (this.isSettingGroup(item)) {
+                this.renderLegacyGroup(containerEl, item);
+            } else {
+                topGroup.addSetting(setting => {
+                    this.configureLegacySetting(setting, item);
+                });
             }
+        }
 
-            const rootEl = containerEl.createDiv(cls);
-            if (useSettingGroups) {
-                // Obsidian's settings UI styles assume groups are marked with `setting-group`.
-                // Adding it here ensures the section gets the same spacing/visual language as
-                // native settings. (Keeping it on both the wrapper and the group is intentional:
-                // it survives subtle internal DOM changes across Obsidian/theme versions.)
-                rootEl.addClass('setting-group');
-                const group = new SettingGroup(rootEl).addClass('setting-group');
-                if (heading) {
-                    group.setHeading(heading);
-                }
-                return {
-                    rootEl,
-                    headingEl,
-                    addSetting: cb => {
-                        let created!: Setting;
-                        group.addSetting(setting => {
-                            created = setting;
-                            cb(setting);
-                        });
-                        return created;
-                    }
-                };
-            }
-
-            return {
-                rootEl,
-                headingEl,
-                addSetting: cb => {
-                    const setting = new Setting(rootEl);
-                    cb(setting);
-                    return setting;
-                }
-            };
-        };
-
-        const topGroup = createGroup(undefined);
-        const pluginVersion = this.plugin.manifest.version;
-
-        topGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.whatsNew.name.replace('{version}', pluginVersion))
-                .setDesc(strings.settings.items.whatsNew.desc)
-                .addButton(button =>
-                    button.setButtonText(strings.settings.items.whatsNew.buttonText).onClick(() => {
-                        void (async () => {
-                            const { WhatsNewModal } = await import('./modals/WhatsNewModal');
-                            const { getLatestReleaseNotes } = await import('./releaseNotes');
-                            const fundingUrl = (this.plugin.manifest as unknown as { fundingUrl?: string }).fundingUrl;
-                            new WhatsNewModal(this.app, getLatestReleaseNotes(), fundingUrl).open();
-                        })();
-                    })
-                );
-        });
-
-        // Show notifications on update
-        topGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.showNotifications.name)
-                .setDesc(strings.settings.items.showNotifications.desc)
-                .addToggle(toggle => {
-                    toggle.setValue(this.plugin.settings.showNotificationsOnUpdate).onChange(async value => {
-                        this.plugin.settings.showNotificationsOnUpdate = value;
-                        await this.plugin.saveSettings();
-                    });
-                });
-        });
-
-        topGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.runAutomaticallyWhileEditing.name)
-                .setDesc(strings.settings.items.runAutomaticallyWhileEditing.desc)
-                .addToggle(toggle => {
-                    toggle.setValue(this.plugin.settings.runAutomaticallyWhileEditing).onChange(async value => {
-                        this.plugin.settings.runAutomaticallyWhileEditing = value;
-                        await this.plugin.saveSettings();
-                    });
-                });
-        });
-
-        // Frontmatter property
-        topGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.frontmatterProperty.name)
-                .setDesc(strings.settings.items.frontmatterProperty.desc)
-                .addText(text =>
-                    text
-                        .setPlaceholder(DEFAULT_SETTINGS.frontmatterProperty)
-                        .setValue(this.plugin.settings.frontmatterProperty)
-                        .onChange(async value => {
-                            this.plugin.settings.frontmatterProperty = value;
-                            await this.plugin.saveSettings();
-                        })
-                );
-        });
-
-        // Thumbnails folder
-        topGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.thumbnailsFolder.name)
-                .setDesc(strings.settings.items.thumbnailsFolder.desc)
-                .addText(text =>
-                    text
-                        .setPlaceholder(DEFAULT_SETTINGS.thumbnailsFolder)
-                        .setValue(this.plugin.settings.thumbnailsFolder)
-                        .onChange(async value => {
-                            const sanitizedValue = value.trim();
-                            if (!sanitizedValue) {
-                                this.plugin.settings.thumbnailsFolder = DEFAULT_SETTINGS.thumbnailsFolder;
-                            } else {
-                                this.plugin.settings.thumbnailsFolder = sanitizedValue.replace(/\/$/, '');
-                            }
-                            await this.plugin.saveSettings();
-                        })
-                );
-        });
-
-        // Excluded folders
-        topGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.excludedFolders.name)
-                .setDesc(strings.settings.items.excludedFolders.desc)
-                .addTextArea(text =>
-                    text.setValue(this.plugin.settings.excludedFolders.join(',')).onChange(async value => {
-                        this.plugin.settings.excludedFolders = value.split(',').map(folder => folder.trim().replace(/\/$/, ''));
-                        await this.plugin.saveSettings();
-                    })
-                );
-        });
-
-        const frontmatterGroup = createGroup(strings.settings.headings.frontmatter);
-
-        // Frontmatter image source properties
-        frontmatterGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.frontmatterImageSourceProperties.name)
-                .setDesc(strings.settings.items.frontmatterImageSourceProperties.desc)
-                .addTextArea(text =>
-                    text.setValue(this.plugin.settings.frontmatterImageSourceProperties.join(',')).onChange(async value => {
-                        const parsed = value
-                            .split(',')
-                            .map(property => property.trim())
-                            .filter(Boolean);
-
-                        this.plugin.settings.frontmatterImageSourceProperties = Array.from(new Set(parsed));
-                        await this.plugin.saveSettings();
-                    })
-                );
-        });
-
-        // Media link format
-        frontmatterGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.mediaLinkFormat.name)
-                .setDesc(strings.settings.items.mediaLinkFormat.desc)
-                .addDropdown(dropdown =>
-                    dropdown
-                        .addOption('plain', `${this.plugin.settings.frontmatterProperty}: image.png`)
-                        .addOption('wiki', `${this.plugin.settings.frontmatterProperty}: [[image.png]]`)
-                        .addOption('embed', `${this.plugin.settings.frontmatterProperty}: ![[image.png]]`)
-                        .setValue(this.plugin.settings.mediaLinkFormat)
-                        .onChange(async value => {
-                            this.plugin.settings.mediaLinkFormat = value as 'plain' | 'wiki' | 'embed';
-                            this.plugin.settings.useMediaLinks = value !== 'plain'; // TODO: Remove in the future, it has been replaced by mediaLinkFormat
-                            await this.plugin.saveSettings();
-                        })
-                );
-        });
-
-        // Only update existing fields toggle
-        frontmatterGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.onlyUpdateExisting.name)
-                .setDesc(strings.settings.items.onlyUpdateExisting.desc)
-                .addToggle(toggle => {
-                    toggle.setValue(this.plugin.settings.onlyUpdateExisting).onChange(async value => {
-                        this.plugin.settings.onlyUpdateExisting = value;
-                        await this.plugin.saveSettings();
-                    });
-                });
-        });
-
-        // Keep empty property
-        frontmatterGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.keepEmptyProperty.name)
-                .setDesc(strings.settings.items.keepEmptyProperty.desc)
-                .addToggle(toggle => {
-                    toggle.setValue(this.plugin.settings.keepEmptyProperty).onChange(async value => {
-                        this.plugin.settings.keepEmptyProperty = value;
-                        await this.plugin.saveSettings();
-                    });
-                });
-        });
-
-        // Preserve template images
-        frontmatterGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.preserveTemplateImages.name)
-                .setDesc(strings.settings.items.preserveTemplateImages.desc)
-                .addToggle(toggle => {
-                    toggle.setValue(this.plugin.settings.preserveTemplateImages).onChange(async value => {
-                        this.plugin.settings.preserveTemplateImages = value;
-                        await this.plugin.saveSettings();
-                    });
-                });
-        });
-
-        const externalMediaGroup = createGroup(strings.settings.headings.externalMedia);
-
-        // Download external images
-        externalMediaGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.downloadExternalImages.name)
-                .setDesc(strings.settings.items.downloadExternalImages.desc)
-                .addToggle(toggle =>
-                    toggle.setValue(this.plugin.settings.downloadExternalImages).onChange(async value => {
-                        this.plugin.settings.downloadExternalImages = value;
-                        await this.plugin.saveSettings();
-                    })
-                );
-        });
-
-        // Download YouTube thumbnails
-        externalMediaGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.downloadYoutubeThumbnails.name)
-                .setDesc(strings.settings.items.downloadYoutubeThumbnails.desc)
-                .addToggle(toggle =>
-                    toggle.setValue(this.plugin.settings.downloadYoutubeThumbnails).onChange(async value => {
-                        this.plugin.settings.downloadYoutubeThumbnails = value;
-                        await this.plugin.saveSettings();
-                    })
-                );
-        });
-
-        // Require exclamation mark for YouTube thumbnails
-        externalMediaGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.requireExclamationForYouTube.name)
-                .setDesc(strings.settings.items.requireExclamationForYouTube.desc)
-                .addToggle(toggle =>
-                    toggle.setValue(this.plugin.settings.requireExclamationForYouTube).onChange(async value => {
-                        this.plugin.settings.requireExclamationForYouTube = value;
-                        await this.plugin.saveSettings();
-                    })
-                );
-        });
-
-        const resizeThumbnailGroup = createGroup(strings.settings.headings.resizeThumbnail, 'resize-thumbnail-settings');
-
-        // Resize feature image
-        const resizeFeatureSetting = resizeThumbnailGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.resizeFeatureImage.name)
-                .setDesc(strings.settings.items.resizeFeatureImage.desc)
-                .addToggle(toggle =>
-                    toggle.setValue(this.plugin.settings.createResizedThumbnail).onChange(async value => {
-                        this.plugin.settings.createResizedThumbnail = value;
-                        await this.plugin.saveSettings();
-                        updateThumbnailSettingsVisibility(value);
-                    })
-                );
-        });
-
-        const thumbnailSettingsEl = resizeThumbnailGroup.rootEl.createDiv('thumbnail-settings');
-        resizeFeatureSetting.settingEl.after(thumbnailSettingsEl);
-
-        const resizedThumbnailSetting = new Setting(thumbnailSettingsEl)
-            .setName(strings.settings.items.resizedThumbnailProperty.name)
-            .setDesc(strings.settings.items.resizedThumbnailProperty.desc)
-            .addText(text =>
-                text
-                    .setPlaceholder(strings.settings.items.resizedThumbnailProperty.placeholder)
-                    .setValue(this.plugin.settings.resizedFrontmatterProperty)
-                    .onChange(async value => {
-                        this.plugin.settings.resizedFrontmatterProperty = value || 'thumbnail';
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        // Max resized width
-        new Setting(thumbnailSettingsEl)
-            .setName(strings.settings.items.maxResizedWidth.name)
-            .setDesc(strings.settings.items.maxResizedWidth.desc)
-            .addText(text =>
-                text
-                    .setPlaceholder(String(DEFAULT_SETTINGS.maxResizedWidth))
-                    .setValue(String(this.plugin.settings.maxResizedWidth))
-                    .onChange(async value => {
-                        const width = parseInt(value, 10);
-                        this.plugin.settings.maxResizedWidth = Number.isNaN(width) ? DEFAULT_SETTINGS.maxResizedWidth : width;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        // Max resized height
-        new Setting(thumbnailSettingsEl)
-            .setName(strings.settings.items.maxResizedHeight.name)
-            .setDesc(strings.settings.items.maxResizedHeight.desc)
-            .addText(text =>
-                text
-                    .setPlaceholder(String(DEFAULT_SETTINGS.maxResizedHeight))
-                    .setValue(String(this.plugin.settings.maxResizedHeight))
-                    .onChange(async value => {
-                        const height = parseInt(value, 10);
-                        this.plugin.settings.maxResizedHeight = Number.isNaN(height) ? DEFAULT_SETTINGS.maxResizedHeight : height;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        // Fill resized dimensions
-        new Setting(thumbnailSettingsEl)
-            .setName(strings.settings.items.fillResizedDimensions.name)
-            .setDesc(strings.settings.items.fillResizedDimensions.desc)
-            .addToggle(toggle =>
-                toggle.setValue(this.plugin.settings.fillResizedDimensions).onChange(async value => {
-                    this.plugin.settings.fillResizedDimensions = value;
-                    await this.plugin.saveSettings();
-                    updateAlignmentSettingsVisibility(value);
-                })
-            );
-
-        const alignmentSettingsEl = thumbnailSettingsEl.createDiv('alignment-settings');
-
-        // Vertical alignment setting
-        new Setting(alignmentSettingsEl)
-            .setName(strings.settings.items.verticalAlignment.name)
-            .setDesc(strings.settings.items.verticalAlignment.desc)
-            .addDropdown(dropdown =>
-                dropdown
-                    .addOption('top', strings.settings.items.verticalAlignment.options.top)
-                    .addOption('center', strings.settings.items.verticalAlignment.options.center)
-                    .addOption('bottom', strings.settings.items.verticalAlignment.options.bottom)
-                    .setValue(this.plugin.settings.resizedVerticalAlign)
-                    .onChange(async value => {
-                        this.plugin.settings.resizedVerticalAlign = value as 'top' | 'center' | 'bottom';
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        // Horizontal alignment setting
-        new Setting(alignmentSettingsEl)
-            .setName(strings.settings.items.horizontalAlignment.name)
-            .setDesc(strings.settings.items.horizontalAlignment.desc)
-            .addDropdown(dropdown =>
-                dropdown
-                    .addOption('left', strings.settings.items.horizontalAlignment.options.left)
-                    .addOption('center', strings.settings.items.horizontalAlignment.options.center)
-                    .addOption('right', strings.settings.items.horizontalAlignment.options.right)
-                    .setValue(this.plugin.settings.resizedHorizontalAlign)
-                    .onChange(async value => {
-                        this.plugin.settings.resizedHorizontalAlign = value as 'left' | 'center' | 'right';
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        const infoEl = thumbnailSettingsEl.createDiv('thumbnail-info');
-        infoEl.createEl('p', {
-            text: strings.settings.info.rerenderTip,
-            cls: 'setting-item-description'
-        });
-
-        const advancedGroup = createGroup(strings.settings.headings.advanced, 'advanced-settings');
-
-        // Debug mode
-        advancedGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.debugMode.name)
-                .setDesc(strings.settings.items.debugMode.desc)
-                .addToggle(toggle =>
-                    toggle.setValue(this.plugin.settings.debugMode).onChange(async value => {
-                        this.plugin.settings.debugMode = value;
-                        await this.plugin.saveSettings();
-                    })
-                );
-        });
-
-        // Dry run
-        advancedGroup.addSetting(setting => {
-            setting
-                .setName(strings.settings.items.dryRun.name)
-                .setDesc(strings.settings.items.dryRun.desc)
-                .addToggle(toggle =>
-                    toggle.setValue(this.plugin.settings.dryRun).onChange(async value => {
-                        this.plugin.settings.dryRun = value;
-                        await this.plugin.saveSettings();
-                    })
-                );
-        });
-
-        // Visibility control functions
-        const updateThumbnailSettingsVisibility = (show: boolean) => {
-            resizedThumbnailSetting.settingEl.style.display = show ? '' : 'none';
-            thumbnailSettingsEl.style.display = show ? 'block' : 'none';
-            updateAlignmentSettingsVisibility(show && this.plugin.settings.fillResizedDimensions);
-        };
-
-        const updateAlignmentSettingsVisibility = (show: boolean) => {
-            alignmentSettingsEl.style.display = show ? 'block' : 'none';
-        };
-
-        // Initial visibility based on current settings
-        updateThumbnailSettingsVisibility(this.plugin.settings.createResizedThumbnail);
-        updateAlignmentSettingsVisibility(this.plugin.settings.createResizedThumbnail && this.plugin.settings.fillResizedDimensions);
+        this.refreshLegacySettingsDomState();
     }
 
-    private supportsSettingGroups(): boolean {
-        // `SettingGroup` and `requireApiVersion` are available starting in Obsidian 1.11.0.
-        // This check keeps the settings tab working on older versions without branching the
-        // entire rendering implementation.
-        return typeof SettingGroup === 'function' && typeof requireApiVersion === 'function' && requireApiVersion('1.11.0');
+    private isSettingGroup(item: FeaturedImageSettingItem): item is FeaturedImageSettingGroup {
+        return 'type' in item && item.type === 'group';
+    }
+
+    private createLegacyGroup(containerEl: HTMLElement, heading?: string, cls?: string): LegacyGroupController {
+        const rootEl = containerEl.createDiv(cls);
+        rootEl.addClass('setting-group');
+        const group = new SettingGroup(rootEl).addClass('setting-group');
+        if (heading) {
+            group.setHeading(heading);
+        }
+
+        return {
+            rootEl,
+            addSetting: configure => {
+                let created!: Setting;
+                group.addSetting(setting => {
+                    created = setting;
+                    configure(setting);
+                });
+                return created;
+            }
+        };
+    }
+
+    private renderLegacyGroup(containerEl: HTMLElement, definitionGroup: FeaturedImageSettingGroup): void {
+        const group = this.createLegacyGroup(containerEl, definitionGroup.heading, definitionGroup.cls);
+        if (definitionGroup.cls !== 'resize-thumbnail-settings') {
+            for (const definition of definitionGroup.items) {
+                group.addSetting(setting => {
+                    this.configureLegacySetting(setting, definition);
+                });
+            }
+            return;
+        }
+
+        const [resizeToggleDefinition, ...thumbnailDefinitions] = definitionGroup.items;
+        if (!resizeToggleDefinition) {
+            return;
+        }
+
+        const resizeToggleSetting = group.addSetting(setting => {
+            this.configureLegacySetting(setting, resizeToggleDefinition);
+        });
+        const thumbnailSettingsEl = group.rootEl.createDiv('thumbnail-settings');
+        resizeToggleSetting.settingEl.after(thumbnailSettingsEl);
+
+        let alignmentSettingsEl: HTMLElement | undefined;
+        for (const definition of thumbnailDefinitions) {
+            const key = definition.control?.key;
+            const isAlignmentSetting = key === 'resizedVerticalAlign' || key === 'resizedHorizontalAlign';
+            if (isAlignmentSetting && !alignmentSettingsEl) {
+                alignmentSettingsEl = thumbnailSettingsEl.createDiv('alignment-settings');
+            }
+
+            const parentEl = isAlignmentSetting && alignmentSettingsEl ? alignmentSettingsEl : thumbnailSettingsEl;
+            this.configureLegacySetting(new Setting(parentEl), definition);
+        }
+
+        this.legacyVisibilityUpdaters.push(() => {
+            thumbnailSettingsEl.style.display = this.plugin.settings.createResizedThumbnail ? 'block' : 'none';
+        });
+
+        if (alignmentSettingsEl) {
+            this.legacyVisibilityUpdaters.push(() => {
+                alignmentSettingsEl.style.display =
+                    this.plugin.settings.createResizedThumbnail && this.plugin.settings.fillResizedDimensions ? 'block' : 'none';
+            });
+        }
+    }
+
+    private configureLegacySetting(setting: Setting, definition: FeaturedImageSettingDefinition): void {
+        setting.setName(definition.name);
+        if (definition.desc !== undefined) {
+            setting.setDesc(definition.desc);
+        }
+
+        if (definition.render) {
+            definition.render(setting);
+        } else if (definition.control) {
+            this.addLegacyControl(setting, definition.control);
+        }
+
+        this.legacyVisibilityUpdaters.push(() => {
+            const visible = typeof definition.visible === 'function' ? definition.visible() : definition.visible !== false;
+            setting.settingEl.style.display = visible ? '' : 'none';
+        });
+    }
+
+    private addLegacyControl(setting: Setting, control: SupportedSettingControl): void {
+        const value = this.getControlValue(control.key);
+
+        switch (control.type) {
+            case 'toggle':
+                setting.addToggle(toggle => {
+                    toggle.setValue(value === true).onChange(async nextValue => {
+                        await this.setControlValue(control.key, nextValue);
+                    });
+                });
+                break;
+            case 'dropdown':
+                setting.addDropdown(dropdown => {
+                    for (const [optionValue, label] of Object.entries(control.options)) {
+                        dropdown.addOption(optionValue, label);
+                    }
+                    dropdown.setValue(typeof value === 'string' ? value : '').onChange(async nextValue => {
+                        await this.setControlValue(control.key, nextValue);
+                    });
+                });
+                break;
+            case 'text':
+                setting.addText(text => {
+                    if (control.placeholder) {
+                        text.setPlaceholder(control.placeholder);
+                    }
+                    text.setValue(typeof value === 'string' ? value : '').onChange(async nextValue => {
+                        await this.setControlValue(control.key, nextValue);
+                    });
+                });
+                break;
+            case 'textarea':
+                setting.addTextArea(text => {
+                    if (control.placeholder) {
+                        text.setPlaceholder(control.placeholder);
+                    }
+                    if (control.rows !== undefined) {
+                        text.inputEl.rows = control.rows;
+                    }
+                    text.setValue(typeof value === 'string' ? value : '').onChange(async nextValue => {
+                        await this.setControlValue(control.key, nextValue);
+                    });
+                });
+                break;
+            case 'number':
+                setting.addText(text => {
+                    text.inputEl.type = 'number';
+                    if (control.placeholder) {
+                        text.setPlaceholder(control.placeholder);
+                    }
+                    if (control.min !== undefined) {
+                        text.inputEl.min = String(control.min);
+                    }
+                    if (control.max !== undefined) {
+                        text.inputEl.max = String(control.max);
+                    }
+                    if (control.step !== undefined) {
+                        text.inputEl.step = String(control.step);
+                    }
+
+                    const initialValue = typeof value === 'number' ? value : (control.defaultValue ?? 0);
+                    text.setValue(String(initialValue)).onChange(async nextValue => {
+                        await this.setControlValue(control.key, nextValue);
+                    });
+                });
+                break;
+        }
+    }
+
+    private refreshLegacySettingsDomState(): void {
+        for (const updateVisibility of this.legacyVisibilityUpdaters) {
+            updateVisibility();
+        }
+    }
+
+    private async openWhatsNewModal(): Promise<void> {
+        const { WhatsNewModal } = await import('./modals/WhatsNewModal');
+        const { getLatestReleaseNotes } = await import('./releaseNotes');
+        const fundingUrl = (this.plugin.manifest as unknown as { fundingUrl?: string }).fundingUrl;
+        new WhatsNewModal(this.app, getLatestReleaseNotes(), fundingUrl).open();
+    }
+
+    private refreshSettingsDomState(): void {
+        const refreshDomState: unknown = Reflect.get(this, 'refreshDomState');
+        if (typeof refreshDomState === 'function') {
+            refreshDomState.call(this);
+        }
+        this.refreshLegacySettingsDomState();
     }
 }
